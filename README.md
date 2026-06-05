@@ -106,20 +106,25 @@ RuntimeState {
 
 ## Import Excel
 
-Hỗ trợ nhiều format; app tự nhận diện header và loại câu.
+App tự nhận diện header và loại câu (MCQ/Essay) từ nội dung cột **Options**.
 
-### Format mở rộng (khuyến nghị)
+### Format chuẩn — 4 cột (khuyến nghị)
 
-| Lĩnh vực | Loại | Câu hỏi | Options/Đáp án | Đáp án đúng (MCQ) |
-|----------|------|---------|----------------|-------------------|
-| Lịch sử | mcq | … | A. … / B. … | A. 1945 |
-| Khoa học | essay | … | (nội dung đáp án) | |
+| Lĩnh vực | Câu hỏi | Options | Đáp án đúng |
+|----------|---------|---------|-------------|
+| Lịch sử | Việt Nam giành độc lập năm nào? | A. 1945<br>B. 1954<br>C. 1975<br>D. 1986 | A. 1945 |
+| Khoa học | Vai trò của nước trong đời sống? | *(để trống)* | Nước tham gia trao đổi chất… |
 
-### Legacy 3 cột (hybrid)
+**Quy tắc:**
+- **Options có dữ liệu** → trắc nghiệm (MCQ)
+- **Options trống** → tự luận (Essay), đáp án nằm ở cột **Đáp án đúng**
+- **Lĩnh vực** có thể để trống → gán vào lĩnh vực đang chọn trên app
+
+### Legacy 3 cột (không lĩnh vực)
 
 | Câu hỏi | Phương án | Đáp án đúng |
 |---------|-----------|-------------|
-| … | A…B…C…D… (xuống dòng) | C. … |
+| … | A…B…C…D… | C. … |
 | … | *(trống)* | Đoạn tự luận |
 
 ### Legacy 2 cột
@@ -129,7 +134,8 @@ Hỗ trợ nhiều format; app tự nhận diện header và loại câu.
 | … | … |
 
 - File: `.xlsx` / `.xls`
-- Dòng lỗi được liệt kê trong báo cáo import (row number + lý do)
+- File cũ có cột **Loại** (mcq/essay) vẫn import được
+- Dòng lỗi được liệt kê trong báo cáo import (số dòng + lý do)
 
 ---
 

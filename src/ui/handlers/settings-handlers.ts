@@ -1,5 +1,5 @@
 import { appContext } from '../../core/state';
-import type { SoundEventKey } from '../../types';
+import type { SettingsSection, SoundEventKey } from '../../types';
 import { textToRewardItems } from '../../data';
 import * as Actions from '../../core/actions';
 
@@ -79,6 +79,12 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
   };
 
   const onClick = (event: Event): void => {
+    const sectionButton = getActionTarget(event, root, '[data-action="settings-section"]');
+    if (sectionButton?.dataset.section) {
+      appContext.setRuntimeState({ settingsSection: sectionButton.dataset.section as SettingsSection });
+      return;
+    }
+
     const previewButton = getActionTarget(event, root, '[data-action="preview-sound"]');
     if (previewButton) {
       const eventKey = readSoundEvent(previewButton);

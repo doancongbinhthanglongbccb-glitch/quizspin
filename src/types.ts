@@ -14,6 +14,8 @@ export type Question = {
 
 export type QuestionFilter = 'all' | QuestionType;
 
+export type SettingsSection = 'timer' | 'sound' | 'gifts' | 'punishments' | 'danger';
+
 export type QuestionDraft = {
   type: QuestionType;
   question: string;
@@ -38,7 +40,7 @@ export type Category = {
   questions: Question[];
 };
 
-export type SoundEventKey = 'spin' | 'tick' | 'correct' | 'wrong' | 'timeup' | 'fanfare' | 'click';
+export type SoundEventKey = 'spin' | 'tick' | 'countdown' | 'correct' | 'wrong' | 'timeup' | 'fanfare' | 'click';
 
 export type CustomSound = {
   id: string;

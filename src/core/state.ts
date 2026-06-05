@@ -1,4 +1,4 @@
-import type { AppState, ActiveModal, AnswerRecord, CustomSound, ImportStats, QuestionDraft, SoundEventKey } from '../types';
+import type { AppState, ActiveModal, AnswerRecord, CustomSound, ImportStats, QuestionDraft, SettingsSection, SoundEventKey } from '../types';
 import { createSampleState, defaultQuestionDraft, migrateCategoryQuestions } from '../data';
 import { DEFAULT_PALETTE, DEFAULTS } from '../config';
 
@@ -27,6 +27,7 @@ export type RuntimeState = {
   } | null;
   bankLogs?: Array<{ ts: number; message: string }>;
   spinHistory: Array<{ label: string; color: string; ts: number }>;
+  settingsSection: SettingsSection;
 };
 
 // Tạo state runtime mặc định
@@ -47,6 +48,7 @@ function createDefaultRuntimeState(): RuntimeState {
     importReport: null,
     bankLogs: [],
     spinHistory: [],
+    settingsSection: 'timer',
   };
 }
 
@@ -145,7 +147,7 @@ function migrateSoundBindings(
 
   const libraryIds = new Set(library.map((item) => item.id));
   const next: Partial<Record<SoundEventKey, string>> = {};
-  const allowed: SoundEventKey[] = ['spin', 'tick', 'correct', 'wrong', 'timeup', 'fanfare', 'click'];
+  const allowed: SoundEventKey[] = ['spin', 'tick', 'countdown', 'correct', 'wrong', 'timeup', 'fanfare', 'click'];
 
   for (const key of allowed) {
     const value = (bindings as Record<string, unknown>)[key];
@@ -162,29 +164,36 @@ function migrateAnswerHistory(items: unknown): AnswerRecord[] {
     return [];
   }
 
-  return items
-    .map((item) => {
-      if (!item || typeof item !== 'object') {
-        return null;
-      }
+  const records: AnswerRecord[] = [];
 
-      const record = item as Partial<AnswerRecord>;
-      const questionId = typeof record.questionId === 'string' ? record.questionId.trim() : '';
-      const playerAnswer = typeof record.playerAnswer === 'string' ? record.playerAnswer : '';
-      const submittedAt = typeof record.submittedAt === 'string' ? record.submittedAt : '';
-      if (!questionId || !submittedAt) {
-        return null;
-      }
+  for (const item of items) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
 
-      return {
-        questionId,
-        playerAnswer,
-        isCorrect: Boolean(record.isCorrect),
-        timeSpentMs: typeof record.timeSpentMs === 'number' ? record.timeSpentMs : undefined,
-        submittedAt,
-      } satisfies AnswerRecord;
-    })
-    .filter((item): item is AnswerRecord => Boolean(item));
+    const record = item as Partial<AnswerRecord>;
+    const questionId = typeof record.questionId === 'string' ? record.questionId.trim() : '';
+    const playerAnswer = typeof record.playerAnswer === 'string' ? record.playerAnswer : '';
+    const submittedAt = typeof record.submittedAt === 'string' ? record.submittedAt : '';
+    if (!questionId || !submittedAt) {
+      continue;
+    }
+
+    const next: AnswerRecord = {
+      questionId,
+      playerAnswer,
+      isCorrect: Boolean(record.isCorrect),
+      submittedAt,
+    };
+
+    if (typeof record.timeSpentMs === 'number') {
+      next.timeSpentMs = record.timeSpentMs;
+    }
+
+    records.push(next);
+  }
+
+  return records;
 }
 
 function normalizeAppState(next: AppState): AppState {
@@ -258,6 +267,13 @@ export class AppContext {
   }
 
   /**
+   * Cập nhật RuntimeState mà không re-render (dùng khi gõ text trong form)
+   */
+  patchRuntimeState(update: Partial<RuntimeState>): void {
+    this.runtimeState = mergeRuntimeState(this.runtimeState, update);
+  }
+
+  /**
    * Đăng ký callback để được gọi khi state thay đổi
    */
   subscribe(callback: () => void): () => void {
@@ -295,6 +311,8 @@ export class AppContext {
     await saver('appState', this.appState);
   }
 }
+
+export type { AppState } from '../types';
 
 // Export singleton instance theo context pattern
 export const appContext = new AppContext();

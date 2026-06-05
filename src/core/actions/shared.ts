@@ -6,6 +6,13 @@ let timerHandle: number | null = null;
 let toastHandle: number | null = null;
 let spinHandle: number | null = null;
 
+export function appendBankLog(message: string): void {
+  const runtime = appContext.getRuntimeState();
+  appContext.setRuntimeState({
+    bankLogs: [...(runtime.bankLogs ?? []), { ts: Date.now(), message }],
+  });
+}
+
 export function showToast(message: string): void {
   appContext.setRuntimeState({ toast: message });
 
@@ -42,34 +49,6 @@ export function setTimerHandle(handle: number | null): void {
   timerHandle = handle;
 }
 
-export function playTone(frequency: number, duration: number, type: OscillatorType = 'sine'): void {
-  const appState = appContext.getAppState();
-  if (!appState.settings.sound) {
-    return;
-  }
-
-  const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextClass) {
-    return;
-  }
-
-  const context = new AudioContextClass();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = type;
-  oscillator.frequency.value = frequency;
-  gain.gain.value = 0.0001;
-  oscillator.connect(gain);
-  gain.connect(context.destination);
-
-  const now = context.currentTime;
-  gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration / 1000);
-  oscillator.start();
-  oscillator.stop(now + duration / 1000);
-  oscillator.onended = () => context.close().catch(() => undefined);
-}
-
 export function startQuestionTimer(): void {
   stopTimer();
   const runtime = appContext.getRuntimeState();
@@ -97,6 +76,7 @@ export function startQuestionTimer(): void {
       return;
     }
 
+    soundManager.play('countdown');
     appContext.setRuntimeState({ modal: nextModal });
   }, 1000);
 

@@ -1,11 +1,8 @@
 import type { AppState } from '../../types';
 import type { RuntimeState } from '../../core/state';
 import { summarizeAnswerRecord } from '../../data';
+import { escapeHtml } from '../../utils/html';
 import { WheelRenderer } from './wheel';
-
-function escapeHtml(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-}
 
 function renderAnswerHistory(appState: AppState): string {
   const recent = appState.answerHistory.slice(0, 8);

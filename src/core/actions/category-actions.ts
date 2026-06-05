@@ -1,6 +1,7 @@
 import type { Category } from '../../types';
 import { defaultQuestionDraft, makeCategory, questionToDraft } from '../../data';
 import { appContext } from '../state';
+import { appendBankLog } from './shared';
 
 export function currentCategory(): Category | null {
   const appState = appContext.getAppState();
@@ -50,11 +51,7 @@ export function addCategory(): void {
   appContext.setAppState((current) => ({ ...current, categories: [...current.categories, nextCategory] }));
   appContext.setRuntimeState({ selectedCategoryId: nextCategory.id });
   ensureQuestionDraft(nextCategory);
-  try {
-    const rt = appContext.getRuntimeState();
-    const next = (rt.bankLogs ?? []).concat([{ ts: Date.now(), message: `Đã thêm lĩnh vực: ${nextCategory.name}` }]);
-    appContext.setRuntimeState({ bankLogs: next });
-  } catch (e) {}
+  appendBankLog(`Đã thêm lĩnh vực: ${nextCategory.name}`);
 }
 
 export function renameCategory(category: Category): void {
@@ -67,11 +64,7 @@ export function renameCategory(category: Category): void {
     ...current,
     categories: current.categories.map((item) => (item.id === category.id ? { ...item, name: name.trim() } : item)),
   }));
-  try {
-    const rt = appContext.getRuntimeState();
-    const next = (rt.bankLogs ?? []).concat([{ ts: Date.now(), message: `Đổi tên lĩnh vực: ${category.name} → ${name.trim()}` }]);
-    appContext.setRuntimeState({ bankLogs: next });
-  } catch (e) {}
+  appendBankLog(`Đổi tên lĩnh vực: ${category.name} → ${name.trim()}`);
 }
 
 export function deleteCategory(category: Category): void {
@@ -90,9 +83,5 @@ export function deleteCategory(category: Category): void {
   }
 
   ensureQuestionDraft(currentCategory());
-  try {
-    const rt = appContext.getRuntimeState();
-    const next = (rt.bankLogs ?? []).concat([{ ts: Date.now(), message: `Xóa lĩnh vực: ${category.name}` }]);
-    appContext.setRuntimeState({ bankLogs: next });
-  } catch (e) {}
+  appendBankLog(`Xóa lĩnh vực: ${category.name}`);
 }

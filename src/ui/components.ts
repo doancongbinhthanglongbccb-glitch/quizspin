@@ -17,6 +17,47 @@ const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 let wheelCleanup: (() => void) | null = null;
 let eventCleanups: Array<() => void> = [];
 
+type FocusSnapshot = {
+  id: string;
+  selectionStart: number;
+  selectionEnd: number;
+} | null;
+
+function captureFocus(): FocusSnapshot {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)) {
+    return null;
+  }
+
+  if (!active.id || !appRoot.contains(active)) {
+    return null;
+  }
+
+  return {
+    id: active.id,
+    selectionStart: active.selectionStart ?? active.value.length,
+    selectionEnd: active.selectionEnd ?? active.value.length,
+  };
+}
+
+function restoreFocus(snapshot: FocusSnapshot): void {
+  if (!snapshot) {
+    return;
+  }
+
+  const element = document.getElementById(snapshot.id);
+  if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) {
+    return;
+  }
+
+  element.focus();
+  try {
+    element.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd);
+  } catch {
+    // Một số input type không hỗ trợ selection range.
+  }
+}
+
 if (!appRoot) {
   throw new Error('Missing app root');
 }
@@ -51,9 +92,15 @@ function renderTabs(): string {
 }
 
 export function render(): void {
+  const focusSnapshot = captureFocus();
   const appState = appContext.getAppState();
   const runtime = appContext.getRuntimeState();
-  const content = runtime.tab === 'spin' ? renderSpinTab(appState, runtime) : runtime.tab === 'bank' ? renderBankTab(appState, runtime) : renderSettingsTab(appState);
+  const content =
+    runtime.tab === 'spin'
+      ? renderSpinTab(appState, runtime)
+      : runtime.tab === 'bank'
+        ? renderBankTab(appState, runtime)
+        : renderSettingsTab(appState, runtime);
 
   cleanupRenderLifecycle();
 
@@ -85,6 +132,7 @@ export function render(): void {
 
   eventCleanups = bindEvents();
   mountWheelCanvas();
+  restoreFocus(focusSnapshot);
 }
 
 function bindEvents(): Array<() => void> {

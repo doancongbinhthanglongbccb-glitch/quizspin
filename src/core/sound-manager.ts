@@ -1,3 +1,4 @@
+import { DEFAULT_SOUND_FILES } from '../config/sounds';
 import type { CustomSound, SoundEventKey } from '../types';
 import { appContext } from './state';
 
@@ -7,10 +8,12 @@ type SoundSpec = {
   type: OscillatorType;
 };
 
-const BUILTIN_SOUNDS: Partial<Record<SoundEventKey, SoundSpec>> = {
+/** Fallback nếu file bundle không load được */
+const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
   correct: { frequency: 880, duration: 180, type: 'sine' },
   wrong: { frequency: 220, duration: 260, type: 'sawtooth' },
   timeup: { frequency: 880, duration: 450, type: 'triangle' },
+  countdown: { frequency: 640, duration: 35, type: 'square' },
   spin: { frequency: 160, duration: 260, type: 'sawtooth' },
   tick: { frequency: 420, duration: 20, type: 'square' },
   click: { frequency: 660, duration: 420, type: 'triangle' },
@@ -26,15 +29,25 @@ export class SoundManager {
       return;
     }
 
-    const custom = this.resolveCustomSound(event, appState.settings.sounds?.library ?? [], appState.settings.sounds?.bindings);
+    const custom = this.resolveCustomSound(
+      event,
+      appState.settings.sounds?.library ?? [],
+      appState.settings.sounds?.bindings,
+    );
     if (custom) {
       this.playDataUrl(custom.dataUrl);
       return;
     }
 
-    const builtin = BUILTIN_SOUNDS[event];
-    if (builtin) {
-      this.playTone(builtin.frequency, builtin.duration, builtin.type);
+    const bundled = DEFAULT_SOUND_FILES[event];
+    if (bundled) {
+      this.playUrl(bundled);
+      return;
+    }
+
+    const fallback = TONE_FALLBACK[event];
+    if (fallback) {
+      this.playTone(fallback.frequency, fallback.duration, fallback.type);
     }
   }
 
@@ -49,6 +62,30 @@ export class SoundManager {
     }
 
     return library.find((item) => item.id === soundId) ?? null;
+  }
+
+  private playUrl(url: string): void {
+    this.activeAudio?.pause();
+
+    const audio = new Audio(url);
+    audio.volume = 0.9;
+    this.activeAudio = audio;
+    void audio.play().catch(() => {
+      const eventKey = (Object.keys(DEFAULT_SOUND_FILES) as SoundEventKey[]).find(
+        (key) => DEFAULT_SOUND_FILES[key] === url,
+      );
+      if (eventKey) {
+        const fallback = TONE_FALLBACK[eventKey];
+        if (fallback) {
+          this.playTone(fallback.frequency, fallback.duration, fallback.type);
+        }
+      }
+    });
+    audio.onended = () => {
+      if (this.activeAudio === audio) {
+        this.activeAudio = null;
+      }
+    };
   }
 
   private playDataUrl(dataUrl: string): void {

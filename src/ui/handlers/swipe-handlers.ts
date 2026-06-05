@@ -32,8 +32,8 @@ export function bindSwipeHandlers(root: ParentNode, onBeforeSwitch?: () => void)
   let startY = 0;
   let tracking = false;
 
-  const onTouchStart = (event: TouchEvent): void => {
-    if (!canSwipeNavigate() || event.touches.length !== 1) {
+  const onTouchStart = (event: Event): void => {
+    if (!(event instanceof TouchEvent) || !canSwipeNavigate() || event.touches.length !== 1) {
       tracking = false;
       return;
     }
@@ -49,8 +49,8 @@ export function bindSwipeHandlers(root: ParentNode, onBeforeSwitch?: () => void)
     tracking = true;
   };
 
-  const onTouchEnd = (event: TouchEvent): void => {
-    if (!tracking) {
+  const onTouchEnd = (event: Event): void => {
+    if (!(event instanceof TouchEvent) || !tracking) {
       return;
     }
 

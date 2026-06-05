@@ -1,13 +1,7 @@
-import type { AppState, RuntimeState } from '../../core/state';
+import type { RuntimeState } from '../../core/state';
+import type { AppState } from '../../types';
 import { getQuestionOptions, isEssayQuestion, isMcqQuestion } from '../../data';
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
+import { escapeHtml } from '../../utils/html';
 
 function stripOptionLetterPrefix(option: string, letter: string): string {
   const stripped = option.replace(new RegExp(`^${letter}[.):\\-]?\\s*`, 'i'), '').trim();

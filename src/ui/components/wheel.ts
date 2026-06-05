@@ -405,7 +405,7 @@ export function setupWheelCanvas(canvasId: string, model: WheelModel): () => voi
   drawWheel(canvasId, model, 0);
 
   // Handle size changes without reading offsetWidth on every draw.
-  let resizeTimeout: ReturnType<typeof window.setTimeout> | undefined;
+  let resizeTimeout: number | undefined;
   const refreshCanvas = (): void => {
     initializeCanvasForHighDPI(canvas);
     drawWheel(canvasId, model, 0);

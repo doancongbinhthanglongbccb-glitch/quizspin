@@ -105,15 +105,17 @@ export function inferQuestionType(input: { type?: QuestionType; options?: string
   return options.length > 0 ? 'mcq' : 'essay';
 }
 
-export function normalizeQuestion(
-  input: Partial<Question> & {
-    question: string;
-    answer: string;
-    categoryId: string;
-    type?: QuestionType;
-    options?: string[] | string;
-  },
-): Question {
+export type NormalizeQuestionInput = {
+  id?: string;
+  categoryId: string;
+  type?: QuestionType;
+  question: string;
+  options?: string[] | string;
+  answer: string;
+  points?: number;
+};
+
+export function normalizeQuestion(input: NormalizeQuestionInput): Question {
   const question = input.question.trim();
   const answer = input.answer.trim();
   const id = input.id ?? uid();
@@ -310,6 +312,7 @@ export const SOUND_EVENT_LABELS: Record<SoundEventKey, string> = {
   timeup: 'Hết giờ',
   spin: 'Bắt đầu quay',
   tick: 'Tiếng tick khi quay',
+  countdown: 'Tick đếm giờ (mỗi giây)',
   fanfare: 'Fanfare',
   click: 'Nhấn nút',
 };
@@ -362,13 +365,15 @@ export function resetUsedFlags(questionList: Question[]): Question[] {
 export function buildWheelSegments(categories: Category[]): WheelSegment[] {
   return [
     ...DEFAULT_FIXED_SEGMENTS,
-    ...categories.map((category) => ({
-      id: category.id,
-      label: category.name,
-      kind: 'category' as const,
-      color: category.color,
-      categoryId: category.id,
-    })),
+    ...categories.map(
+      (category): WheelSegment => ({
+        id: category.id,
+        label: category.name,
+        kind: 'category',
+        color: category.color,
+        categoryId: category.id,
+      }),
+    ),
   ];
 }
 
@@ -432,29 +437,64 @@ function isHeaderRow(cells: string[]): boolean {
   );
 }
 
-type SheetFormat = 'extended' | 'legacy-hybrid' | 'legacy-two-col';
+type SheetFormat = 'category-four-col' | 'legacy-typed' | 'legacy-hybrid' | 'legacy-two-col';
 
 function detectSheetFormat(cells: string[]): SheetFormat {
-  if (cells.length >= 4) {
-    const maybeType = parseQuestionTypeInput(cells[1] ?? '');
-    const maybeLegacyType = parseQuestionTypeInput(cells[0] ?? '');
-    if (maybeType || maybeLegacyType) {
-      return 'extended';
-    }
-    if (cells.length >= 4 && (cells[1] ?? '').trim()) {
-      return 'extended';
-    }
+  const col1IsType = Boolean(parseQuestionTypeInput(cells[1] ?? ''));
+
+  // Legacy: Lĩnh vực | Loại | Câu hỏi | Options/Đáp án [| Đáp án đúng]
+  if (cells.length >= 5 || (cells.length >= 4 && col1IsType)) {
+    return 'legacy-typed';
   }
 
-  const second = (cells[1] ?? '').trim();
-  if (second && !parseQuestionTypeInput(second)) {
+  if (cells.length >= 4) {
+    return 'category-four-col';
+  }
+
+  if (cells.length === 3) {
     return 'legacy-hybrid';
   }
 
   return 'legacy-two-col';
 }
 
-function parseExtendedRow(cells: string[]): { question: Question; categoryName: string | null } | { error: string } {
+/** Format chuẩn: Lĩnh vực | Câu hỏi | Options | Đáp án đúng */
+function parseCategoryFourColRow(cells: string[]): { question: Question; categoryName: string | null } | { error: string } {
+  const categoryName = (cells[0] ?? '').trim() || null;
+  const questionText = (cells[1] ?? '').trim();
+  const optionsRaw = (cells[2] ?? '').trim();
+  const answer = (cells[3] ?? '').trim();
+
+  if (!questionText) {
+    return { error: 'Missing question' };
+  }
+
+  if (optionsRaw) {
+    const options = parseMcqOptions(optionsRaw);
+    if (!options.length) {
+      return { error: 'MCQ requires options' };
+    }
+    if (!answer) {
+      return { error: 'Missing MCQ answer' };
+    }
+    return {
+      categoryName,
+      question: normalizeQuestion({ categoryId: '', type: 'mcq', question: questionText, options, answer }),
+    };
+  }
+
+  if (!answer) {
+    return { error: 'Missing essay answer' };
+  }
+
+  return {
+    categoryName,
+    question: normalizeQuestion({ categoryId: '', type: 'essay', question: questionText, answer }),
+  };
+}
+
+/** Legacy: có cột Loại (mcq/essay) — vẫn đọc được file cũ */
+function parseLegacyTypedRow(cells: string[]): { question: Question; categoryName: string | null } | { error: string } {
   const categoryName = (cells[0] ?? '').trim() || null;
   const typeCell = cells[1] ?? '';
   const questionText = (cells[2] ?? '').trim();
@@ -541,9 +581,11 @@ function parseLegacyTwoColRow(cells: string[]): { question: Question; categoryNa
 
 /**
  * Parse Excel — hỗ trợ:
- * 1. Mở rộng: Lĩnh vực | Loại | Câu hỏi | Options/Đáp án [| Đáp án đúng]
- * 2. Legacy hybrid: Câu hỏi | Phương án | Đáp án đúng
+ * 1. Chuẩn (4 cột): Lĩnh vực | Câu hỏi | Options | Đáp án đúng
+ *    - Options có dữ liệu → MCQ; Options trống → Essay (đáp án ở cột 4)
+ * 2. Legacy hybrid (3 cột): Câu hỏi | Phương án | Đáp án đúng
  * 3. Legacy 2 cột: Câu hỏi | Đáp án
+ * 4. Legacy typed (có cột Loại): file Excel cũ vẫn import được
  */
 export function parseQuestionsFromSheet(file: ArrayBuffer): ImportResult {
   const workbook = XLSX.read(file, { type: 'array' });
@@ -569,11 +611,13 @@ export function parseQuestionsFromSheet(file: ArrayBuffer): ImportResult {
 
     const format = detectSheetFormat(cells);
     const parsed =
-      format === 'extended'
-        ? parseExtendedRow(cells)
-        : format === 'legacy-hybrid'
-          ? parseLegacyHybridRow(cells)
-          : parseLegacyTwoColRow(cells);
+      format === 'category-four-col'
+        ? parseCategoryFourColRow(cells)
+        : format === 'legacy-typed'
+          ? parseLegacyTypedRow(cells)
+          : format === 'legacy-hybrid'
+            ? parseLegacyHybridRow(cells)
+            : parseLegacyTwoColRow(cells);
 
     if ('error' in parsed) {
       diagnostics.push({ rowNumber, reason: parsed.error, rawData: cells });

@@ -162,37 +162,34 @@ export function updatePlayerAnswer(answer: string): void {
     playerAnswer: answer,
   };
 
-  appContext.setRuntimeState({ modal: nextModal });
+  appContext.patchRuntimeState({ modal: nextModal });
 }
 
 export function submitQuestionAnswer(): void {
   const runtime = appContext.getRuntimeState();
-  if (!runtime.modal || runtime.modal.kind !== 'question') {
-    return;
-  }
-
-  if (runtime.modal.submitted) {
+  const modal = runtime.modal;
+  if (!modal || modal.kind !== 'question' || modal.submitted) {
     return;
   }
 
   const appState = appContext.getAppState();
-  const category = appState.categories.find((item) => item.id === runtime.modal.categoryId);
-  const question = category?.questions.find((item) => item.id === runtime.modal.questionId);
+  const category = appState.categories.find((item) => item.id === modal.categoryId);
+  const question = category?.questions.find((item) => item.id === modal.questionId);
 
-  const rawAnswer = (runtime.modal.playerAnswer ?? runtime.modal.selectedAnswer ?? '').trim();
+  const rawAnswer = (modal.playerAnswer ?? modal.selectedAnswer ?? '').trim();
   if (!rawAnswer) {
     return;
   }
 
-  const remaining = Math.max(0, runtime.modal.remaining);
-  const total = Math.max(1, runtime.modal.timer);
+  const remaining = Math.max(0, modal.remaining);
+  const total = Math.max(1, modal.timer);
   const elapsedSeconds = Math.min(total, total - remaining);
   const timeSpentMs = Math.max(0, elapsedSeconds * 1000);
 
   const isCorrect = !!question && rawAnswer === question.answer;
 
   const nextModal = {
-    ...runtime.modal,
+    ...modal,
     playerAnswer: rawAnswer,
     submitted: true,
     revealed: true,

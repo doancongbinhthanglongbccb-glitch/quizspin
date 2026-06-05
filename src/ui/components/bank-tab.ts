@@ -1,5 +1,6 @@
-import type { AppState, RuntimeState } from '../../core/state';
-import type { Question, QuestionFilter } from '../../types';
+import type { RuntimeState } from '../../core/state';
+import type { AppState, Question, QuestionFilter } from '../../types';
+import { escapeAttr, escapeHtml } from '../../utils/html';
 import { currentCategory } from '../../core/actions';
 import {
   countQuestionsByType,
@@ -9,14 +10,6 @@ import {
   questionTypeIcon,
   questionTypeLabel,
 } from '../../data';
-
-function escapeHtml(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-}
-
-function escapeAttr(value: string): string {
-  return escapeHtml(value).replaceAll("'", '&#39;');
-}
 
 function renderFilterPills(active: QuestionFilter, counts: { mcq: number; essay: number; total: number }): string {
   const pill = (filter: QuestionFilter, label: string, count: number) => `
@@ -194,7 +187,7 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
             <div class="card">
               <div class="card-title">Upload Excel</div>
               <input id="excel-input" class="file-input" type="file" accept=".xlsx,.xls" />
-              <p class="muted">Format: Lĩnh vực | Loại | Câu hỏi | Options/Đáp án. Hỗ trợ legacy 2–3 cột.</p>
+              <p class="muted">4 cột: Lĩnh vực | Câu hỏi | Options | Đáp án đúng. Options trống = tự luận. Hỗ trợ legacy 2–3 cột.</p>
             </div>
           </div>
 

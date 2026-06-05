@@ -39,7 +39,7 @@ function syncDraftFromDom(root: ParentNode): void {
 const LONG_PRESS_MS = 520;
 
 export function bindBankHandlers(root: ParentNode): () => void {
-  let longPressTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let longPressTimer: number | null = null;
   let longPressTriggered = false;
 
   const clearLongPress = (): void => {

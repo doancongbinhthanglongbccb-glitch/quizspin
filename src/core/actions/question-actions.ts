@@ -21,7 +21,7 @@ export function setQuestionDraftType(type: QuestionType): void {
 
 export function updateQuestionDraft(patch: Partial<QuestionDraft>): void {
   const runtime = appContext.getRuntimeState();
-  appContext.setRuntimeState({
+  appContext.patchRuntimeState({
     questionDraft: { ...runtime.questionDraft, ...patch },
   });
 }
