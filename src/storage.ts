@@ -15,6 +15,10 @@ async function removeBrowser(key: string): Promise<void> {
   localStorage.removeItem(`${browserPrefix}${key}`);
 }
 
+/**
+ * Đọc JSON value từ storage (Preferences hoặc localStorage fallback)
+ * Hỗ trợ cả Capacitor Preferences (mobile) và localStorage (web)
+ */
 export async function readJson<T>(key: string, fallback: T): Promise<T> {
   try {
     const result = await Preferences.get({ key });
@@ -28,6 +32,9 @@ export async function readJson<T>(key: string, fallback: T): Promise<T> {
   }
 }
 
+/**
+ * Ghi JSON value vào storage (atomically)
+ */
 export async function writeJson<T>(key: string, value: T): Promise<void> {
   const raw = JSON.stringify(value);
   try {
@@ -37,6 +44,9 @@ export async function writeJson<T>(key: string, value: T): Promise<void> {
   }
 }
 
+/**
+ * Xóa value từ storage
+ */
 export async function removeValue(key: string): Promise<void> {
   try {
     await Preferences.remove({ key });
@@ -45,21 +55,23 @@ export async function removeValue(key: string): Promise<void> {
   }
 }
 
+/**
+ * Load AppState từ single atomic key 'appState'
+ * FIX: Trước dùng 2 keys riêng (settings, categories) → dễ inconsistency
+ * Giờ dùng 1 key nguyên tử → safe hơn
+ */
 export async function loadState(): Promise<AppState | null> {
-  const settings = await readJson<AppState['settings'] | null>('settings', null);
-  const categories = await readJson<AppState['categories'] | null>('categories', null);
-
-  if (!settings || !categories) {
-    return null;
-  }
-
-  return { settings, categories };
+  return await readJson<AppState | null>('appState', null);
 }
 
-export async function saveState(state: AppState): Promise<void> {
-  await Promise.all([writeJson('settings', state.settings), writeJson('categories', state.categories)]);
-}
+/**
+ * Save AppState vào single atomic key 'appState'
+ */
+export const saveState = (state: AppState) => writeJson('appState', state);
 
+/**
+ * Clear AppState (xóa sạch toàn bộ dữ liệu)
+ */
 export async function clearState(): Promise<void> {
-  await Promise.all([removeValue('settings'), removeValue('categories')]);
+  await removeValue('appState');
 }

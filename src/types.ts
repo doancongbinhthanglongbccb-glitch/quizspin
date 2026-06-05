@@ -53,6 +53,7 @@ export type ActiveModal =
       paused: boolean;
       revealed: boolean;
       remaining: number;
+      selectedAnswer: string | null;
     }
   | {
       kind: 'gift';

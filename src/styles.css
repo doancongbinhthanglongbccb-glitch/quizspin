@@ -34,6 +34,7 @@ textarea {
 
 button {
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 #app {
@@ -114,6 +115,7 @@ button {
 .nav-tab {
   padding: 12px 18px;
   transition: transform 0.18s ease, background 0.18s ease;
+  min-height: 48px;
 }
 
 .nav-tab--active {
@@ -149,11 +151,19 @@ button {
 
 .wheel-shell {
   position: relative;
-  width: min(78vw, 640px);
+  width: min(100%, 640px);
   aspect-ratio: 1;
   margin: 0 auto 18px;
   display: grid;
   place-items: center;
+}
+
+.wheel-canvas {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .wheel-pointer {
@@ -223,6 +233,7 @@ button {
   padding: 12px 18px;
   font-weight: 700;
   transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+  min-height: 48px;
 }
 
 .btn:hover:not(:disabled),
@@ -258,6 +269,23 @@ button {
   display: block;
   font-size: 1.1rem;
   box-shadow: 0 18px 40px rgba(249, 115, 22, 0.22);
+}
+
+.spin-grid__wheel {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.spin-grid__actions {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.spin-grid__side {
+  align-self: stretch;
 }
 
 .stacked-card,
@@ -377,6 +405,7 @@ button {
   background: rgba(3, 7, 18, 0.6);
   color: #f8fafc;
   padding: 12px 14px;
+  min-height: 48px;
 }
 
 .textarea {
@@ -566,10 +595,18 @@ button {
 }
 
 .option-chip {
+  width: 100%;
+  text-align: left;
+  color: inherit;
   border-radius: 18px;
   padding: 14px 16px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.option-chip--selected {
+  outline: 2px solid rgba(96, 165, 250, 0.8);
+  background: rgba(96, 165, 250, 0.16);
 }
 
 .option-chip--correct {
@@ -627,6 +664,19 @@ button {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.36);
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .btn,
+  .nav-tab,
+  .category-pill {
+    min-height: 48px;
+  }
+
+  .btn-spin {
+    max-width: none;
+    width: 100%;
+  }
+}
+
 @keyframes pulse {
   0%,
   100% {
@@ -643,7 +693,7 @@ button {
   }
 
   .wheel-shell {
-    width: min(90vw, 640px);
+    width: min(100%, 620px);
   }
 }
 
@@ -664,7 +714,11 @@ button {
   }
 
   .wheel-shell {
-    width: min(90vw, 560px);
+    width: min(100%, 560px);
+  }
+
+  .spin-grid__actions {
+    justify-items: stretch;
   }
 }
 
@@ -694,5 +748,28 @@ button {
   .wheel-label span {
     width: 94px;
     font-size: 0.68rem;
+  }
+
+  .spin-grid__wheel {
+    gap: 14px;
+  }
+}
+
+@media (min-width: 961px) and (orientation: landscape) {
+  .spin-grid {
+    grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
+    align-items: start;
+  }
+
+  .wheel-shell {
+    width: min(58vw, 640px);
+  }
+
+  .spin-grid__wheel {
+    justify-items: center;
+  }
+
+  .spin-grid__actions {
+    max-width: 380px;
   }
 }

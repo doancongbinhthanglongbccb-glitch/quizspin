@@ -1,0 +1,87 @@
+import { createSampleState, parseQuestionsFromSheet } from '../../data';
+import { appContext } from '../state';
+import { clearState, saveState } from '../../storage';
+import { currentCategory, ensureQuestionDraft } from './category-actions';
+import { showToast } from './shared';
+
+export function parseExcelImport(file: File): void {
+  const reader = new FileReader();
+
+  reader.onerror = () => showToast('Không thể đọc file Excel');
+  reader.onload = () => {
+    const category = currentCategory();
+    if (!category) {
+      return;
+    }
+
+    try {
+      const buffer = reader.result;
+      if (!(buffer instanceof ArrayBuffer)) {
+        throw new Error('Invalid file');
+      }
+
+      const parsed = parseQuestionsFromSheet(buffer);
+      if (!parsed.questions.length && !parsed.diagnostics.length) {
+        showToast('File không có dữ liệu hợp lệ');
+        return;
+      }
+
+      appContext.setAppState((current) => ({
+        ...current,
+        categories: current.categories.map((item) =>
+          item.id === category.id ? { ...item, questions: [...item.questions, ...parsed.questions] } : item,
+        ),
+      }));
+
+      appContext.setRuntimeState({
+        importReport: {
+          imported: parsed.questions.length,
+          skipped: parsed.diagnostics.length,
+          diagnostics: parsed.diagnostics,
+        },
+      });
+
+      showToast(`Đã thêm ${parsed.questions.length} câu vào ${category.name}`);
+      // Append bank log for import
+      try {
+        const rt = appContext.getRuntimeState();
+        const next = (rt.bankLogs ?? []).concat([{ ts: Date.now(), message: `Imported ${parsed.questions.length} questions into ${category.name}` }]);
+        appContext.setRuntimeState({ bankLogs: next });
+      } catch (e) {}
+      console.info('Excel import report', appContext.getRuntimeState().importReport);
+    } catch {
+      appContext.setRuntimeState({ importReport: null });
+      showToast('Định dạng file Excel không hợp lệ');
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+export async function clearEverything(): Promise<void> {
+  if (!window.confirm('Bạn chắc chắn muốn xóa toàn bộ dữ liệu?')) {
+    return;
+  }
+  if (!window.confirm('Hành động này không thể hoàn tác. Xác nhận xóa?')) {
+    return;
+  }
+
+  const sampleState = createSampleState();
+  appContext.setAppState(sampleState);
+
+  appContext.setRuntimeState({
+    selectedCategoryId: sampleState.categories[0]?.id ?? null,
+    editingQuestionId: null,
+    usedQuestionIds: new Set(),
+    usedGifts: new Set(),
+    usedPunishments: new Set(),
+    importReport: null,
+  });
+
+  ensureQuestionDraft(currentCategory());
+
+  await clearState().catch(() => undefined);
+  await saveState(appContext.getAppState()).catch(() => undefined);
+
+  showToast('Đã khôi phục dữ liệu mẫu');
+}

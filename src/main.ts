@@ -1,4 +1,4 @@
 import './styles.css';
-import { bootstrap } from './core';
+import { bootstrap } from './core/actions';
 
 void bootstrap();
