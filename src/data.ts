@@ -380,13 +380,6 @@ export function buildWheelSegments(categories: Category[]): WheelSegment[] {
   ];
 }
 
-export function randomGift(items: string[]): string {
-  if (items.length === 0) {
-    return 'Chưa có dữ liệu.';
-  }
-  return items[Math.floor(Math.random() * items.length)];
-}
-
 export function migrateRewardItems<T extends { id: string; text: string }>(items: unknown, createItem: (text: string) => T): T[] {
   if (!Array.isArray(items)) {
     return [];

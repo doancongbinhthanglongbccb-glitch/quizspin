@@ -1,6 +1,8 @@
 import { App } from '@capacitor/app';
 import { appContext } from '../state';
+import { startQuestionTimer, stopQuestionTimer } from '../question-timer';
 import { saveState, readJson } from '../../storage';
+import type { AppState } from '../../types';
 // Import explicit file to avoid TS module resolution ambiguity between
 // `src/ui/components.ts` (file) and `src/ui/components/` (directory).
 // Using the explicit extension helps the editor/tsserver resolve correctly on Windows.
@@ -72,7 +74,7 @@ export async function setupUI(): Promise<void> {
 
 export async function bootstrap(): Promise<void> {
   await appContext.loadFromStorage(async (key) => {
-    return await readJson<any>(key, null);
+    return await readJson<AppState | null>(key, null);
   });
 
   const appState = appContext.getAppState();
@@ -88,10 +90,14 @@ export async function bootstrap(): Promise<void> {
   await KeepAwake.keepAwake().catch(() => undefined);
 
   void App.addListener('pause', () => {
-    // Timer được quản lý ở shared.ts thông qua render cycle; tạm thời không cần xử lý thêm.
+    stopQuestionTimer();
   });
 
   void App.addListener('resume', () => {
-    // Khi resume sẽ render lại qua state subscription nếu cần.
+    const runtime = appContext.getRuntimeState();
+    const modal = runtime.modal;
+    if (modal?.kind === 'question' && !modal.paused && !modal.revealed && modal.remaining > 0) {
+      startQuestionTimer();
+    }
   });
 }

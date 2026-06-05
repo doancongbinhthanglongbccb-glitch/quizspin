@@ -2,23 +2,9 @@ import { DEFAULTS } from '../../config';
 import { formatTimerDisplay } from '../../utils/timer-format';
 import type { RuntimeState } from '../../core/state';
 import type { AppState } from '../../types';
-import { DEFAULT_SOUND_FILE_NAMES } from '../../config/sounds';
+import { DEFAULT_SOUND_FILE_NAMES, SOUND_EVENT_KEYS } from '../../config/sounds';
 import { rewardItemsToText, SOUND_EVENT_LABELS } from '../../data';
-import type { SettingsSection, SoundEventKey } from '../../types';
-
-const SOUND_EVENTS: SoundEventKey[] = [
-  'spinBed',
-  'spinStart',
-  'spinStop',
-  'countdown',
-  'correct',
-  'wrong',
-  'fanfare',
-  'gift',
-  'punishment',
-  'extraTurn',
-  'loseTurn',
-];
+import type { SettingsSection } from '../../types';
 
 const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; danger?: boolean }> = [
   { id: 'timer', label: 'Thời gian', icon: '⏱' },
@@ -94,7 +80,7 @@ function renderSoundEvents(appState: AppState): string {
   const library = appState.settings.sounds?.library ?? [];
   const bindings = appState.settings.sounds?.bindings ?? {};
 
-  return SOUND_EVENTS.map((eventKey) => {
+  return SOUND_EVENT_KEYS.map((eventKey) => {
     const boundId = bindings[eventKey];
     const boundSound = boundId ? library.find((item) => item.id === boundId) : null;
     const fileLabel = boundSound ? `Tùy chỉnh: ${boundSound.name}` : DEFAULT_SOUND_FILE_NAMES[eventKey];

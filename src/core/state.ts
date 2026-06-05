@@ -1,6 +1,7 @@
 import type { AppState, ActiveModal, AnswerRecord, CustomSound, ImportStats, QuestionDraft, SettingsSection, SoundEventKey } from '../types';
 import { createSampleState, defaultQuestionDraft, migrateCategoryQuestions } from '../data';
 import { DEFAULT_PALETTE, DEFAULTS } from '../config';
+import { SOUND_EVENT_KEYS } from '../config/sounds';
 
 /**
  * RuntimeState: Trạng thái UI runtime (không persist)
@@ -25,7 +26,6 @@ export type RuntimeState = {
     stats: ImportStats;
     diagnostics: Array<{ rowNumber: number; reason: string; rawData: string[] }>;
   } | null;
-  bankLogs?: Array<{ ts: number; message: string }>;
   spinHistory: Array<{ label: string; color: string; ts: number }>;
   settingsSection: SettingsSection;
 };
@@ -46,7 +46,6 @@ function createDefaultRuntimeState(): RuntimeState {
     usedGifts: new Set(),
     usedPunishments: new Set(),
     importReport: null,
-    bankLogs: [],
     spinHistory: [],
     settingsSection: 'timer',
   };
@@ -65,7 +64,6 @@ function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
           diagnostics: runtimeState.importReport.diagnostics.map((item) => ({ ...item, rawData: [...item.rawData] })),
         }
       : null,
-    bankLogs: runtimeState.bankLogs ? runtimeState.bankLogs.map((l) => ({ ...l })) : [],
     spinHistory: runtimeState.spinHistory.map((item) => ({ ...item })),
   };
 }
@@ -95,7 +93,6 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
     importReport: Object.prototype.hasOwnProperty.call(update, 'importReport')
       ? cloneImportReport(update.importReport ?? null)
       : cloneImportReport(current.importReport),
-    bankLogs: Object.prototype.hasOwnProperty.call(update, 'bankLogs') ? (update.bankLogs ? update.bankLogs.map((l) => ({ ...l })) : []) : (current.bankLogs ? current.bankLogs.map((l) => ({ ...l })) : []),
     spinHistory: update.spinHistory ? update.spinHistory.map((item) => ({ ...item })) : current.spinHistory.map((item) => ({ ...item })),
   };
 
@@ -147,21 +144,8 @@ function migrateSoundBindings(
 
   const libraryIds = new Set(library.map((item) => item.id));
   const next: Partial<Record<SoundEventKey, string>> = {};
-  const allowed: SoundEventKey[] = [
-    'spinBed',
-    'spinStart',
-    'spinStop',
-    'countdown',
-    'correct',
-    'wrong',
-    'fanfare',
-    'gift',
-    'punishment',
-    'extraTurn',
-    'loseTurn',
-  ];
 
-  for (const key of allowed) {
+  for (const key of SOUND_EVENT_KEYS) {
     const value = (bindings as Record<string, unknown>)[key];
     if (typeof value === 'string' && libraryIds.has(value)) {
       next[key] = value;

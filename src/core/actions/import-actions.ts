@@ -2,7 +2,7 @@ import { createSampleState, parseQuestionsFromSheet } from '../../data';
 import { appContext } from '../state';
 import { clearState, saveState } from '../../storage';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
-import { appendBankLog, showToast } from './shared';
+import { showToast } from './shared';
 
 export function parseExcelImport(file: File): void {
   const reader = new FileReader();
@@ -47,7 +47,6 @@ export function parseExcelImport(file: File): void {
       showToast(
         `Đã thêm ${parsed.questions.length} câu (${parsed.stats.mcq} MCQ, ${parsed.stats.essay} Essay) vào ${category.name}`,
       );
-      appendBankLog(`Đã import ${parsed.questions.length} câu vào ${category.name}`);
     } catch {
       appContext.setRuntimeState({ importReport: null });
       showToast('Định dạng file Excel không hợp lệ');

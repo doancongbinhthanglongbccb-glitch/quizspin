@@ -15,7 +15,7 @@
 ### Tab Vòng Quay
 - Nút **QUAY NGAY** — random segment (lĩnh vực / quà / phạt / thêm lượt / mất lượt)
 - Sidebar: trạng thái, số câu, **lịch sử quay**, **lịch sử trả lời**
-- Âm thanh quay (`spin`, `tick`) — builtin hoặc custom
+- Âm thanh quay 5s: `spinBed` (nền), `spinStart` (bánh xe), `spinStop` (dừng) — file mặc định hoặc upload custom
 
 ### Modal câu hỏi
 - Timer tròn SVG, nhấp nháy đỏ khi ≤ 5 giây
@@ -32,7 +32,7 @@
 ### Tab Cài đặt
 - Slider thời gian (10s–5 phút)
 - Bật/tắt âm thanh
-- Upload âm thanh tùy chỉnh cho từng event (`correct`, `wrong`, `timeup`, `spin`, `tick`, …)
+- Upload âm thanh tùy chỉnh cho 11 event (`spinBed`, `spinStart`, `spinStop`, `countdown`, `correct`, `wrong`, `fanfare`, `gift`, `punishment`, `extraTurn`, `loseTurn`)
 - Danh sách quà tặng & hình phạt (mỗi dòng một mục)
 - Xóa toàn bộ dữ liệu (confirm 2 bước)
 
@@ -45,6 +45,9 @@ src/
 ├── main.ts                 # Entry → bootstrap()
 ├── types.ts                # Domain types
 ├── config.ts               # Palette, wheel segments, defaults
+├── config/
+│   ├── spin.ts             # SPIN_CONFIG (duration, extraSpins)
+│   └── sounds.ts           # DEFAULT_SOUND_FILES, SOUND_EVENT_KEYS
 ├── data.ts                 # Sample state, migrate, Excel parse, helpers
 ├── storage.ts              # Capacitor Preferences + localStorage fallback
 ├── styles.css              # Dark theme + responsive breakpoints
@@ -52,6 +55,9 @@ src/
 ├── core/
 │   ├── state.ts            # AppContext: AppState (persist) + RuntimeState (UI)
 │   ├── wheel.ts            # Wheel model & landing math
+│   ├── spin-session.ts     # Một timeline animation + audio khi quay
+│   ├── question-timer.ts   # Countdown modal câu hỏi
+│   ├── toast.ts            # Toast notification
 │   ├── sound-manager.ts    # Builtin tones + custom dataUrl playback
 │   └── actions/            # Business logic (spin, modal, bank, sound, import…)
 │
@@ -61,8 +67,11 @@ src/
 │   └── handlers/           # DOM events → actions
 │
 └── utils/
-    └── animate.ts          # Spin animation controller
+    ├── animate.ts          # Spin animation controller
+    └── timer-format.ts     # Format hiển thị slider thời gian
 ```
+
+Âm thanh mặc định nằm trong `public/sounds/` (Vite copy sang `dist/sounds/` khi build).
 
 **Luồng dữ liệu:** `Action` cập nhật `AppContext` → subscriber gọi `render()` + `saveState()`.
 
@@ -186,8 +195,8 @@ npm run android
 
 - [ ] Layout landscape/tablet hoàn chỉnh (sidebar nav, spin 60/40)
 - [ ] Tên đội / người chơi trên màn quay
-- [ ] Fanfare khi MC bấm Hiện đáp án
-- [ ] Timer xử lý đúng khi app background/foreground
+- [x] Fanfare khi MC bấm Hiện đáp án
+- [x] Timer dừng/tiếp tục khi app background/foreground (Capacitor pause/resume)
 - [ ] Phiên chơi: reset used flags + tùy chọn xóa lịch sử trả lời
 - [ ] Tính điểm từ `question.points`
 - [ ] Quản lý thư viện âm thanh (dọn file không dùng)

@@ -1,5 +1,19 @@
 import type { SoundEventKey } from '../types';
 
+export const SOUND_EVENT_KEYS: SoundEventKey[] = [
+  'spinBed',
+  'spinStart',
+  'spinStop',
+  'countdown',
+  'correct',
+  'wrong',
+  'fanfare',
+  'gift',
+  'punishment',
+  'extraTurn',
+  'loseTurn',
+];
+
 /** Âm thanh mặc định ship trong `public/sounds/` */
 export const DEFAULT_SOUND_FILES: Record<SoundEventKey, string> = {
   spinBed: '/sounds/nhac-xo-so.mp3',

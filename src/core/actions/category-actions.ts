@@ -1,7 +1,6 @@
 import type { Category } from '../../types';
 import { defaultQuestionDraft, makeCategory, questionToDraft } from '../../data';
 import { appContext } from '../state';
-import { appendBankLog } from './shared';
 
 export function currentCategory(): Category | null {
   const appState = appContext.getAppState();
@@ -51,7 +50,6 @@ export function addCategory(): void {
   appContext.setAppState((current) => ({ ...current, categories: [...current.categories, nextCategory] }));
   appContext.setRuntimeState({ selectedCategoryId: nextCategory.id });
   ensureQuestionDraft(nextCategory);
-  appendBankLog(`Đã thêm lĩnh vực: ${nextCategory.name}`);
 }
 
 export function renameCategory(category: Category): void {
@@ -64,7 +62,6 @@ export function renameCategory(category: Category): void {
     ...current,
     categories: current.categories.map((item) => (item.id === category.id ? { ...item, name: name.trim() } : item)),
   }));
-  appendBankLog(`Đổi tên lĩnh vực: ${category.name} → ${name.trim()}`);
 }
 
 export function deleteCategory(category: Category): void {
@@ -83,5 +80,4 @@ export function deleteCategory(category: Category): void {
   }
 
   ensureQuestionDraft(currentCategory());
-  appendBankLog(`Xóa lĩnh vực: ${category.name}`);
 }
