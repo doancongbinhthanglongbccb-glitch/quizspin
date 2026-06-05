@@ -1,5 +1,5 @@
 import type { Category } from '../../types';
-import { makeCategory } from '../../data';
+import { defaultQuestionDraft, makeCategory, questionToDraft } from '../../data';
 import { appContext } from '../state';
 
 export function currentCategory(): Category | null {
@@ -17,25 +17,19 @@ export function ensureQuestionDraft(category?: Category | null): void {
   const runtime = appContext.getRuntimeState();
 
   if (!category) {
-    appContext.setRuntimeState({ questionDraft: { question: '', options: '', answer: '' } });
+    appContext.setRuntimeState({ questionDraft: defaultQuestionDraft('mcq') });
     return;
   }
 
   if (runtime.editingQuestionId) {
     const item = category.questions.find((question) => question.id === runtime.editingQuestionId);
     if (item) {
-      appContext.setRuntimeState({
-        questionDraft: {
-          question: item.question,
-          options: item.options.join('\n'),
-          answer: item.answer,
-        },
-      });
+      appContext.setRuntimeState({ questionDraft: questionToDraft(item) });
       return;
     }
   }
 
-  appContext.setRuntimeState({ questionDraft: { question: '', options: '', answer: '' } });
+  appContext.setRuntimeState({ questionDraft: defaultQuestionDraft(runtime.questionDraft.type) });
 }
 
 export function selectCategory(categoryId: string): void {

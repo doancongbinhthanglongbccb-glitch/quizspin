@@ -1,5 +1,5 @@
-import type { AppState, ActiveModal } from '../types';
-import { createSampleState } from '../data';
+import type { AppState, ActiveModal, AnswerRecord, CustomSound, ImportStats, QuestionDraft, SoundEventKey } from '../types';
+import { createSampleState, defaultQuestionDraft, migrateCategoryQuestions } from '../data';
 import { DEFAULT_PALETTE, DEFAULTS } from '../config';
 
 /**
@@ -14,20 +14,19 @@ export type RuntimeState = {
   modal: ActiveModal;
   selectedCategoryId: string | null;
   editingQuestionId: string | null;
-  questionDraft: {
-    question: string;
-    options: string;
-    answer: string;
-  };
+  questionDraft: QuestionDraft;
+  questionFilter: 'all' | 'mcq' | 'essay';
   usedQuestionIds: Set<string>;
   usedGifts: Set<string>;
   usedPunishments: Set<string>;
   importReport: {
     imported: number;
     skipped: number;
+    stats: ImportStats;
     diagnostics: Array<{ rowNumber: number; reason: string; rawData: string[] }>;
   } | null;
   bankLogs?: Array<{ ts: number; message: string }>;
+  spinHistory: Array<{ label: string; color: string; ts: number }>;
 };
 
 // Tạo state runtime mặc định
@@ -40,16 +39,14 @@ function createDefaultRuntimeState(): RuntimeState {
     modal: null,
     selectedCategoryId: null,
     editingQuestionId: null,
-    questionDraft: {
-      question: '',
-      options: '',
-      answer: '',
-    },
+    questionDraft: defaultQuestionDraft('mcq'),
+    questionFilter: 'all',
     usedQuestionIds: new Set(),
     usedGifts: new Set(),
     usedPunishments: new Set(),
     importReport: null,
     bankLogs: [],
+    spinHistory: [],
   };
 }
 
@@ -67,6 +64,7 @@ function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
         }
       : null,
     bankLogs: runtimeState.bankLogs ? runtimeState.bankLogs.map((l) => ({ ...l })) : [],
+    spinHistory: runtimeState.spinHistory.map((item) => ({ ...item })),
   };
 }
 
@@ -96,6 +94,7 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
       ? cloneImportReport(update.importReport ?? null)
       : cloneImportReport(current.importReport),
     bankLogs: Object.prototype.hasOwnProperty.call(update, 'bankLogs') ? (update.bankLogs ? update.bankLogs.map((l) => ({ ...l })) : []) : (current.bankLogs ? current.bankLogs.map((l) => ({ ...l })) : []),
+    spinHistory: update.spinHistory ? update.spinHistory.map((item) => ({ ...item })) : current.spinHistory.map((item) => ({ ...item })),
   };
 
   return cloneRuntimeState(merged);
@@ -107,15 +106,95 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
  * - Đảm bảo mỗi category có màu
  * - Xử lý gifts/punishments (FIX: không generate UUID mới!)
  */
+function migrateSoundLibrary(items: unknown): CustomSound[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const candidate = item as Partial<CustomSound>;
+      const id = typeof candidate.id === 'string' ? candidate.id.trim() : '';
+      const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
+      const dataUrl = typeof candidate.dataUrl === 'string' ? candidate.dataUrl.trim() : '';
+      if (!id || !name || !dataUrl.startsWith('data:')) {
+        return null;
+      }
+
+      return {
+        id,
+        name,
+        mimeType: typeof candidate.mimeType === 'string' ? candidate.mimeType : 'audio/mpeg',
+        dataUrl,
+      } satisfies CustomSound;
+    })
+    .filter((item): item is CustomSound => Boolean(item));
+}
+
+function migrateSoundBindings(
+  bindings: unknown,
+  library: CustomSound[],
+): Partial<Record<SoundEventKey, string>> {
+  if (!bindings || typeof bindings !== 'object') {
+    return {};
+  }
+
+  const libraryIds = new Set(library.map((item) => item.id));
+  const next: Partial<Record<SoundEventKey, string>> = {};
+  const allowed: SoundEventKey[] = ['spin', 'tick', 'correct', 'wrong', 'timeup', 'fanfare', 'click'];
+
+  for (const key of allowed) {
+    const value = (bindings as Record<string, unknown>)[key];
+    if (typeof value === 'string' && libraryIds.has(value)) {
+      next[key] = value;
+    }
+  }
+
+  return next;
+}
+
+function migrateAnswerHistory(items: unknown): AnswerRecord[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const record = item as Partial<AnswerRecord>;
+      const questionId = typeof record.questionId === 'string' ? record.questionId.trim() : '';
+      const playerAnswer = typeof record.playerAnswer === 'string' ? record.playerAnswer : '';
+      const submittedAt = typeof record.submittedAt === 'string' ? record.submittedAt : '';
+      if (!questionId || !submittedAt) {
+        return null;
+      }
+
+      return {
+        questionId,
+        playerAnswer,
+        isCorrect: Boolean(record.isCorrect),
+        timeSpentMs: typeof record.timeSpentMs === 'number' ? record.timeSpentMs : undefined,
+        submittedAt,
+      } satisfies AnswerRecord;
+    })
+    .filter((item): item is AnswerRecord => Boolean(item));
+}
+
 function normalizeAppState(next: AppState): AppState {
   const categories = next.categories.map((category, index) => ({
     ...category,
     color: category.color || DEFAULT_PALETTE[index % DEFAULT_PALETTE.length],
-    questions: category.questions.map((question) => ({
-      ...question,
-      options: question.options ?? [],
-    })),
+    questions: migrateCategoryQuestions(category.id, category.questions as unknown[]),
   }));
+
+  const soundLibrary = migrateSoundLibrary(next.settings.sounds?.library);
 
   return {
     settings: {
@@ -123,8 +202,13 @@ function normalizeAppState(next: AppState): AppState {
       sound: next.settings.sound,
       gifts: next.settings.gifts,
       punishments: next.settings.punishments,
+      sounds: {
+        bindings: migrateSoundBindings(next.settings.sounds?.bindings, soundLibrary),
+        library: soundLibrary,
+      },
     },
     categories,
+    answerHistory: migrateAnswerHistory(next.answerHistory),
   };
 }
 

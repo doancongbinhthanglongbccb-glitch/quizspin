@@ -1,8 +1,30 @@
-import { normalizeQuestion, resetUsedFlags } from '../../data';
-import type { Category } from '../../types';
+import { normalizeQuestion, parseMcqOptions, resetUsedFlags } from '../../data';
+import type { Category, QuestionDraft, QuestionFilter, QuestionType } from '../../types';
 import { appContext } from '../state';
 import { showToast } from './shared';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
+
+export function setQuestionFilter(filter: QuestionFilter): void {
+  appContext.setRuntimeState({ questionFilter: filter });
+}
+
+export function setQuestionDraftType(type: QuestionType): void {
+  const runtime = appContext.getRuntimeState();
+  appContext.setRuntimeState({
+    questionDraft: {
+      ...runtime.questionDraft,
+      type,
+      options: type === 'essay' ? '' : runtime.questionDraft.options,
+    },
+  });
+}
+
+export function updateQuestionDraft(patch: Partial<QuestionDraft>): void {
+  const runtime = appContext.getRuntimeState();
+  appContext.setRuntimeState({
+    questionDraft: { ...runtime.questionDraft, ...patch },
+  });
+}
 
 export function saveQuestionDraft(): void {
   const category = currentCategory();
@@ -12,19 +34,26 @@ export function saveQuestionDraft(): void {
     return;
   }
 
-  const questionText = runtime.questionDraft.question.trim();
-  const answerText = runtime.questionDraft.answer.trim();
+  const draft = runtime.questionDraft;
+  const questionText = draft.question.trim();
+  const answerText = draft.answer.trim();
 
   if (!questionText || !answerText) {
     showToast('Cần nhập câu hỏi và đáp án');
     return;
   }
 
-  const options = runtime.questionDraft.options.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+  if (draft.type === 'mcq' && !parseMcqOptions(draft.options).length) {
+    showToast('Câu trắc nghiệm cần ít nhất 1 phương án');
+    return;
+  }
+
   const question = normalizeQuestion({
     id: runtime.editingQuestionId ?? undefined,
+    categoryId: category.id,
+    type: draft.type,
     question: questionText,
-    options,
+    options: draft.type === 'mcq' ? draft.options : undefined,
     answer: answerText,
   });
 
@@ -36,22 +65,17 @@ export function saveQuestionDraft(): void {
       }
 
       const existingIndex = item.questions.findIndex((entry) => entry.id === question.id);
-      const nextQuestions = existingIndex >= 0 ? item.questions.map((entry) => (entry.id === question.id ? question : entry)) : [...item.questions, question];
+      const nextQuestions =
+        existingIndex >= 0
+          ? item.questions.map((entry) => (entry.id === question.id ? question : entry))
+          : [...item.questions, question];
       return { ...item, questions: nextQuestions };
     }),
   }));
 
   appContext.setRuntimeState({ editingQuestionId: null });
   ensureQuestionDraft(category);
-  showToast('Đã lưu câu hỏi');
-  // Append bank log
-  try {
-    const rt = appContext.getRuntimeState();
-    const next = (rt.bankLogs ?? []).concat([{ ts: Date.now(), message: `Đã lưu câu: ${question.question}` }]);
-    appContext.setRuntimeState({ bankLogs: next });
-  } catch (e) {
-    // ignore
-  }
+  showToast(`Đã lưu câu ${draft.type === 'mcq' ? 'trắc nghiệm' : 'tự luận'}`);
 }
 
 export function deleteQuestion(categoryId: string, questionId: string): void {
@@ -71,12 +95,6 @@ export function deleteQuestion(categoryId: string, questionId: string): void {
     appContext.setRuntimeState({ editingQuestionId: null });
     ensureQuestionDraft(currentCategory());
   }
-  // Append bank log for deletion
-  try {
-    const rt = appContext.getRuntimeState();
-    const next = (rt.bankLogs ?? []).concat([{ ts: Date.now(), message: `Đã xóa câu (id=${questionId})` }]);
-    appContext.setRuntimeState({ bankLogs: next });
-  } catch (e) {}
 }
 
 export function resetQuestionFlags(category: Category): void {
@@ -94,9 +112,27 @@ export function resetQuestionFlags(category: Category): void {
   }));
 }
 
-export function saveQuestionEdit(id: string, question: string, options: string, answer: string): void {
+export function saveQuestionEdit(
+  id: string,
+  type: QuestionType,
+  question: string,
+  options: string,
+  answer: string,
+): void {
   const category = currentCategory();
   if (!category) {
+    return;
+  }
+
+  const questionText = question.trim();
+  const answerText = answer.trim();
+  if (!questionText || !answerText) {
+    showToast('Cần nhập câu hỏi và đáp án');
+    return;
+  }
+
+  if (type === 'mcq' && !parseMcqOptions(options).length) {
+    showToast('Câu trắc nghiệm cần ít nhất 1 phương án');
     return;
   }
 
@@ -110,9 +146,12 @@ export function saveQuestionEdit(id: string, question: string, options: string, 
               q.id === id
                 ? normalizeQuestion({
                     id,
-                    question,
-                    options: options.split(/\r?\n/).filter(Boolean),
-                    answer,
+                    categoryId: category.id,
+                    type,
+                    question: questionText,
+                    options: type === 'mcq' ? options : undefined,
+                    answer: answerText,
+                    points: q.points,
                   })
                 : q,
             ),
@@ -123,10 +162,5 @@ export function saveQuestionEdit(id: string, question: string, options: string, 
 
   appContext.setRuntimeState({ editingQuestionId: null });
   ensureQuestionDraft(currentCategory());
-  // Append bank log for edit
-  try {
-    const rt = appContext.getRuntimeState();
-    const next = (rt.bankLogs ?? []).concat([{ ts: Date.now(), message: `Đã sửa câu (id=${id})` }]);
-    appContext.setRuntimeState({ bankLogs: next });
-  } catch (e) {}
+  showToast('Đã cập nhật câu hỏi');
 }

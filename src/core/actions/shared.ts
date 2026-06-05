@@ -1,4 +1,5 @@
 import { DEFAULTS } from '../../config';
+import { soundManager } from '../sound-manager';
 import { appContext } from '../state';
 
 let timerHandle: number | null = null;
@@ -90,7 +91,7 @@ export function startQuestionTimer(): void {
     if (remaining <= 0) {
       nextModal.paused = true;
       appContext.setRuntimeState({ modal: nextModal });
-      playTone(880, 450, 'triangle');
+      soundManager.play('timeup');
       showToast('Hết giờ');
       stopTimer();
       return;

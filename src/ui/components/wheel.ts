@@ -4,7 +4,11 @@ import type { WheelModel, WheelLayoutSegment } from '../../core/wheel';
  * HTML render function trả về canvas element
  */
 export function renderWheelHTML(): string {
-  return `<canvas id="wheel-canvas" class="wheel-canvas" style="display: block; width: 100%; max-width: 450px; height: auto; margin: 0 auto;"></canvas>`;
+  return `
+    <div class="wheel-frame" aria-hidden="false">
+      <canvas id="wheel-canvas" class="wheel-canvas"></canvas>
+    </div>
+  `;
 }
 
 // ============================================================================

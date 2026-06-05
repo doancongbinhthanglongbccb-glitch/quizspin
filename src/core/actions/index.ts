@@ -6,17 +6,47 @@ import { saveState, readJson } from '../../storage';
 // Using the explicit extension helps the editor/tsserver resolve correctly on Windows.
 import { render } from '../../ui';
 import { clearEverything, parseExcelImport } from './import-actions';
-import { openGiftModal, openNoticeModal, openQuestionModal, closeModal, toggleQuestionPause, revealAnswer, chooseQuestionAnswer } from './modal-actions';
+import {
+  openGiftModal,
+  openNoticeModal,
+  openQuestionModal,
+  closeModal,
+  toggleQuestionPause,
+  revealAnswer,
+  chooseQuestionAnswer,
+  submitQuestionAnswer,
+  updatePlayerAnswer,
+} from './modal-actions';
 import { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory } from './category-actions';
-import { saveQuestionDraft, deleteQuestion, resetQuestionFlags, saveQuestionEdit } from './question-actions';
+import {
+  saveQuestionDraft,
+  deleteQuestion,
+  resetQuestionFlags,
+  saveQuestionEdit,
+  setQuestionFilter,
+  setQuestionDraftType,
+  updateQuestionDraft,
+} from './question-actions';
 import { spin } from './spin-actions';
+import { uploadSoundForEvent, clearSoundBinding, previewSoundEvent } from './sound-actions';
 
 export { appContext };
 export { clearEverything, parseExcelImport };
-export { openGiftModal, openNoticeModal, openQuestionModal, closeModal, toggleQuestionPause, revealAnswer, chooseQuestionAnswer };
+export {
+  openGiftModal,
+  openNoticeModal,
+  openQuestionModal,
+  closeModal,
+  toggleQuestionPause,
+  revealAnswer,
+  chooseQuestionAnswer,
+  submitQuestionAnswer,
+  updatePlayerAnswer,
+};
 export { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory };
-export { saveQuestionDraft, deleteQuestion, resetQuestionFlags, saveQuestionEdit };
+export { saveQuestionDraft, deleteQuestion, resetQuestionFlags, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };
 export { spin };
+export { uploadSoundForEvent, clearSoundBinding, previewSoundEvent };
 
 export let renderApp: () => void = render;
 

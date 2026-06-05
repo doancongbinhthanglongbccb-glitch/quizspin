@@ -1,246 +1,143 @@
 # QuizSpin — Vòng Quay Kiến Thức
 
-Ứng dụng học tập tương tác với vòng quay, câu hỏi trắc nghiệm/tự luận, quà tặng và hình phạt. Hoạt động 100% offline trên Android.
+Ứng dụng học tập tương tác với vòng quay, câu hỏi trắc nghiệm/tự luận, quà tặng và hình phạt. Hoạt động **100% offline** trên Android (Capacitor) và trình duyệt.
 
 ---
 
-## 📖 HƯỚNG DẪN SỬ DỤNG
+## Tính năng hiện có
 
-### **Tab 1 — Vòng Quay** 🎡
+| Phase | Nội dung |
+|-------|----------|
+| **1 — Vòng quay** | Canvas wheel, animation quay, modal quà/phạt/thông báo, 3 tab, swipe đổi tab, responsive |
+| **2 — Ngân hàng** | CRUD lĩnh vực & câu hỏi, MCQ/Essay, filter, import Excel đa format |
+| **3 — Modal & trả lời** | Timer SVG, chọn/nộp đáp án, lưu `answerHistory`, SoundManager + upload âm thanh |
 
-**Màn hình chính để chơi game:**
-- Bấm nút **[QUAY NGAY]** để vòng quay xoay ngẫu nhiên
-- Vòng quay dừng → trúng một trong 4 loại ô:
-  - 🎓 **Ô lĩnh vực (màu sắc khác nhau)**: Hiện câu hỏi
-  - 🎁 **Ô Quà tặng**: Nhận phần quà ngẫu nhiên
-  - 😈 **Ô Hình phạt**: Nhận phần phạt ngẫu nhiên
-  - ➕ **Ô Thêm lượt**: Được thêm 1 lượt quay
-  - ➖ **Ô Mất lượt**: Mất 1 lượt quay
+### Tab Vòng Quay
+- Nút **QUAY NGAY** — random segment (lĩnh vực / quà / phạt / thêm lượt / mất lượt)
+- Sidebar: trạng thái, số câu, **lịch sử quay**, **lịch sử trả lời**
+- Âm thanh quay (`spin`, `tick`) — builtin hoặc custom
 
-**Lưu ý:**
-- Nút **[QUAY NGAY]** bị vô hiệu hóa (mờ) khi vòng đang xoay → chờ xong rồi quay tiếp
-- Nút chỉ hoạt động lại khi vòng dừng hoàn toàn
+### Modal câu hỏi
+- Timer tròn SVG, nhấp nháy đỏ khi ≤ 5 giây
+- **MCQ**: card A/B/C/D, chọn đáp án, highlight đúng/sai sau nộp/reveal
+- **Essay**: textarea lớn, auto-resize
+- **Tạm dừng** | **Hiện đáp án** (chỉ reveal, không lưu) | **Nộp đáp án** (chấm + lưu record + sound)
+
+### Tab Ngân hàng
+- Pill lĩnh vực (scroll / sidebar landscape), thêm / đổi tên / xóa (long-press)
+- Form thêm/sửa câu: loại MCQ hoặc Essay, phương án, đáp án
+- Upload Excel, báo cáo import (imported / skipped / diagnostics)
+- Lọc: Tất cả · MCQ · Essay
+
+### Tab Cài đặt
+- Slider thời gian (10–60s)
+- Bật/tắt âm thanh
+- Upload âm thanh tùy chỉnh cho từng event (`correct`, `wrong`, `timeup`, `spin`, `tick`, …)
+- Danh sách quà tặng & hình phạt (mỗi dòng một mục)
+- Xóa toàn bộ dữ liệu (confirm 2 bước)
 
 ---
 
-### **Popup Câu Hỏi Trắc Nghiệm (MCQ)**
-
-**Khi vòng trúng ô lĩnh vực và câu hỏi có 4 lựa chọn:**
+## Cấu trúc source
 
 ```
-┌─────────────────────────┐
-│  📌 Lịch sử             │
-├─────────────────────────┤
-│                         │
-│  ⏰ 00:25               │  ← Đồng hồ đếm ngược, chuyển đỏ
-│                         │     khi còn < 5 giây
-│  Câu hỏi: Việt Nam      │
-│  giành độc lập          │
-│  vào năm nào?           │
-│                         │
-│  A) 1945                │
-│  B) 1954                │
-│  C) 1975                │
-│  D) 1986                │
-│                         │
-│  [ ⏸ Tạm dừng ]         │
-│  [ Hiện đáp án ]        │
-└─────────────────────────┘
+src/
+├── main.ts                 # Entry → bootstrap()
+├── types.ts                # Domain types
+├── config.ts               # Palette, wheel segments, defaults
+├── data.ts                 # Sample state, migrate, Excel parse, helpers
+├── storage.ts              # Capacitor Preferences + localStorage fallback
+├── styles.css              # Dark theme + responsive breakpoints
+│
+├── core/
+│   ├── state.ts            # AppContext: AppState (persist) + RuntimeState (UI)
+│   ├── wheel.ts            # Wheel model & landing math
+│   ├── sound-manager.ts    # Builtin tones + custom dataUrl playback
+│   └── actions/            # Business logic (spin, modal, bank, sound, import…)
+│
+├── ui/
+│   ├── components.ts       # Root render, tab routing, lifecycle
+│   ├── components/         # spin-tab, bank-tab, settings-tab, modal, wheel
+│   └── handlers/           # DOM events → actions
+│
+└── utils/
+    └── animate.ts          # Spin animation controller
 ```
 
-**Các nút điều khiển:**
-- **⏸ Tạm dừng**: Dừng đồng hồ, bấm lại để tiếp tục
-- **Hiện đáp án**: Đáp án đúng được highlight (ví dụ: A được tô đỏ)
+**Luồng dữ liệu:** `Action` cập nhật `AppContext` → subscriber gọi `render()` + `saveState()`.
 
-**Khi MC bấm "Hiện đáp án":**
-- Đồng hồ dừng ngay lập tức
-- Nút thay đổi thành **[Đóng]**
-- Bấm **[Đóng]** → quay lại màn hình vòng, sẵn sàng quay tiếp
+### State
 
----
+```ts
+// Persist (storage key: appState)
+AppState {
+  categories: Category[]
+  settings: Settings        // timer, sound, gifts, punishments, sounds
+  answerHistory: AnswerRecord[]
+}
 
-### **Popup Câu Hỏi Tự Luận (Essay)**
-
-**Khi vòng trúng ô lĩnh vực và câu hỏi KHÔNG có lựa chọn:**
-
-```
-┌─────────────────────────┐
-│  📌 Quân sự              │
-├─────────────────────────┤
-│                         │
-│  ⏰ 00:30               │  ← Đồng hồ đếm ngược
-│                         │
-│  Câu hỏi: Nêu các      │
-│  bước bảo quản hàng     │
-│  ngày?                  │
-│                         │
-│                         │
-│  [ ⏸ Tạm dừng ]         │
-│  [ Hiện đáp án ]        │
-└─────────────────────────┘
+// Runtime (không persist)
+RuntimeState {
+  tab, rotation, spinning, modal, toast,
+  questionDraft, usedQuestionIds, usedGifts, usedPunishments,
+  spinHistory, importReport, …
+}
 ```
 
-**Nhấn "Hiện đáp án":**
-```
-┌─────────────────────────┐
-│  📌 Quân sự              │
-├─────────────────────────┤
-│  ⏰ 00:00 (dừng)         │
-│                         │
-│  Đáp án:                │
-│  ─────────────────────  │
-│  • Lau sạch cát, bụi    │
-│  • Kiểm tra khóa        │
-│  • Bôi dầu toàn bộ      │
-│                         │
-│  [ Đóng ]               │
-└─────────────────────────┘
-```
+---
 
-**Khác biệt:** Không hiện 4 nút A/B/C/D, mà hiện toàn bộ đoạn văn giải thích
+## Hướng dẫn sử dụng nhanh
+
+### Chuẩn bị phiên
+1. **Cài đặt** — thời gian, quà/phạt, âm thanh (tùy chọn upload file)
+2. **Ngân hàng** — tạo lĩnh vực, thêm câu (tay hoặc Excel)
+3. Cần ít nhất **1 quà** và **1 hình phạt** mới quay được
+
+### Chơi
+1. Tab **Vòng Quay** → **QUAY NGAY**
+2. Trúng **lĩnh vực** → modal câu hỏi (random câu chưa dùng trong lĩnh vực)
+3. Chọn/ghi đáp án → **Nộp đáp án** (học sinh) hoặc **Hiện đáp án** (MC giải thích)
+4. Trúng quà/phạt/lượt → modal tương ứng → **Đóng**
+
+### Chống trùng trong phiên
+- Câu hỏi / quà / phạt đã dùng không lặp lại cho đến khi hết danh sách → tự reset pool lĩnh vực/danh sách đó.
 
 ---
 
-### **Tab 2 — Ngân Hàng Câu Hỏi** 📚
+## Import Excel
 
-**Nơi quản lý và nạp câu hỏi vào app:**
+Hỗ trợ nhiều format; app tự nhận diện header và loại câu.
 
-1. **Chọn hoặc tạo lĩnh vực** (pill buttons phía trên)
-   - Bấm một lĩnh vực để chọn
-   - Bấm **[+ Thêm lĩnh vực mới]** để tạo mới
-   - Bấm giữ lĩnh vực để đổi tên/xóa
+### Format mở rộng (khuyến nghị)
 
-2. **Nhập tay:**
-   - Ô "Câu hỏi": Gõ nội dung câu hỏi
-   - Ô "Đáp án": Gõ đáp án (hoặc 4 lựa chọn nếu trắc nghiệm)
-   - Nút **[+ Thêm câu]**: Thêm vào kho
+| Lĩnh vực | Loại | Câu hỏi | Options/Đáp án | Đáp án đúng (MCQ) |
+|----------|------|---------|----------------|-------------------|
+| Lịch sử | mcq | … | A. … / B. … | A. 1945 |
+| Khoa học | essay | … | (nội dung đáp án) | |
 
-3. **Upload Excel:**
-   - Nút **[Chọn file Excel 📥]**: Chọn file từ điện thoại
-   - File hợp lệ → thông báo "Đã thêm X câu"
-   - File lỗi → hiện lỗi chi tiết từng dòng
+### Legacy 3 cột (hybrid)
 
-4. **Bảng câu hỏi hiện có:**
-   - Hiển thị tất cả câu hỏi của lĩnh vực đang chọn
-   - Mỗi câu có nút **✏️ Sửa** (inline edit) và **🗑️ Xóa**
+| Câu hỏi | Phương án | Đáp án đúng |
+|---------|-----------|-------------|
+| … | A…B…C…D… (xuống dòng) | C. … |
+| … | *(trống)* | Đoạn tự luận |
 
-5. **Xóa toàn bộ lĩnh vực:**
-   - Nút **[🗑️ Xóa sạch mục này]** (màu đỏ)
-   - Xác nhận 1 lần trước khi xóa
+### Legacy 2 cột
 
----
+| Câu hỏi | Đáp án |
+|---------|--------|
+| … | … |
 
-### **Tab 3 — Cài Đặt** ⚙️
-
-**Tuỳ chỉnh trò chơi theo nhu cầu:**
-
-1. **Thời gian đếm ngược (10 - 60 giây)**
-   - Slider để chọn
-   - Số giây hiện realtime bên cạnh
-   - Mặc định: 30 giây
-
-2. **Âm thanh**
-   - Toggle bật/tắt toàn bộ âm thanh
-   - Mặc định: bật ✓
-
-3. **Danh sách Quà tặng**
-   - Textarea: mỗi dòng = 1 phần quà
-   - Ví dụ:
-     ```
-     Được cộng thêm 10 điểm
-     Nghỉ 1 lượt miễn phí
-     Được chọn câu hỏi tiếp theo
-     ```
-
-4. **Danh sách Hình phạt**
-   - Textarea: mỗi dòng = 1 hình phạt
-   - Ví dụ:
-     ```
-     Chống đẩy 10 cái
-     Hát 1 bài trước lớp
-     Làm 20 cái ngồi chạm chân
-     ```
-
-5. **Xóa toàn bộ dữ liệu** (cuối trang)
-   - Nút **[🗑️ Xóa sạch toàn bộ kho câu hỏi]** (màu đỏ)
-   - Xác nhận 2 lần:
-     - "Bạn chắc chắn muốn xóa?"
-     - "Hành động này không thể hoàn tác. Xác nhận?"
+- File: `.xlsx` / `.xls`
+- Dòng lỗi được liệt kê trong báo cáo import (row number + lý do)
 
 ---
 
-## 📊 Định Dạng File Excel
+## Phát triển
 
-**Để import hàng loạt câu hỏi, dùng file Excel theo format này:**
-
-### **Cấu trúc file:**
-
-| Cột A | Cột B | Cột C |
-|---|---|---|
-| **Câu hỏi** | **Phương án** | **Đáp án đúng** |
-
-### **Ví dụ 1: Trắc nghiệm (MCQ)**
-
-| Cột A | Cột B | Cột C |
-|---|---|---|
-| Kích thước bia chỉ đỏ là? | A. 30x40cm<br>B. 30x50cm<br>C. 20x30cm<br>D. 20x40cm | C. 20x30cm |
-
-**Chú ý:** Cột B có 4 lựa chọn, xuống dòng trong ô (Alt+Enter trên Excel)
-
-### **Ví dụ 2: Tự luận (Essay)**
-
-| Cột A | Cột B | Cột C |
-|---|---|---|
-| Nêu quy trình bảo quản vũ khí | *(để trống)* | • Lau sạch cát, bụi bẩn<br>• Bôi dầu toàn bộ<br>• Cất ở nơi khô ráo |
-
-**Chú ý:** Cột B **trống** → app tự động hiểu là tự luận → ẩn 4 nút A/B/C/D
-
-### **Quy tắc tự động nhận diện:**
-
-- **Cột B có nội dung** (nhiều dòng hoặc 1 dòng) → **Trắc nghiệm** ✓
-  - Hiện 4 nút A/B/C/D khi trả lời
-  
-- **Cột B trống/để trống** → **Tự luận** ✓
-  - Ẩn 4 nút, hiện toàn bộ text từ Cột C khi "Hiện đáp án"
-
-### **Yêu cầu định dạng:**
-
-- Định dạng file: `.xlsx` hoặc `.xls`
-- Dòng 1 (optional): Header `Câu hỏi | Phương án | Đáp án đúng`
-- Số dòng: Không giới hạn
-- Dòng trống: Bị bỏ qua (không lỗi)
-- Dòng thiếu Cột A hoặc C: Báo lỗi chi tiết (dòng bao nhiêu, lý do)
-
-### **Lỗi thường gặp:**
-
-| Lỗi | Nguyên nhân | Cách khắc phục |
-|---|---|---|
-| "Empty row" | Cả 3 cột trống | Xóa dòng đó |
-| "Missing question" | Cột A trống | Nhập câu hỏi vào Cột A |
-| "Missing answer" | Cột C trống | Nhập đáp án vào Cột C |
-| "Unsupported format" | Có 4+ cột dữ liệu | Dùng tối đa 3 cột |
-
----
-
-## 🎮 Cách Chơi Một Phiên
-
-1. **Chuẩn bị trước (lần đầu)**
-   - Vào Tab 3 → Chỉnh thời gian, quà/phạt, bật âm thanh
-   - Vào Tab 2 → Tạo lĩnh vực → Nạp câu hỏi (nhập tay hoặc upload Excel)
-
-2. **Trong phiên chơi**
-   - Vào Tab 1 (Vòng Quay)
-   - Bấm **[QUAY NGAY]** → vòng xoay
-   - Xử lý kết quả (trả lời câu hỏi, nhận quà/phạt)
-   - Lặp lại cho đến kết thúc
-
-3. **Dữ liệu tự động lưu**
-   - Mỗi khi thêm/sửa/xóa → tự động lưu vào điện thoại
-   - App offline hoàn toàn, không cần internet
-
----
-
-## 🔧 Phát Triển
+### Yêu cầu
+- Node.js 18+
+- npm
 
 ### Chạy local
 
@@ -249,31 +146,55 @@ npm install
 npm run dev
 ```
 
-### Build web
+### Build production
 
 ```bash
 npm run build
 ```
 
-### Đồng bộ Capacitor
+### Capacitor / Android
 
 ```bash
 npm run build
 npm run capacitor:sync
-```
-
-### Build Android APK
-
-```bash
 npm run android
 ```
 
 ---
 
-## 💾 Ghi Chú Kỹ Thuật
+## Công nghệ
 
-- Dữ liệu lưu bằng Capacitor Preferences (native storage Android), fallback localStorage trên web.
-- Excel import hỗ trợ `.xlsx`/`.xls` via SheetJS.
-- App nhận diện tự động MCQ vs Essay dựa trên nội dung Cột B.
-- Mỗi phiên chơi là một session riêng — câu/quà/phạt tự động reset khi khởi động app lại.
-- Màn hình sáng liên tục trong khi chơi (WAKE_LOCK permission trên Android).
+| Hạng mục | Stack |
+|----------|--------|
+| UI | Vanilla TypeScript + CSS (Tailwind utilities) |
+| Build | Vite 6 |
+| Mobile | Capacitor 7 |
+| Storage | `@capacitor/preferences` |
+| Excel | SheetJS (`xlsx`) |
+| Wheel | Canvas API |
+| Âm thanh | Web Audio API + HTMLAudioElement (custom) |
+
+---
+
+## Roadmap (bước tiếp theo)
+
+- [ ] Layout landscape/tablet hoàn chỉnh (sidebar nav, spin 60/40)
+- [ ] Tên đội / người chơi trên màn quay
+- [ ] Fanfare khi MC bấm Hiện đáp án
+- [ ] Timer xử lý đúng khi app background/foreground
+- [ ] Phiên chơi: reset used flags + tùy chọn xóa lịch sử trả lời
+- [ ] Tính điểm từ `question.points`
+- [ ] Quản lý thư viện âm thanh (dọn file không dùng)
+- [ ] Build APK & test thiết bị Android thật
+
+---
+
+## Tài liệu thiết kế
+
+Chi tiết spec gốc: [`voong-quay-kien-thuc-plan.md`](./voong-quay-kien-thuc-plan.md)
+
+---
+
+## License
+
+Private project — QuizSpin v0.1.0

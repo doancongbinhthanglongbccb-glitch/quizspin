@@ -1,7 +1,8 @@
 import { DEFAULTS } from '../../config';
 import { appContext } from '../state';
 import { openGiftModal, openNoticeModal, openQuestionModal } from './modal-actions';
-import { playTone, showToast } from './shared';
+import { soundManager } from '../sound-manager';
+import { showToast } from './shared';
 import { buildWheelModel } from '../wheel';
 import { WheelRenderer } from '../../ui/components/wheel';
 import { startSpinAnimation, type SpinAnimationController } from '../../utils/animate';
@@ -45,7 +46,7 @@ export function spin(): void {
   activeSpinAnimation = null;
 
   appContext.setRuntimeState({ spinning: true, rotation: runtime.rotation });
-  playTone(160, 260, 'sawtooth');
+  soundManager.play('spin');
 
   activeSpinAnimation = startSpinAnimation({
     model,
@@ -58,7 +59,7 @@ export function spin(): void {
       latestElapsedMs = elapsedMs;
 
       if (velocityDegPerSec >= TICK_SOUND_VELOCITY_THRESHOLD && elapsedMs - lastTickSoundAtMs >= TICK_SOUND_MIN_INTERVAL_MS) {
-        playTone(420, 20, 'square');
+        soundManager.play('tick');
         lastTickSoundAtMs = elapsedMs;
       }
 
@@ -74,6 +75,12 @@ export function spin(): void {
         appContext.setRuntimeState({ spinning: false, rotation: finalRotationDeg % 360 });
 
         const segment = landing.segment ?? chosen;
+
+        const runtime = appContext.getRuntimeState();
+        const historyEntry = { label: segment.label, color: segment.color, ts: Date.now() };
+        appContext.setRuntimeState({
+          spinHistory: [historyEntry, ...runtime.spinHistory].slice(0, 12),
+        });
 
         if (segment.kind === 'category' && segment.categoryId) {
           const category = appContext.getAppState().categories.find((item) => item.id === segment.categoryId);

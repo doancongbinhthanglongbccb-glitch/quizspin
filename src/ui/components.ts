@@ -5,7 +5,13 @@ import { renderSpinTab } from './components/spin-tab';
 import { renderBankTab } from './components/bank-tab';
 import { renderSettingsTab } from './components/settings-tab';
 import { WheelRenderer } from './components/wheel';
-import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers } from './handlers';
+import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers } from './handlers';
+
+const TAB_META: Record<'spin' | 'bank' | 'settings', { label: string; short: string; icon: string }> = {
+  spin: { label: 'Vòng quay', short: 'Quay', icon: '🎯' },
+  bank: { label: 'Ngân hàng', short: 'Kho', icon: '📚' },
+  settings: { label: 'Cài đặt', short: 'Cài đặt', icon: '⚙️' },
+};
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 let wheelCleanup: (() => void) | null = null;
@@ -17,14 +23,29 @@ if (!appRoot) {
 
 function renderTabs(): string {
   const runtime = appContext.getRuntimeState();
-  const button = (key: 'spin' | 'bank' | 'settings', label: string) =>
-    `<button class="nav-tab ${runtime.tab === key ? 'nav-tab--active' : ''}" data-action="switch-tab" data-tab="${key}">${label}</button>`;
+  const button = (key: 'spin' | 'bank' | 'settings') => {
+    const meta = TAB_META[key];
+    const active = runtime.tab === key ? ' nav-tab--active' : '';
+    return `
+      <button
+        class="nav-tab${active}"
+        data-action="switch-tab"
+        data-tab="${key}"
+        aria-label="${meta.label}"
+        aria-current="${runtime.tab === key ? 'page' : 'false'}"
+      >
+        <span class="nav-tab__icon" aria-hidden="true">${meta.icon}</span>
+        <span class="nav-tab__label">${meta.label}</span>
+        <span class="nav-tab__short">${meta.short}</span>
+      </button>
+    `;
+  };
 
   return `
-    <nav class="nav-shell">
-      ${button('spin', 'Vòng quay')}
-      ${button('bank', 'Ngân hàng')}
-      ${button('settings', 'Cài đặt')}
+    <nav class="nav-shell" aria-label="Điều hướng chính">
+      ${button('spin')}
+      ${button('bank')}
+      ${button('settings')}
     </nav>
   `;
 }
@@ -38,22 +59,24 @@ export function render(): void {
 
   appRoot.innerHTML = `
     <div class="app-shell">
-      <header class="app-header">
-        <div>
-          <div class="eyebrow">QuizSpin</div>
-          <h1>Vòng quay kiến thức offline</h1>
-        </div>
-        <div class="header-pills">
-          <span class="mini-pill">${appState.categories.length} lĩnh vực</span>
-          <span class="mini-pill">${appState.categories.reduce((count, category) => count + category.questions.length, 0)} câu</span>
-        </div>
-      </header>
-
       ${renderTabs()}
 
-      <main class="content-area">
-        ${content}
-      </main>
+      <div class="app-body">
+        <header class="app-header">
+          <div>
+            <div class="eyebrow">QuizSpin</div>
+            <h1>Vòng quay kiến thức offline</h1>
+          </div>
+          <div class="header-pills">
+            <span class="mini-pill">${appState.categories.length} lĩnh vực</span>
+            <span class="mini-pill">${appState.categories.reduce((count, category) => count + category.questions.length, 0)} câu</span>
+          </div>
+        </header>
+
+        <main class="content-area" data-swipe-zone="content">
+          ${content}
+        </main>
+      </div>
 
       ${runtime.toast ? `<div class="toast">${runtime.toast}</div>` : ''}
       ${renderModal(appState, runtime)}
@@ -65,8 +88,11 @@ export function render(): void {
 }
 
 function bindEvents(): Array<() => void> {
+  const swipeRoot = appRoot.querySelector<HTMLElement>('[data-swipe-zone="content"]') ?? appRoot;
+
   return [
     bindNavigationEvents(),
+    bindSwipeHandlers(swipeRoot, cleanupWheel),
     bindSpinHandlers(appRoot),
     bindBankHandlers(appRoot),
     bindSettingsHandlers(appRoot),

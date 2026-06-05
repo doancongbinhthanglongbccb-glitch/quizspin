@@ -1,4 +1,5 @@
 import { appContext } from '../../core/state';
+import type { QuestionDraft, QuestionFilter, QuestionType } from '../../types';
 import * as Actions from '../../core/actions';
 
 function getActionTarget(event: Event, root: ParentNode, selector: string): HTMLElement | null {
@@ -6,13 +7,99 @@ function getActionTarget(event: Event, root: ParentNode, selector: string): HTML
   return target && root.contains(target) ? target : null;
 }
 
-function getInputTarget<T extends HTMLInputElement | HTMLTextAreaElement>(event: Event, root: ParentNode, selector: string): T | null {
+function getInputTarget<T extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+  event: Event,
+  root: ParentNode,
+  selector: string,
+): T | null {
   const target = event.target instanceof Element ? event.target.closest(selector) : null;
   return target && root.contains(target) ? (target as T) : null;
 }
 
+function readDraftFromDom(root: ParentNode): QuestionDraft {
+  const typeInput = root.querySelector<HTMLSelectElement>('#question-type-input');
+  const questionInput = root.querySelector<HTMLTextAreaElement>('#question-input');
+  const optionsInput = root.querySelector<HTMLTextAreaElement>('#options-input');
+  const answerInput = root.querySelector<HTMLTextAreaElement>('#answer-input');
+
+  const type = (typeInput?.value === 'essay' ? 'essay' : 'mcq') as QuestionType;
+
+  return {
+    type,
+    question: questionInput?.value ?? '',
+    options: optionsInput?.value ?? '',
+    answer: answerInput?.value ?? '',
+  };
+}
+
+function syncDraftFromDom(root: ParentNode): void {
+  Actions.updateQuestionDraft(readDraftFromDom(root));
+}
+
+const LONG_PRESS_MS = 520;
+
 export function bindBankHandlers(root: ParentNode): () => void {
+  let longPressTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let longPressTriggered = false;
+
+  const clearLongPress = (): void => {
+    if (longPressTimer) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  };
+
+  const showCategoryMenu = (categoryId: string): void => {
+    const target = appContext.getAppState().categories.find((item) => item.id === categoryId);
+    if (!target) {
+      return;
+    }
+
+    const action = window.prompt('Bấm giữ lĩnh vực:\n1 = Đổi tên\n2 = Xóa lĩnh vực\n\nNhập 1 hoặc 2:', '1');
+    if (action === '1') {
+      Actions.renameCategory(target);
+      return;
+    }
+    if (action === '2') {
+      Actions.deleteCategory(target);
+    }
+  };
+
+  const onPointerDown = (event: Event): void => {
+    const pill = getActionTarget(event, root, '[data-action="select-category"]');
+    if (!pill) {
+      return;
+    }
+
+    const id = pill.dataset.id;
+    if (!id) {
+      return;
+    }
+
+    longPressTriggered = false;
+    longPressTimer = window.setTimeout(() => {
+      longPressTriggered = true;
+      showCategoryMenu(id);
+      clearLongPress();
+    }, LONG_PRESS_MS);
+  };
+
+  const onPointerUp = (): void => {
+    clearLongPress();
+  };
+
   const onClick = (event: Event): void => {
+    if (longPressTriggered) {
+      longPressTriggered = false;
+      return;
+    }
+
+    const filterButton = getActionTarget(event, root, '[data-action="filter-questions"]');
+    if (filterButton?.dataset.filter) {
+      Actions.setQuestionFilter(filterButton.dataset.filter as QuestionFilter);
+      return;
+    }
+
     const selectCategoryButton = getActionTarget(event, root, '[data-action="select-category"]');
     if (selectCategoryButton) {
       const id = selectCategoryButton.dataset.id;
@@ -26,20 +113,6 @@ export function bindBankHandlers(root: ParentNode): () => void {
     if (startEditButton) {
       appContext.setRuntimeState({ editingQuestionId: startEditButton.dataset.id ?? null });
       Actions.ensureQuestionDraft(Actions.currentCategory());
-      return;
-    }
-
-    const saveEditButton = getActionTarget(event, root, '[data-action="save-question-edit"]');
-    if (saveEditButton) {
-      const id = saveEditButton.dataset.id;
-      const questionInput = root.querySelector<HTMLInputElement>(`[data-field="edit-question"][data-id="${id}"]`);
-      const answerInput = root.querySelector<HTMLInputElement>(`[data-field="edit-answer"][data-id="${id}"]`);
-      const optionsInput = root.querySelector<HTMLTextAreaElement>(`[data-field="edit-options"][data-id="${id}"]`);
-      if (!id || !questionInput || !answerInput || !optionsInput) {
-        return;
-      }
-
-      Actions.saveQuestionEdit(id, questionInput.value, optionsInput.value, answerInput.value);
       return;
     }
 
@@ -87,11 +160,19 @@ export function bindBankHandlers(root: ParentNode): () => void {
     }
 
     if (getActionTarget(event, root, '[data-action="save-question"]')) {
+      syncDraftFromDom(root);
       Actions.saveQuestionDraft();
     }
   };
 
-  const onInput = (event: Event): void => {
+  const onChange = (event: Event): void => {
+    const typeInput = getInputTarget<HTMLSelectElement>(event, root, '#question-type-input');
+    if (typeInput) {
+      syncDraftFromDom(root);
+      Actions.setQuestionDraftType(typeInput.value === 'essay' ? 'essay' : 'mcq');
+      return;
+    }
+
     const excelInput = getInputTarget<HTMLInputElement>(event, root, '#excel-input');
     if (excelInput) {
       const file = excelInput.files?.[0];
@@ -102,11 +183,29 @@ export function bindBankHandlers(root: ParentNode): () => void {
     }
   };
 
+  const onInput = (event: Event): void => {
+    const draftField = getInputTarget<HTMLInputElement | HTMLTextAreaElement>(event, root, '[data-draft-field]');
+    if (draftField) {
+      syncDraftFromDom(root);
+    }
+  };
+
   root.addEventListener('click', onClick);
-  root.addEventListener('change', onInput);
+  root.addEventListener('change', onChange);
+  root.addEventListener('input', onInput);
+  root.addEventListener('pointerdown', onPointerDown);
+  root.addEventListener('pointerup', onPointerUp);
+  root.addEventListener('pointercancel', onPointerUp);
+  root.addEventListener('pointerleave', onPointerUp);
 
   return () => {
+    clearLongPress();
     root.removeEventListener('click', onClick);
-    root.removeEventListener('change', onInput);
+    root.removeEventListener('change', onChange);
+    root.removeEventListener('input', onInput);
+    root.removeEventListener('pointerdown', onPointerDown);
+    root.removeEventListener('pointerup', onPointerUp);
+    root.removeEventListener('pointercancel', onPointerUp);
+    root.removeEventListener('pointerleave', onPointerUp);
   };
 }

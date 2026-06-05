@@ -1,5 +1,14 @@
 import type { AppState, RuntimeState } from '../../core/state';
+import type { Question, QuestionFilter } from '../../types';
 import { currentCategory } from '../../core/actions';
+import {
+  countQuestionsByType,
+  filterQuestions,
+  getQuestionOptions,
+  isMcqQuestion,
+  questionTypeIcon,
+  questionTypeLabel,
+} from '../../data';
 
 function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -9,29 +18,92 @@ function escapeAttr(value: string): string {
   return escapeHtml(value).replaceAll("'", '&#39;');
 }
 
-function renderQuestionRow(runtime: RuntimeState, question: { id: string; question: string; options: string[]; answer: string }): string {
-  const isEditing = runtime.editingQuestionId === question.id;
-  const optionLabel = question.options.length ? `${question.options.length} lựa chọn` : 'Tự luận';
-
-  if (isEditing) {
-    return `
-      <div class="question-row question-row--editing">
-        <input class="input" data-field="edit-question" data-id="${question.id}" value="${escapeAttr(question.question)}" />
-        <input class="input" data-field="edit-answer" data-id="${question.id}" value="${escapeAttr(question.answer)}" />
-        <textarea class="textarea textarea--small" data-field="edit-options" data-id="${question.id}">${escapeHtml(question.options.join('\n'))}</textarea>
-        <div class="row-actions">
-          <button class="btn btn-primary" data-action="save-question-edit" data-id="${question.id}">Lưu</button>
-          <button class="btn btn-ghost" data-action="cancel-question-edit">Hủy</button>
-        </div>
-      </div>
-    `;
-  }
+function renderFilterPills(active: QuestionFilter, counts: { mcq: number; essay: number; total: number }): string {
+  const pill = (filter: QuestionFilter, label: string, count: number) => `
+    <button
+      type="button"
+      class="filter-pill ${active === filter ? 'filter-pill--active' : ''}"
+      data-action="filter-questions"
+      data-filter="${filter}"
+    >
+      ${label} <span class="filter-pill__count">${count}</span>
+    </button>
+  `;
 
   return `
-    <div class="question-row">
-      <div>
-        <div class="question-row__title">${question.question}</div>
-        <div class="question-row__meta">${optionLabel}</div>
+    <div class="filter-strip" role="group" aria-label="Lọc theo loại câu hỏi">
+      ${pill('all', 'Tất cả', counts.total)}
+      ${pill('mcq', '🔤 MCQ', counts.mcq)}
+      ${pill('essay', '📝 Essay', counts.essay)}
+    </div>
+  `;
+}
+
+function renderQuestionForm(runtime: RuntimeState): string {
+  const draft = runtime.questionDraft;
+  const isMcq = draft.type === 'mcq';
+
+  return `
+    <div class="card bank-form-card">
+      <div class="card-title">${runtime.editingQuestionId ? 'Sửa câu hỏi' : 'Thêm câu hỏi mới'}</div>
+
+      <label class="bank-form-label" for="question-type-input">Loại câu hỏi</label>
+      <select id="question-type-input" class="input question-type-select" data-action="draft-type" aria-label="Loại câu hỏi">
+        <option value="mcq" ${draft.type === 'mcq' ? 'selected' : ''}>🔤 Trắc nghiệm (MCQ)</option>
+        <option value="essay" ${draft.type === 'essay' ? 'selected' : ''}>📝 Tự luận (Essay)</option>
+      </select>
+
+      <label class="bank-form-label" for="question-input">Câu hỏi</label>
+      <textarea
+        class="textarea"
+        id="question-input"
+        data-draft-field="question"
+        placeholder="Nhập nội dung câu hỏi..."
+      >${escapeHtml(draft.question)}</textarea>
+
+      <div class="bank-field-mcq ${isMcq ? '' : 'bank-field-mcq--hidden'}">
+        <label class="bank-form-label" for="options-input">Phương án (mỗi dòng hoặc cách nhau bởi ; ,)</label>
+        <textarea
+          class="textarea textarea--small"
+          id="options-input"
+          data-draft-field="options"
+          placeholder="A. Đáp án 1&#10;B. Đáp án 2&#10;C. Đáp án 3&#10;D. Đáp án 4"
+        >${escapeHtml(draft.options)}</textarea>
+      </div>
+
+      <label class="bank-form-label" for="answer-input">${isMcq ? 'Đáp án đúng' : 'Đáp án / Gợi ý chấm'}</label>
+      <textarea
+        class="textarea ${isMcq ? 'textarea--compact' : ''}"
+        id="answer-input"
+        data-draft-field="answer"
+        placeholder="${isMcq ? 'VD: C. 100' : 'Nội dung đáp án chi tiết...'}"
+      >${escapeHtml(draft.answer)}</textarea>
+
+      <div class="row-actions">
+        <button class="btn btn-primary" data-action="save-question">
+          ${runtime.editingQuestionId ? 'Cập nhật câu' : '+ Thêm câu'}
+        </button>
+        ${runtime.editingQuestionId ? '<button class="btn btn-ghost" data-action="cancel-question-edit">Hủy sửa</button>' : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderQuestionRow(runtime: RuntimeState, question: Question): string {
+  const isActive = runtime.editingQuestionId === question.id;
+  const typeIcon = questionTypeIcon(question.type);
+  const typeLabel = questionTypeLabel(question.type);
+  const optionCount = getQuestionOptions(question).length;
+  const optionLabel = isMcqQuestion(question) ? `${optionCount} lựa chọn` : 'Không có phương án';
+
+  return `
+    <div class="question-row ${isActive ? 'question-row--active' : ''}">
+      <div class="question-row__body">
+        <span class="question-type-badge question-type-badge--${question.type}" title="${typeLabel}">${typeIcon}</span>
+        <div>
+          <div class="question-row__title">${question.question}</div>
+          <div class="question-row__meta">${typeLabel} · ${optionLabel}${question.points ? ` · ${question.points}đ` : ''}</div>
+        </div>
       </div>
       <div class="row-actions">
         <button class="btn btn-ghost" data-action="start-edit-question" data-id="${question.id}">Sửa</button>
@@ -53,14 +125,22 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
     )
     .join('');
 
-  const questions = category?.questions.map((question) => renderQuestionRow(runtime, question)).join('') ?? '';
-  const importReport = runtime.importReport;
+  const typeCounts = category ? countQuestionsByType(category.questions) : { mcq: 0, essay: 0, total: 0 };
+  const filteredQuestions = category ? filterQuestions(category.questions, runtime.questionFilter) : [];
+  const questions = filteredQuestions.map((question) => renderQuestionRow(runtime, question)).join('');
+  const emptyMessage =
+    runtime.questionFilter === 'all'
+      ? 'Chưa có câu hỏi nào trong lĩnh vực này.'
+      : `Không có câu ${runtime.questionFilter === 'mcq' ? 'trắc nghiệm' : 'tự luận'} trong lĩnh vực này.`;
 
+  const importReport = runtime.importReport;
   const importSummary = importReport
     ? `
       <div class="import-report">
         <div class="card-title">Kết quả nhập Excel</div>
-        <div class="import-report__summary">Imported: ${importReport.imported} questions · Skipped: ${importReport.skipped} rows</div>
+        <div class="import-report__summary">
+          Imported: ${importReport.imported} (${importReport.stats.mcq} MCQ, ${importReport.stats.essay} Essay) · Skipped: ${importReport.skipped}
+        </div>
         ${importReport.diagnostics.length
           ? `<ul class="import-report__list">${importReport.diagnostics
               .map(
@@ -78,45 +158,53 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
     : '';
 
   return `
-    <section class="panel">
-      <div class="section-head">
-        <div>
-          <div class="eyebrow">Ngân hàng câu hỏi</div>
-          <h2>${category?.name ?? 'Chưa có lĩnh vực'}</h2>
-          <p>${category ? `${category.questions.length} câu trong kho` : 'Tạo một lĩnh vực để bắt đầu.'}</p>
-        </div>
-        <div class="section-head__actions">
-          <button class="btn btn-ghost" data-action="rename-category" ${category ? '' : 'disabled'}>Đổi tên</button>
-          <button class="btn btn-danger" data-action="delete-category" ${category ? '' : 'disabled'}>Xóa sạch mục này</button>
-        </div>
-      </div>
-
-      <div class="category-strip">
-        ${categoryPills}
-        <button class="category-pill category-pill--add" data-action="add-category">+ Thêm lĩnh vực mới</button>
-      </div>
-
-      <div class="bank-grid">
-        <div class="card">
-          <div class="card-title">Nhập tay</div>
-          <textarea class="textarea" id="question-input" placeholder="Câu hỏi">${escapeHtml(runtime.questionDraft.question)}</textarea>
-          <textarea class="textarea textarea--small" id="options-input" placeholder="4 lựa chọn, mỗi dòng 1 đáp án">${escapeHtml(runtime.questionDraft.options)}</textarea>
-          <input class="input" id="answer-input" placeholder="Đáp án" value="${escapeAttr(runtime.questionDraft.answer)}" />
-          <div class="row-actions">
-            <button class="btn btn-primary" data-action="save-question">+ Thêm câu</button>
+    <section class="panel panel--bank">
+      <div class="bank-layout">
+        <aside class="bank-sidebar">
+          <div class="bank-sidebar__title">Lĩnh vực</div>
+          <div class="category-strip category-strip--sidebar">
+            ${categoryPills}
+            <button class="category-pill category-pill--add" data-action="add-category">+ Thêm lĩnh vực mới</button>
           </div>
-        </div>
+        </aside>
 
-        <div class="card">
-          <div class="card-title">Upload Excel</div>
-          <input id="excel-input" class="file-input" type="file" accept=".xlsx,.xls" />
-          <p class="muted">Hỗ trợ 2 hoặc 3 cột, ưu tiên format hybrid A/B/C như bản thiết kế.</p>
+        <div class="bank-main">
+          <div class="category-strip category-strip--mobile">
+            ${categoryPills}
+            <button class="category-pill category-pill--add" data-action="add-category">+ Thêm lĩnh vực mới</button>
+          </div>
+
+          <div class="section-head">
+            <div>
+              <div class="eyebrow">Ngân hàng câu hỏi</div>
+              <h2>${category?.name ?? 'Chưa có lĩnh vực'}</h2>
+              <p>
+                ${category ? `${typeCounts.total} câu (${typeCounts.mcq} MCQ · ${typeCounts.essay} Essay)` : 'Tạo một lĩnh vực để bắt đầu.'}
+              </p>
+            </div>
+            <div class="section-head__actions">
+              <button class="btn btn-ghost" data-action="rename-category" ${category ? '' : 'disabled'}>Đổi tên</button>
+              <button class="btn btn-danger" data-action="delete-category" ${category ? '' : 'disabled'}>Xóa sạch mục này</button>
+            </div>
+          </div>
+
+          <div class="bank-grid">
+            ${renderQuestionForm(runtime)}
+
+            <div class="card">
+              <div class="card-title">Upload Excel</div>
+              <input id="excel-input" class="file-input" type="file" accept=".xlsx,.xls" />
+              <p class="muted">Format: Lĩnh vực | Loại | Câu hỏi | Options/Đáp án. Hỗ trợ legacy 2–3 cột.</p>
+            </div>
+          </div>
+
+          ${importSummary}
+
+          ${category ? renderFilterPills(runtime.questionFilter, typeCounts) : ''}
+
+          <div class="question-list">${questions || `<div class="empty-state">${emptyMessage}</div>`}</div>
         </div>
       </div>
-
-      ${importSummary}
-
-      <div class="question-list">${questions || '<div class="empty-state">Chưa có câu hỏi nào trong lĩnh vực này.</div>'}</div>
     </section>
   `;
 }

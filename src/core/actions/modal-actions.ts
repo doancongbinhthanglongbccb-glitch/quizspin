@@ -1,11 +1,21 @@
-import type { Category } from '../../types';
+import type { AnswerRecord, Category } from '../../types';
 import { availableQuestion } from '../../data';
 import { appContext } from '../state';
-import { playTone, showToast, startQuestionTimer, stopTimer } from './shared';
+import { soundManager } from '../sound-manager';
+import { showToast, startQuestionTimer, stopTimer } from './shared';
+import { resetQuestionFlags } from './question-actions';
 
 export function openQuestionModal(category: Category): void {
   const runtime = appContext.getRuntimeState();
-  const question = availableQuestion(category.questions, runtime.usedQuestionIds);
+  const allUsed =
+    category.questions.length > 0 && category.questions.every((item) => runtime.usedQuestionIds.has(item.id));
+
+  if (allUsed) {
+    resetQuestionFlags(category);
+  }
+
+  const freshRuntime = appContext.getRuntimeState();
+  const question = availableQuestion(category.questions, freshRuntime.usedQuestionIds);
 
   if (!question) {
     showToast(`Lĩnh vực ${category.name} đang trống`);
@@ -26,6 +36,8 @@ export function openQuestionModal(category: Category): void {
       revealed: false,
       remaining: appContext.getAppState().settings.timer,
       selectedAnswer: null,
+      playerAnswer: null,
+      submitted: false,
     },
   });
 
@@ -109,7 +121,6 @@ export function revealAnswer(): void {
     const nextModal = { ...runtime.modal, revealed: true, paused: true };
     appContext.setRuntimeState({ modal: nextModal });
     stopTimer();
-    playTone(660, 420, 'triangle');
     return;
   }
 
@@ -122,26 +133,98 @@ export function chooseQuestionAnswer(answer: string): void {
     return;
   }
 
-  if (runtime.modal.revealed || runtime.modal.selectedAnswer) {
+  if (runtime.modal.revealed || runtime.modal.submitted) {
     return;
   }
 
   const selectedAnswer = answer.trim();
-  const nextModal = { ...runtime.modal, selectedAnswer, revealed: true, paused: true };
+  const nextModal = {
+    ...runtime.modal,
+    selectedAnswer,
+    playerAnswer: selectedAnswer,
+  };
 
   appContext.setRuntimeState({ modal: nextModal });
-  stopTimer();
+}
+
+export function updatePlayerAnswer(answer: string): void {
+  const runtime = appContext.getRuntimeState();
+  if (!runtime.modal || runtime.modal.kind !== 'question') {
+    return;
+  }
+
+  if (runtime.modal.revealed || runtime.modal.submitted) {
+    return;
+  }
+
+  const nextModal = {
+    ...runtime.modal,
+    playerAnswer: answer,
+  };
+
+  appContext.setRuntimeState({ modal: nextModal });
+}
+
+export function submitQuestionAnswer(): void {
+  const runtime = appContext.getRuntimeState();
+  if (!runtime.modal || runtime.modal.kind !== 'question') {
+    return;
+  }
+
+  if (runtime.modal.submitted) {
+    return;
+  }
 
   const appState = appContext.getAppState();
   const category = appState.categories.find((item) => item.id === runtime.modal.categoryId);
   const question = category?.questions.find((item) => item.id === runtime.modal.questionId);
 
-  if (question && selectedAnswer === question.answer) {
-    playTone(880, 180, 'sine');
+  const rawAnswer = (runtime.modal.playerAnswer ?? runtime.modal.selectedAnswer ?? '').trim();
+  if (!rawAnswer) {
+    return;
+  }
+
+  const remaining = Math.max(0, runtime.modal.remaining);
+  const total = Math.max(1, runtime.modal.timer);
+  const elapsedSeconds = Math.min(total, total - remaining);
+  const timeSpentMs = Math.max(0, elapsedSeconds * 1000);
+
+  const isCorrect = !!question && rawAnswer === question.answer;
+
+  const nextModal = {
+    ...runtime.modal,
+    playerAnswer: rawAnswer,
+    submitted: true,
+    revealed: true,
+    paused: true,
+  };
+
+  const answerRecord: AnswerRecord | null = question
+    ? {
+        questionId: question.id,
+        playerAnswer: rawAnswer,
+        isCorrect,
+        timeSpentMs,
+        submittedAt: new Date().toISOString(),
+      }
+    : null;
+
+  if (answerRecord) {
+    appContext.setAppState((current) => ({
+      ...current,
+      answerHistory: [answerRecord, ...current.answerHistory],
+    }));
+  }
+
+  appContext.setRuntimeState({ modal: nextModal });
+  stopTimer();
+
+  if (isCorrect) {
+    soundManager.play('correct');
     showToast('Chính xác!');
     return;
   }
 
-  playTone(220, 260, 'sawtooth');
+  soundManager.play('wrong');
   showToast(question ? `Sai rồi. Đáp án đúng: ${question.answer}` : 'Sai rồi.');
 }

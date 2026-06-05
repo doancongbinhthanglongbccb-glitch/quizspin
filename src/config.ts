@@ -14,6 +14,7 @@ export const DEFAULTS = {
   toastDurationMs: 2600,
   timerMinSec: 10,
   timerMaxSec: 60,
+  questionPoints: 10,
 };
 
 export default DEFAULTS;

@@ -26,22 +26,27 @@ export function parseExcelImport(file: File): void {
         return;
       }
 
+      const stamped = parsed.questions.map((question) => ({ ...question, categoryId: category.id }));
+
       appContext.setAppState((current) => ({
         ...current,
         categories: current.categories.map((item) =>
-          item.id === category.id ? { ...item, questions: [...item.questions, ...parsed.questions] } : item,
+          item.id === category.id ? { ...item, questions: [...item.questions, ...stamped] } : item,
         ),
       }));
 
       appContext.setRuntimeState({
         importReport: {
           imported: parsed.questions.length,
-          skipped: parsed.diagnostics.length,
+          skipped: parsed.stats.skipped,
+          stats: parsed.stats,
           diagnostics: parsed.diagnostics,
         },
       });
 
-      showToast(`Đã thêm ${parsed.questions.length} câu vào ${category.name}`);
+      showToast(
+        `Đã thêm ${parsed.questions.length} câu (${parsed.stats.mcq} MCQ, ${parsed.stats.essay} Essay) vào ${category.name}`,
+      );
       // Append bank log for import
       try {
         const rt = appContext.getRuntimeState();
@@ -76,6 +81,7 @@ export async function clearEverything(): Promise<void> {
     usedGifts: new Set(),
     usedPunishments: new Set(),
     importReport: null,
+    spinHistory: [],
   });
 
   ensureQuestionDraft(currentCategory());
