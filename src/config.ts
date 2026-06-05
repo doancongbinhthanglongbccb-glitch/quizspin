@@ -9,13 +9,17 @@ export const DEFAULT_FIXED_SEGMENTS: WheelSegment[] = [
   { id: 'lose-turn', label: 'Mất lượt', kind: 'loseTurn', color: '#577590' },
 ];
 
+export { SPIN_CONFIG } from './config/spin';
+
+import { SPIN_CONFIG } from './config/spin';
+
 export const DEFAULTS = {
-  spinFullTurns: 6, // number of full revolutions before landing
-  spinDurationMs: 5200, // fallback spin animation timeout
+  spinFullTurns: SPIN_CONFIG.extraSpins,
+  spinDurationMs: SPIN_CONFIG.durationMs,
   pointerOffsetDeg: 90, // pointer location offset used for rotation math
   toastDurationMs: 2600,
   timerMinSec: 10,
-  timerMaxSec: 60,
+  timerMaxSec: 300, // 5 phút
   questionPoints: 10,
 };
 

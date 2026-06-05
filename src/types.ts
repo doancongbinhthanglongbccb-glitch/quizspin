@@ -40,7 +40,18 @@ export type Category = {
   questions: Question[];
 };
 
-export type SoundEventKey = 'spin' | 'tick' | 'countdown' | 'correct' | 'wrong' | 'timeup' | 'fanfare' | 'click';
+export type SoundEventKey =
+  | 'spinBed'
+  | 'spinStart'
+  | 'spinStop'
+  | 'countdown'
+  | 'correct'
+  | 'wrong'
+  | 'fanfare'
+  | 'gift'
+  | 'punishment'
+  | 'extraTurn'
+  | 'loseTurn';
 
 export type CustomSound = {
   id: string;

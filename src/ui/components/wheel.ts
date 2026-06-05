@@ -1,3 +1,4 @@
+import { appContext } from '../../core/state';
 import type { WheelModel, WheelLayoutSegment } from '../../core/wheel';
 
 /**
@@ -393,7 +394,7 @@ export function drawWheel(canvasId: string, model: WheelModel, rotationDeg: numb
  * Setup canvas element: khởi tạo, xử lý resize, vẽ lần đầu.
  * Trả về cleanup function.
  */
-export function setupWheelCanvas(canvasId: string, model: WheelModel): () => void {
+export function setupWheelCanvas(canvasId: string, model: WheelModel, initialRotationDeg = 0): () => void {
   const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
   if (!canvas) {
     console.warn(`Canvas element with id "${canvasId}" not found during setup`);
@@ -402,13 +403,13 @@ export function setupWheelCanvas(canvasId: string, model: WheelModel): () => voi
 
   // Initial setup
   initializeCanvasForHighDPI(canvas);
-  drawWheel(canvasId, model, 0);
+  drawWheel(canvasId, model, initialRotationDeg);
 
   // Handle size changes without reading offsetWidth on every draw.
   let resizeTimeout: number | undefined;
   const refreshCanvas = (): void => {
     initializeCanvasForHighDPI(canvas);
-    drawWheel(canvasId, model, 0);
+    drawWheel(canvasId, model, appContext.getRuntimeState().rotation);
   };
 
   const scheduleRefresh = (): void => {

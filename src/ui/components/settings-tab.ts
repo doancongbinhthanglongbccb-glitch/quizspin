@@ -1,10 +1,24 @@
+import { DEFAULTS } from '../../config';
+import { formatTimerDisplay } from '../../utils/timer-format';
 import type { RuntimeState } from '../../core/state';
 import type { AppState } from '../../types';
 import { DEFAULT_SOUND_FILE_NAMES } from '../../config/sounds';
 import { rewardItemsToText, SOUND_EVENT_LABELS } from '../../data';
 import type { SettingsSection, SoundEventKey } from '../../types';
 
-const SOUND_EVENTS: SoundEventKey[] = ['correct', 'wrong', 'timeup', 'countdown', 'spin', 'tick', 'fanfare', 'click'];
+const SOUND_EVENTS: SoundEventKey[] = [
+  'spinBed',
+  'spinStart',
+  'spinStop',
+  'countdown',
+  'correct',
+  'wrong',
+  'fanfare',
+  'gift',
+  'punishment',
+  'extraTurn',
+  'loseTurn',
+];
 
 const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; danger?: boolean }> = [
   { id: 'timer', label: 'Thời gian', icon: '⏱' },
@@ -102,17 +116,19 @@ function renderSoundEvents(appState: AppState): string {
 }
 
 function renderTimerPanel(appState: AppState): string {
+  const { value, unit } = formatTimerDisplay(appState.settings.timer);
+
   return `
     <div class="settings-panel-card">
       <p class="settings-panel-card__title"><span aria-hidden="true">⏱</span>Thời gian đếm ngược mỗi câu</p>
       <div class="settings-timer-slider">
-        <span class="settings-timer-slider__edge">10s</span>
-        <input id="timer-slider" type="range" min="10" max="60" value="${appState.settings.timer}" />
-        <span class="settings-timer-slider__edge">60s</span>
+        <span class="settings-timer-slider__edge">${DEFAULTS.timerMinSec}s</span>
+        <input id="timer-slider" type="range" min="${DEFAULTS.timerMinSec}" max="${DEFAULTS.timerMaxSec}" value="${appState.settings.timer}" />
+        <span class="settings-timer-slider__edge">5 phút</span>
       </div>
       <div class="settings-timer-value">
-        <span class="settings-timer-value__number" id="timer-slider-value">${appState.settings.timer}</span>
-        <span class="settings-timer-value__unit">giây</span>
+        <span class="settings-timer-value__number" id="timer-slider-value">${value}</span>
+        <span class="settings-timer-value__unit" id="timer-slider-unit">${unit}</span>
       </div>
     </div>
   `;

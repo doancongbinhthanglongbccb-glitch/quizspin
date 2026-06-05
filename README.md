@@ -30,7 +30,7 @@
 - Lọc: Tất cả · MCQ · Essay
 
 ### Tab Cài đặt
-- Slider thời gian (10–60s)
+- Slider thời gian (10s–5 phút)
 - Bật/tắt âm thanh
 - Upload âm thanh tùy chỉnh cho từng event (`correct`, `wrong`, `timeup`, `spin`, `tick`, …)
 - Danh sách quà tặng & hình phạt (mỗi dòng một mục)

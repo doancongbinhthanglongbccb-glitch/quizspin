@@ -1,4 +1,4 @@
-import { DEFAULT_SOUND_FILES } from '../config/sounds';
+import { DEFAULT_SOUND_FILES, SUSTAINED_SOUND_EVENTS } from '../config/sounds';
 import type { CustomSound, SoundEventKey } from '../types';
 import { appContext } from './state';
 
@@ -8,47 +8,69 @@ type SoundSpec = {
   type: OscillatorType;
 };
 
-/** Fallback nếu file bundle không load được */
 const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
+  spinBed: { frequency: 140, duration: 320, type: 'sine' },
+  spinStart: { frequency: 160, duration: 260, type: 'sawtooth' },
+  spinStop: { frequency: 320, duration: 180, type: 'triangle' },
   correct: { frequency: 880, duration: 180, type: 'sine' },
   wrong: { frequency: 220, duration: 260, type: 'sawtooth' },
-  timeup: { frequency: 880, duration: 450, type: 'triangle' },
   countdown: { frequency: 640, duration: 35, type: 'square' },
-  spin: { frequency: 160, duration: 260, type: 'sawtooth' },
-  tick: { frequency: 420, duration: 20, type: 'square' },
-  click: { frequency: 660, duration: 420, type: 'triangle' },
   fanfare: { frequency: 1040, duration: 320, type: 'sine' },
+  gift: { frequency: 880, duration: 280, type: 'sine' },
+  punishment: { frequency: 180, duration: 220, type: 'sawtooth' },
+  extraTurn: { frequency: 720, duration: 240, type: 'triangle' },
+  loseTurn: { frequency: 220, duration: 260, type: 'sawtooth' },
 };
 
+const POOLED_EVENTS = new Set<SoundEventKey>(['countdown']);
+
 export class SoundManager {
-  private activeAudio: HTMLAudioElement | null = null;
+  private sustained = new Map<SoundEventKey, HTMLAudioElement>();
+  private pooled = new Map<SoundEventKey, HTMLAudioElement>();
 
   play(event: SoundEventKey): void {
-    const appState = appContext.getAppState();
-    if (!appState.settings.sound) {
+    if (!this.isEnabled()) {
       return;
     }
 
-    const custom = this.resolveCustomSound(
-      event,
-      appState.settings.sounds?.library ?? [],
-      appState.settings.sounds?.bindings,
-    );
-    if (custom) {
-      this.playDataUrl(custom.dataUrl);
+    const source = this.resolveSource(event);
+    if (SUSTAINED_SOUND_EVENTS.has(event)) {
+      this.playSustained(event, source, false);
       return;
     }
 
-    const bundled = DEFAULT_SOUND_FILES[event];
-    if (bundled) {
-      this.playUrl(bundled);
+    if (POOLED_EVENTS.has(event)) {
+      this.playPooled(event, source);
       return;
     }
 
-    const fallback = TONE_FALLBACK[event];
-    if (fallback) {
-      this.playTone(fallback.frequency, fallback.duration, fallback.type);
+    this.playFresh(source, () => this.playToneFallback(event));
+  }
+
+  /** Phát nền lặp (nhạc nền quay, beep 5s cuối) */
+  playLoop(event: SoundEventKey): void {
+    if (!this.isEnabled()) {
+      return;
     }
+
+    this.playSustained(event, this.resolveSource(event), true);
+  }
+
+  stop(event: SoundEventKey): void {
+    const audio = this.sustained.get(event);
+    if (!audio) {
+      return;
+    }
+
+    audio.pause();
+    audio.currentTime = 0;
+    audio.loop = false;
+    this.sustained.delete(event);
+  }
+
+  stopSpinSounds(): void {
+    this.stop('spinBed');
+    this.stop('spinStart');
   }
 
   resolveCustomSound(
@@ -64,42 +86,75 @@ export class SoundManager {
     return library.find((item) => item.id === soundId) ?? null;
   }
 
-  private playUrl(url: string): void {
-    this.activeAudio?.pause();
-
-    const audio = new Audio(url);
-    audio.volume = 0.9;
-    this.activeAudio = audio;
-    void audio.play().catch(() => {
-      const eventKey = (Object.keys(DEFAULT_SOUND_FILES) as SoundEventKey[]).find(
-        (key) => DEFAULT_SOUND_FILES[key] === url,
-      );
-      if (eventKey) {
-        const fallback = TONE_FALLBACK[eventKey];
-        if (fallback) {
-          this.playTone(fallback.frequency, fallback.duration, fallback.type);
-        }
-      }
-    });
-    audio.onended = () => {
-      if (this.activeAudio === audio) {
-        this.activeAudio = null;
-      }
-    };
+  private isEnabled(): boolean {
+    return appContext.getAppState().settings.sound;
   }
 
-  private playDataUrl(dataUrl: string): void {
-    this.activeAudio?.pause();
+  private resolveSource(event: SoundEventKey): string | undefined {
+    const appState = appContext.getAppState();
+    const custom = this.resolveCustomSound(
+      event,
+      appState.settings.sounds?.library ?? [],
+      appState.settings.sounds?.bindings,
+    );
+    return custom?.dataUrl ?? DEFAULT_SOUND_FILES[event];
+  }
 
-    const audio = new Audio(dataUrl);
+  private playSustained(event: SoundEventKey, source: string | undefined, loop: boolean): void {
+    if (!source) {
+      this.playToneFallback(event);
+      return;
+    }
+
+    this.stop(event);
+
+    const audio = new Audio(source);
     audio.volume = 0.9;
-    this.activeAudio = audio;
-    void audio.play().catch(() => undefined);
-    audio.onended = () => {
-      if (this.activeAudio === audio) {
-        this.activeAudio = null;
-      }
-    };
+    audio.loop = loop;
+    this.sustained.set(event, audio);
+    void audio.play().catch(() => {
+      this.stop(event);
+      this.playToneFallback(event);
+    });
+  }
+
+  private playPooled(event: SoundEventKey, source: string | undefined): void {
+    if (!source) {
+      this.playToneFallback(event);
+      return;
+    }
+
+    let audio = this.pooled.get(event);
+    if (!audio) {
+      audio = new Audio(source);
+      audio.volume = 0.9;
+      this.pooled.set(event, audio);
+    }
+
+    if (!audio.paused && !audio.ended && audio.currentTime > 0.02) {
+      return;
+    }
+
+    audio.currentTime = 0;
+    void audio.play().catch(() => this.playToneFallback(event));
+  }
+
+  private playFresh(source: string | undefined, onFail: () => void): void {
+    if (!source) {
+      onFail();
+      return;
+    }
+
+    const audio = new Audio(source);
+    audio.volume = 0.9;
+    void audio.play().catch(onFail);
+  }
+
+  private playToneFallback(event: SoundEventKey): void {
+    const fallback = TONE_FALLBACK[event];
+    if (fallback) {
+      this.playTone(fallback.frequency, fallback.duration, fallback.type);
+    }
   }
 
   private playTone(frequency: number, duration: number, type: OscillatorType = 'sine'): void {

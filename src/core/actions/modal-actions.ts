@@ -84,10 +84,13 @@ export function openGiftModal(kind: 'gift' | 'punishment'): void {
       text: chosen.text,
     },
   });
+
+  soundManager.play(kind === 'gift' ? 'gift' : 'punishment');
 }
 
-export function openNoticeModal(text: string): void {
+export function openNoticeModal(text: string, sound: 'extraTurn' | 'loseTurn'): void {
   appContext.setRuntimeState({ modal: { kind: 'notice', text } });
+  soundManager.play(sound);
 }
 
 export function closeModal(): void {
@@ -121,6 +124,7 @@ export function revealAnswer(): void {
     const nextModal = { ...runtime.modal, revealed: true, paused: true };
     appContext.setRuntimeState({ modal: nextModal });
     stopTimer();
+    soundManager.play('fanfare');
     return;
   }
 

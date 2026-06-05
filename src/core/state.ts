@@ -147,7 +147,19 @@ function migrateSoundBindings(
 
   const libraryIds = new Set(library.map((item) => item.id));
   const next: Partial<Record<SoundEventKey, string>> = {};
-  const allowed: SoundEventKey[] = ['spin', 'tick', 'countdown', 'correct', 'wrong', 'timeup', 'fanfare', 'click'];
+  const allowed: SoundEventKey[] = [
+    'spinBed',
+    'spinStart',
+    'spinStop',
+    'countdown',
+    'correct',
+    'wrong',
+    'fanfare',
+    'gift',
+    'punishment',
+    'extraTurn',
+    'loseTurn',
+  ];
 
   for (const key of allowed) {
     const value = (bindings as Record<string, unknown>)[key];

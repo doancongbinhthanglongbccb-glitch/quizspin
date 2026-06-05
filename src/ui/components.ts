@@ -184,5 +184,5 @@ function mountWheelCanvas(): void {
 
   const appState = appContext.getAppState();
   const model = buildWheelModel(appState);
-  wheelCleanup = WheelRenderer.setup('wheel-canvas', model);
+  wheelCleanup = WheelRenderer.setup('wheel-canvas', model, runtime.rotation);
 }

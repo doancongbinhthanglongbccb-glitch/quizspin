@@ -1,6 +1,7 @@
 import { appContext } from '../../core/state';
 import type { SettingsSection, SoundEventKey } from '../../types';
 import { textToRewardItems } from '../../data';
+import { formatTimerDisplay } from '../../utils/timer-format';
 import * as Actions from '../../core/actions';
 
 function getInputTarget<T extends HTMLInputElement | HTMLTextAreaElement>(event: Event, root: ParentNode, selector: string): T | null {
@@ -21,14 +22,30 @@ function readSoundEvent(target: HTMLElement): SoundEventKey | null {
   return value as SoundEventKey;
 }
 
+function updateTimerSliderPreview(root: ParentNode, seconds: number): void {
+  const { value, unit } = formatTimerDisplay(seconds);
+  const valueEl = root.querySelector('#timer-slider-value');
+  const unitEl = root.querySelector('#timer-slider-unit');
+  if (valueEl) {
+    valueEl.textContent = value;
+  }
+  if (unitEl) {
+    unitEl.textContent = unit;
+  }
+}
+
+function commitTimerValue(seconds: number): void {
+  appContext.setAppState((current) => ({
+    ...current,
+    settings: { ...current.settings, timer: seconds },
+  }));
+}
+
 export function bindSettingsHandlers(root: ParentNode): () => void {
   const onInput = (event: Event): void => {
     const timerSlider = getInputTarget<HTMLInputElement>(event, root, '#timer-slider');
     if (timerSlider) {
-      appContext.setAppState((current) => ({
-        ...current,
-        settings: { ...current.settings, timer: Number(timerSlider.value) },
-      }));
+      updateTimerSliderPreview(root, Number(timerSlider.value));
       return;
     }
 
@@ -59,6 +76,12 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
   };
 
   const onChange = (event: Event): void => {
+    const timerSlider = getInputTarget<HTMLInputElement>(event, root, '#timer-slider');
+    if (timerSlider) {
+      commitTimerValue(Number(timerSlider.value));
+      return;
+    }
+
     const soundToggle = getInputTarget<HTMLInputElement>(event, root, '#sound-toggle');
     if (soundToggle) {
       appContext.setAppState((current) => ({

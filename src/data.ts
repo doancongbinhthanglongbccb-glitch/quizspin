@@ -307,14 +307,17 @@ export function makeCategory(name: string): Category {
 }
 
 export const SOUND_EVENT_LABELS: Record<SoundEventKey, string> = {
+  spinBed: 'Nhạc nền khi quay',
+  spinStart: 'Tiếng quay bánh xe',
+  spinStop: 'Tiếng dừng quay',
   correct: 'Trả lời đúng',
   wrong: 'Trả lời sai',
-  timeup: 'Hết giờ',
-  spin: 'Bắt đầu quay',
-  tick: 'Tiếng tick khi quay',
   countdown: 'Tick đếm giờ (mỗi giây)',
   fanfare: 'Fanfare',
-  click: 'Nhấn nút',
+  gift: 'Trúng quà tặng',
+  punishment: 'Trúng xử phạt',
+  extraTurn: 'Thêm lượt',
+  loseTurn: 'Mất lượt',
 };
 
 export function findQuestionById(appState: AppState, questionId: string): Question | null {
