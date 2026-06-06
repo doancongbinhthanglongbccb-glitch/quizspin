@@ -1,7 +1,7 @@
 import { App } from '@capacitor/app';
 import { appContext } from '../state';
 import { startQuestionTimer, stopQuestionTimer } from '../question-timer';
-import { saveState, readJson } from '../../storage';
+import { saveState, readJson, readHasSeenIntro } from '../../storage';
 import type { AppState } from '../../types';
 // Import explicit file to avoid TS module resolution ambiguity between
 // `src/ui/components.ts` (file) and `src/ui/components/` (directory).
@@ -16,7 +16,9 @@ import {
   toggleQuestionPause,
   chooseQuestionAnswer,
   submitQuestionAnswer,
+  revealAnswer,
   updatePlayerAnswer,
+  openQuestionReview,
 } from './modal-actions';
 import { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory } from './category-actions';
 import {
@@ -29,7 +31,8 @@ import {
   updateQuestionDraft,
 } from './question-actions';
 import { spin } from './spin-actions';
-import { uploadSoundForEvent, clearSoundBinding, previewSoundEvent } from './sound-actions';
+import { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent } from './sound-actions';
+import { completeIntro, showIntro } from './intro-actions';
 
 export { appContext };
 export { clearEverything, parseExcelImport };
@@ -41,12 +44,15 @@ export {
   toggleQuestionPause,
   chooseQuestionAnswer,
   submitQuestionAnswer,
+  revealAnswer,
   updatePlayerAnswer,
+  openQuestionReview,
 };
 export { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory };
 export { saveQuestionDraft, deleteQuestion, resetQuestionFlags, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };
 export { spin };
-export { uploadSoundForEvent, clearSoundBinding, previewSoundEvent };
+export { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent };
+export { completeIntro, showIntro };
 
 export let renderApp: () => void = render;
 
@@ -75,9 +81,11 @@ export async function bootstrap(): Promise<void> {
     return await readJson<AppState | null>(key, null);
   });
 
+  const hasSeenIntro = await readHasSeenIntro();
   const appState = appContext.getAppState();
   appContext.setRuntimeState({
     selectedCategoryId: appState.categories[0]?.id ?? null,
+    showIntro: !hasSeenIntro,
   });
   ensureQuestionDraft(currentCategory());
 

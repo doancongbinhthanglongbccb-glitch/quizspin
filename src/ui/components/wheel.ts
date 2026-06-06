@@ -6,9 +6,7 @@ import type { WheelModel, WheelLayoutSegment } from '../../core/wheel';
  */
 export function renderWheelHTML(): string {
   return `
-    <div class="wheel-frame" aria-hidden="false">
-      <canvas id="wheel-canvas" class="wheel-canvas"></canvas>
-    </div>
+    <div class="wheel-frame" data-wheel-host aria-hidden="false"></div>
   `;
 }
 
@@ -18,15 +16,30 @@ export function renderWheelHTML(): string {
 
 const WHEEL_CONFIG = {
   padding: 20,
-  pointerHeight: 28,
-  pointerWidth: 16,
-  centerDotRadius: 10,
-  segmentBorderWidth: 2,
+  pointerHeight: 32,
+  pointerWidth: 20,
+  centerDotRadius: 11,
+  segmentBorderWidth: 1.5,
   minRadius: 120,
-  labelMaxFontSize: 16,
-  labelMinFontSize: 9,
+  labelMaxFontSize: 22,
+  labelMinFontSize: 11,
+  labelFontScale: 0.088,
   labelMaxLines: 3,
 };
+
+const WHEEL_CANVAS_ID = 'wheel-canvas';
+
+type WheelMountState = {
+  canvas: HTMLCanvasElement;
+  cleanup: () => void;
+  modelSignature: string;
+};
+
+let mountState: WheelMountState | null = null;
+
+export function buildModelSignature(model: WheelModel): string {
+  return model.segments.map((segment) => `${segment.id}:${segment.label}:${segment.color}`).join('|');
+}
 
 type CanvasSize = {
   width: number;
@@ -146,8 +159,23 @@ function trimTextToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: 
   return `${result}${ellipsis}`;
 }
 
-function fitLabelLayout(ctx: CanvasRenderingContext2D, label: string, maxWidth: number): { fontSize: number; lines: string[] } {
-  for (let fontSize = WHEEL_CONFIG.labelMaxFontSize; fontSize >= WHEEL_CONFIG.labelMinFontSize; fontSize -= 1) {
+function resolveLabelFontBounds(radius: number): { max: number; min: number } {
+  const max = Math.round(
+    Math.min(34, Math.max(WHEEL_CONFIG.labelMinFontSize + 2, radius * WHEEL_CONFIG.labelFontScale)),
+  );
+  const min = Math.round(Math.max(WHEEL_CONFIG.labelMinFontSize, max * 0.52));
+  return { max, min };
+}
+
+function fitLabelLayout(
+  ctx: CanvasRenderingContext2D,
+  label: string,
+  maxWidth: number,
+  radius: number,
+): { fontSize: number; lines: string[] } {
+  const { max: maxFontSize, min: minFontSize } = resolveLabelFontBounds(radius);
+
+  for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 1) {
     ctx.font = `700 ${fontSize}px ${LABEL_FONT_STACK}`;
     const lines = wrapLabelToWidth(ctx, label, maxWidth).map((line) => trimTextToWidth(ctx, line, maxWidth));
     if (lines.length <= WHEEL_CONFIG.labelMaxLines) {
@@ -155,12 +183,12 @@ function fitLabelLayout(ctx: CanvasRenderingContext2D, label: string, maxWidth: 
     }
   }
 
-  ctx.font = `700 ${WHEEL_CONFIG.labelMinFontSize}px ${LABEL_FONT_STACK}`;
+  ctx.font = `700 ${minFontSize}px ${LABEL_FONT_STACK}`;
   const fallbackLines = wrapLabelToWidth(ctx, label, maxWidth)
     .slice(0, WHEEL_CONFIG.labelMaxLines)
     .map((line) => trimTextToWidth(ctx, line, maxWidth));
 
-  return { fontSize: WHEEL_CONFIG.labelMinFontSize, lines: fallbackLines };
+  return { fontSize: minFontSize, lines: fallbackLines };
 }
 
 function shouldFlipLabel(angleDeg: number): boolean {
@@ -208,17 +236,24 @@ function drawSegment(
   ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
   ctx.restore();
 
-  // Border
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+  // Viền segment — tinh tế, tách lớp rõ trên nền tối
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
   ctx.lineWidth = WHEEL_CONFIG.segmentBorderWidth;
   ctx.stroke();
 
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.22)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+
   // Draw text label
-  const textRadius = radius * 0.62;
+  const textRadius = radius * 0.64;
   const textX = textRadius * Math.cos(centerAngleRad);
   const textY = textRadius * Math.sin(centerAngleRad);
-  const segmentChordWidth = Math.max(56, 2 * textRadius * Math.sin(sliceRad / 2) * 0.88);
-  const labelLayout = fitLabelLayout(ctx, segment.label, segmentChordWidth);
+  const segmentChordWidth = Math.max(56, 2 * textRadius * Math.sin(sliceRad / 2) * 0.92);
+  const labelLayout = fitLabelLayout(ctx, segment.label, segmentChordWidth, radius);
   const labelRotation = shouldFlipLabel(segment.centerAngle) ? centerAngleRad + Math.PI : centerAngleRad;
 
   ctx.save();
@@ -229,11 +264,10 @@ function drawSegment(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Text shadow
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-  ctx.shadowBlur = 5;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+  ctx.shadowBlur = Math.max(6, Math.round(labelLayout.fontSize * 0.28));
   ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 1;
+  ctx.shadowOffsetY = Math.max(2, Math.round(labelLayout.fontSize * 0.1));
 
   const lines = labelLayout.lines;
   const lineHeight = Math.round(labelLayout.fontSize * 1.1);
@@ -248,71 +282,77 @@ function drawSegment(
 }
 
 /**
- * Vẽ pointer cố định ở phía trên wheel.
- * Pointer là hình tam giác chỉ xuống.
+ * Vẽ pointer cố định bên phải wheel (3h), tam giác chỉ vào tâm.
  */
-function drawPointer(ctx: CanvasRenderingContext2D, centerX: number, pointerTopY: number): void {
+function drawPointer(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number): void {
   const pw = WHEEL_CONFIG.pointerWidth;
   const ph = WHEEL_CONFIG.pointerHeight;
+  const rimX = centerX + radius;
+  const tipX = rimX;
+  const baseX = rimX + ph;
 
   ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 3;
 
-  const pointerGradient = ctx.createLinearGradient(centerX, pointerTopY, centerX, pointerTopY + ph);
-  pointerGradient.addColorStop(0, '#ffe08a');
-  pointerGradient.addColorStop(0.45, '#ff6b6b');
-  pointerGradient.addColorStop(1, '#d94848');
+  ctx.shadowColor = 'rgba(251, 191, 36, 0.9)';
+  ctx.shadowBlur = 22;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 0;
+  ctx.fillStyle = 'rgba(251, 191, 36, 0.38)';
+  ctx.beginPath();
+  ctx.moveTo(tipX, centerY);
+  ctx.lineTo(baseX + 3, centerY - pw * 0.78);
+  ctx.lineTo(baseX + 3, centerY + pw * 0.78);
+  ctx.closePath();
+  ctx.fill();
 
-  // Main pointer
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetX = 4;
+  ctx.shadowOffsetY = 0;
+
+  const pointerGradient = ctx.createLinearGradient(tipX, centerY, baseX, centerY);
+  pointerGradient.addColorStop(0, '#fff7cc');
+  pointerGradient.addColorStop(0.45, '#fbbf24');
+  pointerGradient.addColorStop(1, '#d97706');
+
   ctx.fillStyle = pointerGradient;
   ctx.beginPath();
-  ctx.moveTo(centerX, pointerTopY);
-  ctx.lineTo(centerX - pw / 2, pointerTopY + ph);
-  ctx.lineTo(centerX + pw / 2, pointerTopY + ph);
+  ctx.moveTo(tipX, centerY);
+  ctx.lineTo(baseX, centerY - pw / 2);
+  ctx.lineTo(baseX, centerY + pw / 2);
   ctx.closePath();
-  ctx.fill();
-
-  ctx.restore();
-
-  // Border
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(centerX, pointerTopY + 1.5);
-  ctx.lineTo(centerX - pw * 0.22, pointerTopY + ph * 0.58);
-  ctx.lineTo(centerX + pw * 0.22, pointerTopY + ph * 0.58);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(centerX, pointerTopY + ph - 2, 3.25, 0, Math.PI * 2);
-  ctx.fillStyle = '#fff';
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(centerX, pointerTopY + ph - 2, 1.5, 0, Math.PI * 2);
-  ctx.fillStyle = '#ff5252';
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.lineWidth = 1.35;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(tipX + 2, centerY);
+  ctx.lineTo(baseX - ph * 0.22, centerY - pw * 0.22);
+  ctx.lineTo(baseX - ph * 0.22, centerY + pw * 0.22);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+  ctx.fill();
+
+  ctx.restore();
 }
 
 function drawWheelChrome(ctx: CanvasRenderingContext2D, radius: number): void {
   ctx.save();
-  const ringGradient = ctx.createRadialGradient(0, 0, radius * 0.7, 0, 0, radius + 8);
-  ringGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-  ringGradient.addColorStop(0.6, 'rgba(245, 245, 245, 0.95)');
-  ringGradient.addColorStop(1, 'rgba(225, 225, 225, 1)');
+  const ringGradient = ctx.createRadialGradient(0, 0, radius * 0.65, 0, 0, radius + 10);
+  ringGradient.addColorStop(0, 'rgba(30, 27, 46, 0.95)');
+  ringGradient.addColorStop(0.55, 'rgba(18, 16, 28, 0.98)');
+  ringGradient.addColorStop(1, 'rgba(251, 191, 36, 0.35)');
   ctx.fillStyle = ringGradient;
   ctx.beginPath();
-  ctx.arc(0, 0, radius + 5, 0, Math.PI * 2);
+  ctx.arc(0, 0, radius + 6, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -353,21 +393,28 @@ export function drawWheel(canvasId: string, model: WheelModel, rotationDeg: numb
   // Clear canvas
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-  // Calculate positions
-  const centerX = canvasWidth / 2;
-  const wheelCenterY = canvasWidth / 2; // Square wheel
-  const pointerTopY = WHEEL_CONFIG.padding;
-  const radius = Math.max(WHEEL_CONFIG.minRadius, (Math.min(canvasWidth, canvasHeight) - WHEEL_CONFIG.padding * 2) / 2);
+  // Calculate positions — dành chỗ bên phải cho pointer
+  const pointerPad = WHEEL_CONFIG.pointerHeight + 6;
+  const centerX = canvasWidth / 2 - pointerPad * 0.25;
+  const centerY = canvasHeight / 2;
+  const radius = Math.max(
+    WHEEL_CONFIG.minRadius,
+    Math.min(
+      centerX - WHEEL_CONFIG.padding,
+      centerY - WHEEL_CONFIG.padding,
+      canvasWidth - centerX - WHEEL_CONFIG.padding - pointerPad,
+    ),
+  );
 
   // Draw wheel background circle
   ctx.save();
-  ctx.translate(centerX, wheelCenterY);
+  ctx.translate(centerX, centerY);
   drawWheelChrome(ctx, radius);
   ctx.restore();
 
   // Save state and apply rotation
   ctx.save();
-  ctx.translate(centerX, wheelCenterY);
+  ctx.translate(centerX, centerY);
   ctx.rotate((rotationDeg * Math.PI) / 180);
 
   // Draw all segments
@@ -379,15 +426,56 @@ export function drawWheel(canvasId: string, model: WheelModel, rotationDeg: numb
 
   // Draw center decorative circle
   ctx.save();
-  ctx.translate(centerX, wheelCenterY);
+  ctx.translate(centerX, centerY);
   drawCenterCap(ctx);
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.35)';
+  ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.restore();
 
-  // Draw pointer
-  drawPointer(ctx, centerX, pointerTopY);
+  drawPointer(ctx, centerX, centerY, radius);
+}
+
+export function destroyWheelMount(): void {
+  mountState?.cleanup();
+  mountState = null;
+}
+
+/**
+ * Giữ một canvas wheel duy nhất — chỉ recreate khi model đổi.
+ */
+export function ensureWheelMounted(
+  hostSelector: string,
+  model: WheelModel,
+  rotationDeg: number,
+): () => void {
+  const host = document.querySelector<HTMLElement>(hostSelector);
+  if (!host) {
+    return () => {};
+  }
+
+  const signature = buildModelSignature(model);
+  const canvasId = WHEEL_CANVAS_ID;
+
+  if (mountState && mountState.modelSignature === signature) {
+    if (!host.contains(mountState.canvas)) {
+      host.replaceChildren(mountState.canvas);
+    }
+    initializeCanvasForHighDPI(mountState.canvas);
+    drawWheel(canvasId, model, rotationDeg);
+    return mountState.cleanup;
+  }
+
+  mountState?.cleanup();
+
+  const canvas = document.createElement('canvas');
+  canvas.id = canvasId;
+  canvas.className = 'wheel-canvas';
+  host.replaceChildren(canvas);
+
+  const cleanup = setupWheelCanvas(canvasId, model, rotationDeg);
+  mountState = { canvas, cleanup, modelSignature: signature };
+  return cleanup;
 }
 
 /**
@@ -446,6 +534,8 @@ export function setupWheelCanvas(canvasId: string, model: WheelModel, initialRot
 export const WheelRenderer = {
   renderHTML: renderWheelHTML,
   setup: setupWheelCanvas,
+  ensure: ensureWheelMounted,
+  destroy: destroyWheelMount,
   draw: drawWheel,
   initialize: initializeCanvasForHighDPI,
 };

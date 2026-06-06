@@ -73,7 +73,7 @@ export function saveQuestionDraft(): void {
     }),
   }));
 
-  appContext.setRuntimeState({ editingQuestionId: null });
+  appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: false });
   ensureQuestionDraft(category);
   showToast(`Đã lưu câu ${draft.type === 'mcq' ? 'trắc nghiệm' : 'tự luận'}`);
 }
@@ -92,7 +92,7 @@ export function deleteQuestion(categoryId: string, questionId: string): void {
   appContext.setRuntimeState({ usedQuestionIds: nextUsedQuestionIds });
 
   if (runtime.editingQuestionId === questionId) {
-    appContext.setRuntimeState({ editingQuestionId: null });
+    appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: false });
     ensureQuestionDraft(currentCategory());
   }
 }
@@ -160,7 +160,7 @@ export function saveQuestionEdit(
     ),
   }));
 
-  appContext.setRuntimeState({ editingQuestionId: null });
+  appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: false });
   ensureQuestionDraft(currentCategory());
   showToast('Đã cập nhật câu hỏi');
 }

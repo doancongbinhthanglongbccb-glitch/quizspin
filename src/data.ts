@@ -307,6 +307,7 @@ export function makeCategory(name: string): Category {
 }
 
 export const SOUND_EVENT_LABELS: Record<SoundEventKey, string> = {
+  introBed: 'Nhạc nền Intro',
   spinBed: 'Nhạc nền khi quay',
   spinStart: 'Tiếng quay bánh xe',
   spinStop: 'Tiếng dừng quay',
@@ -350,6 +351,30 @@ export function summarizeAnswerRecord(appState: AppState, record: AnswerRecord):
   const raw = question?.question?.trim() || 'Câu hỏi đã xóa';
   const label = raw.length > 72 ? `${raw.slice(0, 72)}…` : raw;
   return { label, timeLabel: formatAnswerTime(record.timeSpentMs) };
+}
+
+export function describeAnswerRecord(
+  appState: AppState,
+  record: AnswerRecord,
+): {
+  questionLabel: string;
+  playerAnswer: string;
+  correctAnswer: string;
+  timeLabel: string;
+} {
+  const question = findQuestionById(appState, record.questionId);
+  const rawQuestion = question?.question?.trim() || 'Câu hỏi đã xóa';
+  const questionLabel = rawQuestion.length > 64 ? `${rawQuestion.slice(0, 64)}…` : rawQuestion;
+  const correctAnswer = question?.answer?.trim() || '—';
+  const playerAnswer = record.playerAnswer?.trim() || '—';
+  const truncate = (text: string, max = 48) => (text.length > max ? `${text.slice(0, max)}…` : text);
+
+  return {
+    questionLabel,
+    playerAnswer: truncate(playerAnswer),
+    correctAnswer: truncate(correctAnswer),
+    timeLabel: formatAnswerTime(record.timeSpentMs),
+  };
 }
 
 export function availableQuestion(questionList: Question[], usedQuestionIds: Set<string>): Question | null {

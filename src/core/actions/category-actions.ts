@@ -36,7 +36,7 @@ export function selectCategory(categoryId: string): void {
   const appState = appContext.getAppState();
   const category = appState.categories.find((item) => item.id === categoryId);
 
-  appContext.setRuntimeState({ selectedCategoryId: categoryId, editingQuestionId: null });
+  appContext.setRuntimeState({ selectedCategoryId: categoryId, editingQuestionId: null, bankFormOpen: false });
   ensureQuestionDraft(category);
 }
 

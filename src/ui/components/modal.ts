@@ -21,22 +21,24 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
       return '';
     }
 
+    const readOnly = modal.readOnly === true;
     const revealed = modal.revealed;
     const submitted = modal.submitted;
-    const locked = revealed || submitted;
+    const showResults = readOnly || revealed || submitted;
+    const locked = showResults;
     const selectedAnswer = modal.selectedAnswer;
     const remaining = Math.max(0, modal.remaining);
     const total = Math.max(1, modal.timer);
     const progress = remaining / total;
     const danger = remaining > 0 && remaining <= 5;
-    const radius = 42;
+    const radius = 44;
     const circumference = 2 * Math.PI * radius;
     const dashOffset = circumference * (1 - progress);
 
     const timerRing = `
       <div class="modal-timer">
         <div
-          class="timer-ring timer-ring--large ${danger ? 'timer-ring--danger' : ''}"
+          class="timer-ring timer-ring--large timer-ring--hero ${danger ? 'timer-ring--danger' : ''}"
           data-question-timer-ring
           data-timer-total="${total}"
           data-timer-circumference="${circumference}"
@@ -46,15 +48,16 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
           <svg viewBox="0 0 100 100" class="timer-ring__svg" aria-hidden="true">
             <defs>
               <linearGradient id="timer-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#4cc9f0" />
-                <stop offset="100%" stop-color="#4895ef" />
+                <stop offset="0%" stop-color="#ddd6fe" />
+                <stop offset="50%" stop-color="#a78bfa" />
+                <stop offset="100%" stop-color="#8b5cf6" />
               </linearGradient>
               <linearGradient id="timer-ring-grad-danger" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#f87171" />
+                <stop offset="0%" stop-color="#fca5a5" />
                 <stop offset="100%" stop-color="#ef4444" />
               </linearGradient>
-              <filter id="timer-ring-glow" x="-40%" y="-40%" width="180%" height="180%">
-                <feGaussianBlur stdDeviation="2.5" result="blur" />
+              <filter id="timer-ring-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
@@ -100,8 +103,8 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
             .map((option, index) => {
               const letter = String.fromCharCode(65 + index);
               const optionText = stripOptionLetterPrefix(option, letter);
-              const isCorrect = revealed && option === question.answer;
-              const isWrong = revealed && selectedAnswer === option && !isCorrect;
+              const isCorrect = showResults && option === question.answer;
+              const isWrong = showResults && selectedAnswer === option && !isCorrect;
               const isSelectedOption = selectedAnswer === option;
               const classes = [
                 'option-chip',
@@ -138,49 +141,69 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
             id="essay-answer-input"
             class="textarea textarea--large textarea--auto"
             data-action="player-answer-input"
-            placeholder="Nhập đáp án của bạn..."
+            placeholder="Gõ câu trả lời của bạn vào đây..."
             rows="5"
             ${locked ? 'disabled' : ''}
           >${escapeHtml(modal.playerAnswer ?? '')}</textarea>
         </div>`
       : '';
 
-    const answerBox = revealed
-      ? `<div class="answer-box answer-box--revealed">
-          <div class="answer-box__title">Đáp án đúng</div>
-          <pre>${escapeHtml(question.answer)}</pre>
+    const answerBox =
+      readOnly || revealed || submitted
+        ? `<div class="answer-box answer-box--revealed">
+          <div class="answer-box__title">✓ Đáp án đúng</div>
+          <pre class="answer-box__content">${escapeHtml(question.answer)}</pre>
         </div>`
+        : '';
+
+    const reviewBadge = readOnly
+      ? `<span class="badge modal-review-badge">Xem lại</span>`
       : '';
 
     const hasAnswer =
       !!(modal.playerAnswer && modal.playerAnswer.trim()) || !!(selectedAnswer && selectedAnswer.trim());
 
-    const submitButton =
-      hasAnswer && !submitted
-        ? `<button class="btn btn-submit" data-action="submit-answer">Nộp đáp án</button>`
+    const pauseButton =
+      !readOnly && !submitted
+        ? `<button class="btn btn-ghost" data-action="toggle-pause">${modal.paused ? 'Tiếp tục' : 'Tạm dừng'}</button>`
         : '';
+
+    const revealButton =
+      readOnly || submitted
+        ? ''
+        : revealed
+          ? `<button class="btn btn-accent" data-action="reveal-answer">Đóng</button>`
+          : `<button class="btn btn-accent" data-action="reveal-answer">Hiện đáp án</button>`;
+
+    const submitButton =
+      readOnly || submitted
+        ? `<button class="btn btn-primary" data-action="close-modal">Đóng</button>`
+        : isEssayQuestion(question) && hasAnswer
+          ? `<button class="btn btn-submit" data-action="submit-answer">Nộp đáp án</button>`
+          : '';
+
+    const modalActions = readOnly
+      ? `<div class="modal-actions modal-actions--center">
+          <button class="btn btn-primary" data-action="close-modal">Đóng</button>
+        </div>`
+      : submitted
+        ? `<div class="modal-actions modal-actions--center">${submitButton}</div>`
+        : `<div class="modal-actions modal-actions--question">
+            <div class="modal-actions__slot modal-actions__slot--left">${pauseButton}</div>
+            <div class="modal-actions__slot modal-actions__slot--center">${revealButton}</div>
+            <div class="modal-actions__slot modal-actions__slot--right">${submitButton}</div>
+          </div>`;
 
     return `
       <div class="modal-backdrop">
-        <section class="modal-card modal-card--question">
-          ${submitted ? '' : timerRing}
-          <div class="modal-meta">${badge}</div>
+        <section class="modal-card modal-card--question ${readOnly ? 'modal-card--readonly' : ''}">
+          ${readOnly || submitted ? '' : timerRing}
+          <div class="modal-meta">${badge}${reviewBadge}</div>
           <h2 class="modal-title">${escapeHtml(question.question)}</h2>
           ${options}
           ${essayInput}
           ${answerBox}
-          <div class="modal-actions modal-actions--question">
-            <div class="modal-actions__slot modal-actions__slot--left">
-              ${submitted ? '' : `<button class="btn btn-ghost" data-action="toggle-pause">${modal.paused ? 'Tiếp tục' : 'Tạm dừng'}</button>`}
-            </div>
-            <div class="modal-actions__slot modal-actions__slot--right">
-              ${
-                submitted
-                  ? `<button class="btn btn-primary" data-action="close-modal">Đóng</button>`
-                  : submitButton
-              }
-            </div>
-          </div>
+          ${modalActions}
         </section>
       </div>
     `;

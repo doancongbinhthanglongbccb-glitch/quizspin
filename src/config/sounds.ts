@@ -1,6 +1,7 @@
 import type { SoundEventKey } from '../types';
 
 export const SOUND_EVENT_KEYS: SoundEventKey[] = [
+  'introBed',
   'spinBed',
   'spinStart',
   'spinStop',
@@ -16,6 +17,7 @@ export const SOUND_EVENT_KEYS: SoundEventKey[] = [
 
 /** Âm thanh mặc định ship trong `public/sounds/` */
 export const DEFAULT_SOUND_FILES: Record<SoundEventKey, string> = {
+  introBed: '/sounds/nhac-xo-so.mp3',
   spinBed: '/sounds/nhac-xo-so.mp3',
   spinStart: '/sounds/spinning-wheel.mp3',
   spinStop: '/sounds/transition-whoosh.mp3',
@@ -30,6 +32,7 @@ export const DEFAULT_SOUND_FILES: Record<SoundEventKey, string> = {
 };
 
 export const DEFAULT_SOUND_FILE_NAMES: Record<SoundEventKey, string> = {
+  introBed: 'nhac-xo-so.mp3',
   spinBed: 'nhac-xo-so.mp3',
   spinStart: 'spinning-wheel.mp3',
   spinStop: 'transition-whoosh.mp3',
@@ -44,4 +47,12 @@ export const DEFAULT_SOUND_FILE_NAMES: Record<SoundEventKey, string> = {
 };
 
 /** Phát nền — cần `soundManager.stop()` để dừng */
-export const SUSTAINED_SOUND_EVENTS = new Set<SoundEventKey>(['spinBed', 'spinStart']);
+export const SUSTAINED_SOUND_EVENTS = new Set<SoundEventKey>(['introBed', 'spinBed', 'spinStart']);
+
+/** Nhóm hiển thị trong Tab Cài đặt */
+export const SOUND_EVENT_GROUPS: Array<{ title: string; keys: SoundEventKey[] }> = [
+  { title: 'Màn hình chào', keys: ['introBed'] },
+  { title: 'Vòng quay', keys: ['spinBed', 'spinStart', 'spinStop'] },
+  { title: 'Câu hỏi', keys: ['countdown', 'correct', 'wrong', 'fanfare'] },
+  { title: 'Phần thưởng & phạt', keys: ['gift', 'punishment', 'extraTurn', 'loseTurn'] },
+];

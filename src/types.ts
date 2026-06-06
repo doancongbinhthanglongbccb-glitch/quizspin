@@ -41,6 +41,7 @@ export type Category = {
 };
 
 export type SoundEventKey =
+  | 'introBed'
   | 'spinBed'
   | 'spinStart'
   | 'spinStop'
@@ -111,6 +112,8 @@ export type ActiveModal =
       selectedAnswer: string | null;
       playerAnswer: string | null;
       submitted: boolean;
+      /** Xem lại từ lịch sử — không timer, không chỉnh sửa */
+      readOnly?: boolean;
     }
   | {
       kind: 'gift';

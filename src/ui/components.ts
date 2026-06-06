@@ -4,14 +4,18 @@ import { renderModal } from './components/modal';
 import { renderSpinTab } from './components/spin-tab';
 import { renderBankTab } from './components/bank-tab';
 import { renderSettingsTab } from './components/settings-tab';
+import { renderIntroScreen } from './components/intro-screen';
+import { INTRO_ASSETS, INTRO_COPY } from '../config/intro';
 import { WheelRenderer } from './components/wheel';
-import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers } from './handlers';
+import * as Actions from '../core/actions';
+import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers } from './handlers';
 import { captureScroll, restoreScroll } from '../utils/scroll-restore';
+import { consumeAppEntryAnimation } from './intro-transition';
 
 const TAB_META: Record<'spin' | 'bank' | 'settings', { label: string; short: string; icon: string }> = {
-  spin: { label: 'Vòng quay', short: 'Quay', icon: '🎯' },
-  bank: { label: 'Ngân hàng', short: 'Kho', icon: '📚' },
-  settings: { label: 'Cài đặt', short: 'Cài đặt', icon: '⚙️' },
+  spin: { label: 'Vòng Quay', short: 'Quay', icon: '🎖️' },
+  bank: { label: 'Ngân Hàng Câu Hỏi', short: 'Ngân Hàng', icon: '📋' },
+  settings: { label: 'Cài Đặt', short: 'Cài đặt', icon: '⚙️' },
 };
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
@@ -92,11 +96,33 @@ function renderTabs(): string {
   `;
 }
 
+function renderIntroReplayFab(): string {
+  return `
+    <button
+      type="button"
+      class="intro-replay-fab"
+      data-action="show-intro"
+      aria-label="${INTRO_COPY.replayLabel}"
+      title="${INTRO_COPY.replayLabel}"
+    >
+      <span class="intro-replay-fab__icon" aria-hidden="true">↻</span>
+      <span class="intro-replay-fab__label intro-replay-fab__label--short">INTRO</span>
+      <span class="intro-replay-fab__label intro-replay-fab__label--long">${INTRO_COPY.replayLabel}</span>
+    </button>
+  `;
+}
+
 export function render(): void {
+  const runtime = appContext.getRuntimeState();
+
+  if (runtime.showIntro) {
+    renderIntro();
+    return;
+  }
+
   const focusSnapshot = captureFocus();
   const scrollSnapshot = captureScroll(appRoot);
   const appState = appContext.getAppState();
-  const runtime = appContext.getRuntimeState();
   const content =
     runtime.tab === 'spin'
       ? renderSpinTab(appState, runtime)
@@ -106,19 +132,24 @@ export function render(): void {
 
   cleanupRenderLifecycle();
 
+  const appShellClass = consumeAppEntryAnimation() ? 'app-shell app-shell--entering' : 'app-shell';
+
   appRoot.innerHTML = `
-    <div class="app-shell">
+    <div class="${appShellClass}">
       ${renderTabs()}
 
       <div class="app-body">
         <header class="app-header">
-          <div>
-            <div class="eyebrow">QuizSpin</div>
-            <h1>Vòng quay kiến thức offline</h1>
-          </div>
-          <div class="header-pills">
-            <span class="mini-pill">${appState.categories.length} lĩnh vực</span>
-            <span class="mini-pill">${appState.categories.reduce((count, category) => count + category.questions.length, 0)} câu</span>
+          <div class="app-header__inner">
+            <img
+              class="app-header__logo"
+              src="${INTRO_ASSETS.headerLogo}"
+              alt="${INTRO_COPY.logoAlt}"
+              width="56"
+              height="56"
+              decoding="async"
+            />
+            <h1 class="app-header__title">VÒNG QUAY KIẾN THỨC</h1>
           </div>
         </header>
 
@@ -129,6 +160,7 @@ export function render(): void {
 
       ${runtime.toast ? `<div class="toast">${runtime.toast}</div>` : ''}
       ${renderModal(appState, runtime)}
+      ${renderIntroReplayFab()}
     </div>
   `;
 
@@ -136,6 +168,13 @@ export function render(): void {
   mountWheelCanvas();
   restoreFocus(focusSnapshot);
   restoreScroll(appRoot, scrollSnapshot);
+}
+
+function renderIntro(): void {
+  cleanupRenderLifecycle();
+  cleanupWheel();
+  appRoot.innerHTML = renderIntroScreen();
+  eventCleanups = [bindIntroHandlers(appRoot)];
 }
 
 function bindEvents(): Array<() => void> {
@@ -153,6 +192,14 @@ function bindEvents(): Array<() => void> {
 
 function bindNavigationEvents(): () => void {
   const onClick = (event: Event): void => {
+    const introTarget =
+      event.target instanceof Element ? event.target.closest<HTMLElement>('[data-action="show-intro"]') : null;
+    if (introTarget && appRoot.contains(introTarget)) {
+      cleanupWheel();
+      Actions.showIntro();
+      return;
+    }
+
     const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-action="switch-tab"]') : null;
     if (!target || !appRoot.contains(target)) {
       return;
@@ -169,12 +216,11 @@ function bindNavigationEvents(): () => void {
 }
 
 function cleanupWheel(): void {
-  wheelCleanup?.();
+  WheelRenderer.destroy();
   wheelCleanup = null;
 }
 
 function cleanupRenderLifecycle(): void {
-  cleanupWheel();
   eventCleanups.forEach((cleanup) => cleanup());
   eventCleanups = [];
 }
@@ -182,10 +228,12 @@ function cleanupRenderLifecycle(): void {
 function mountWheelCanvas(): void {
   const runtime = appContext.getRuntimeState();
   if (runtime.tab !== 'spin') {
+    WheelRenderer.destroy();
+    wheelCleanup = null;
     return;
   }
 
   const appState = appContext.getAppState();
   const model = buildWheelModel(appState);
-  wheelCleanup = WheelRenderer.setup('wheel-canvas', model, runtime.rotation);
+  wheelCleanup = WheelRenderer.ensure('[data-wheel-host]', model, runtime.rotation);
 }

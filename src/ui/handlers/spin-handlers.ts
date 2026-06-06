@@ -12,6 +12,12 @@ export function bindSpinHandlers(root: ParentNode): () => void {
       return;
     }
 
+    const recordButton = getActionTarget(event, root, '[data-action="view-answer-record"]');
+    if (recordButton?.dataset.recordAt) {
+      Actions.openQuestionReview(recordButton.dataset.recordAt);
+      return;
+    }
+
     if (getActionTarget(event, root, '[data-action="clear-all"]')) {
       void Actions.clearEverything();
     }

@@ -9,6 +9,7 @@ type SoundSpec = {
 };
 
 const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
+  introBed: { frequency: 140, duration: 320, type: 'sine' },
   spinBed: { frequency: 140, duration: 320, type: 'sine' },
   spinStart: { frequency: 160, duration: 260, type: 'sawtooth' },
   spinStop: { frequency: 320, duration: 180, type: 'triangle' },
@@ -25,6 +26,8 @@ const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
 export class SoundManager {
   private sustained = new Map<SoundEventKey, HTMLAudioElement>();
   private pooled = new Map<SoundEventKey, HTMLAudioElement>();
+  private previewAudio: HTMLAudioElement | null = null;
+  private previewStopTimer: ReturnType<typeof setTimeout> | null = null;
 
   play(event: SoundEventKey): void {
     if (!this.isEnabled()) {
@@ -71,6 +74,10 @@ export class SoundManager {
     this.stop('spinStart');
   }
 
+  stopIntroMusic(): void {
+    this.stop('introBed');
+  }
+
   stopCountdown(): void {
     const audio = this.pooled.get('countdown');
     if (!audio) {
@@ -79,6 +86,68 @@ export class SoundManager {
 
     audio.pause();
     audio.currentTime = 0;
+  }
+
+  /** Nghe thử nguồn tùy ý (upload chưa lưu hoặc preview trong Cài đặt) */
+  previewSource(source: string, options?: { loop?: boolean; maxDurationMs?: number }): void {
+    this.stopPreview();
+    if (!source) {
+      return;
+    }
+
+    const loop = options?.loop ?? false;
+    const audio = new Audio(source);
+    audio.volume = 0.9;
+    audio.loop = loop;
+    this.previewAudio = audio;
+
+    void audio.play().catch(() => this.stopPreview());
+
+    if (loop) {
+      const maxDurationMs = options?.maxDurationMs ?? 6000;
+      this.previewStopTimer = setTimeout(() => this.stopPreview(), maxDurationMs);
+    }
+  }
+
+  /** Nghe thử âm thanh đang gán cho event (bỏ qua toggle tắt tiếng toàn app) */
+  previewEvent(event: SoundEventKey): void {
+    const source = this.resolveSource(event);
+    if (SUSTAINED_SOUND_EVENTS.has(event)) {
+      this.previewSource(source ?? '', { loop: true, maxDurationMs: 5000 });
+      if (!source) {
+        this.playToneFallback(event);
+      }
+      return;
+    }
+
+    if (source) {
+      this.previewSource(source);
+      return;
+    }
+
+    this.playToneFallback(event);
+  }
+
+  /** Nghe thử bản nháp upload (data URL) */
+  previewDraft(dataUrl: string, event: SoundEventKey): void {
+    const loop = SUSTAINED_SOUND_EVENTS.has(event);
+    this.previewSource(dataUrl, { loop, maxDurationMs: loop ? 5000 : undefined });
+  }
+
+  stopPreview(): void {
+    if (this.previewStopTimer) {
+      clearTimeout(this.previewStopTimer);
+      this.previewStopTimer = null;
+    }
+
+    if (!this.previewAudio) {
+      return;
+    }
+
+    this.previewAudio.pause();
+    this.previewAudio.currentTime = 0;
+    this.previewAudio.loop = false;
+    this.previewAudio = null;
   }
 
   resolveCustomSound(

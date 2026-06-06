@@ -2,9 +2,9 @@ import { DEFAULTS } from '../../config';
 import { formatTimerDisplay } from '../../utils/timer-format';
 import type { RuntimeState } from '../../core/state';
 import type { AppState } from '../../types';
-import { DEFAULT_SOUND_FILE_NAMES, SOUND_EVENT_KEYS } from '../../config/sounds';
+import { DEFAULT_SOUND_FILE_NAMES, SOUND_EVENT_GROUPS } from '../../config/sounds';
 import { rewardItemsToText, SOUND_EVENT_LABELS } from '../../data';
-import type { SettingsSection } from '../../types';
+import type { SettingsSection, SoundEventKey } from '../../types';
 
 const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; danger?: boolean }> = [
   { id: 'timer', label: 'Thời gian', icon: '⏱' },
@@ -76,29 +76,75 @@ function renderStatBar(appState: AppState, runtime: RuntimeState): string {
   `;
 }
 
-function renderSoundEvents(appState: AppState): string {
+function renderSoundEventRow(
+  appState: AppState,
+  runtime: RuntimeState,
+  eventKey: SoundEventKey,
+): string {
   const library = appState.settings.sounds?.library ?? [];
   const bindings = appState.settings.sounds?.bindings ?? {};
+  const draft = runtime.soundUploadDraft;
+  const isPending = draft?.eventKey === eventKey;
+  const boundId = bindings[eventKey];
+  const boundSound = boundId ? library.find((item) => item.id === boundId) : null;
+  const hasCustom = Boolean(boundSound);
 
-  return SOUND_EVENT_KEYS.map((eventKey) => {
-    const boundId = bindings[eventKey];
-    const boundSound = boundId ? library.find((item) => item.id === boundId) : null;
-    const fileLabel = boundSound ? `Tùy chỉnh: ${boundSound.name}` : DEFAULT_SOUND_FILE_NAMES[eventKey];
+  let fileLabel: string;
+  if (isPending) {
+    fileLabel = `Chờ lưu: ${draft!.name}`;
+  } else if (boundSound) {
+    fileLabel = `Tùy chỉnh: ${boundSound.name}`;
+  } else {
+    fileLabel = `Mặc định: ${DEFAULT_SOUND_FILE_NAMES[eventKey]}`;
+  }
 
-    return `
-      <div class="settings-sound-row">
-        <div class="settings-sound-row__info">
-          <span class="settings-sound-row__label">${SOUND_EVENT_LABELS[eventKey]}</span>
-          <span class="settings-sound-row__meta">${fileLabel}</span>
-        </div>
-        <div class="settings-sound-row__actions">
-          <button type="button" class="btn btn-xs btn-ghost" data-action="preview-sound" data-sound-event="${eventKey}">
-            Nghe thử
-          </button>
+  const pendingActions = isPending
+    ? `
+        <button type="button" class="btn btn--small btn-accent" data-action="confirm-sound" data-sound-event="${eventKey}">Lưu</button>
+        <button type="button" class="btn btn--small btn-ghost" data-action="cancel-sound" data-sound-event="${eventKey}">Hủy</button>
+        <button type="button" class="btn btn--small btn-ghost" data-action="preview-sound" data-sound-event="${eventKey}">Nghe lại</button>
+      `
+    : `
+        <label class="btn btn--small btn-ghost sound-upload-label">
+          Chọn file
+          <input
+            type="file"
+            class="sound-upload-input"
+            accept="audio/*,.mp3,.wav,.ogg"
+            data-action="pick-sound"
+            data-sound-event="${eventKey}"
+          />
+        </label>
+        <button type="button" class="btn btn--small btn-ghost" data-action="preview-sound" data-sound-event="${eventKey}">Nghe thử</button>
+        ${
+          hasCustom
+            ? `<button type="button" class="btn btn--small btn-ghost" data-action="clear-sound" data-sound-event="${eventKey}">Xóa tùy chỉnh</button>`
+            : ''
+        }
+      `;
+
+  return `
+    <div class="sound-event-row ${isPending ? 'sound-event-row--pending' : ''}">
+      <div class="sound-event-row__info">
+        <strong>${SOUND_EVENT_LABELS[eventKey]}</strong>
+        <span class="sound-event-row__name">${fileLabel}</span>
+      </div>
+      <div class="sound-event-row__actions">${pendingActions}</div>
+    </div>
+  `;
+}
+
+function renderSoundEvents(appState: AppState, runtime: RuntimeState): string {
+  return SOUND_EVENT_GROUPS.map(
+    (group) => `
+      <div class="settings-sound-group">
+        <p class="settings-sound-group__title">${group.title}</p>
+        <div class="sound-events">
+          ${group.keys.map((eventKey) => renderSoundEventRow(appState, runtime, eventKey)).join('')}
         </div>
       </div>
-    `;
-  }).join('');
+    `,
+  ).join('');
 }
 
 function renderTimerPanel(appState: AppState): string {
@@ -120,18 +166,21 @@ function renderTimerPanel(appState: AppState): string {
   `;
 }
 
-function renderSoundPanel(appState: AppState): string {
+function renderSoundPanel(appState: AppState, runtime: RuntimeState): string {
   return `
     <div class="settings-panel-card">
       <div class="settings-panel-card__head">
-        <p class="settings-panel-card__title settings-panel-card__title--inline"><span aria-hidden="true">🔊</span>Âm thanh toàn bộ</p>
+        <p class="settings-panel-card__title settings-panel-card__title--inline"><span aria-hidden="true">🔊</span>Âm thanh</p>
         <label class="settings-toggle">
           <input id="sound-toggle" type="checkbox" ${appState.settings.sound ? 'checked' : ''} />
           <span class="settings-toggle__track" aria-hidden="true"></span>
         </label>
       </div>
-      <p class="settings-sound-note muted">Âm thanh mặc định trong <code>public/sounds/</code>. Tùy chỉnh upload sẽ bổ sung sau.</p>
-      <div class="settings-sound-list">${renderSoundEvents(appState)}</div>
+      <p class="settings-sound-note muted">
+        Upload file <strong>.mp3 / .wav / .ogg</strong> (tối đa 2MB). Chọn file để nghe thử trước, sau đó bấm <strong>Lưu</strong> để gán.
+        Mặc định nằm trong <code>public/sounds/</code>.
+      </p>
+      ${renderSoundEvents(appState, runtime)}
     </div>
   `;
 }
@@ -174,12 +223,12 @@ function renderDangerPanel(): string {
   `;
 }
 
-function renderContentPanel(appState: AppState, section: SettingsSection): string {
+function renderContentPanel(appState: AppState, runtime: RuntimeState, section: SettingsSection): string {
   if (section === 'timer') {
     return renderTimerPanel(appState);
   }
   if (section === 'sound') {
-    return renderSoundPanel(appState);
+    return renderSoundPanel(appState, runtime);
   }
   if (section === 'gifts' || section === 'punishments') {
     return renderRewardsPanel(appState, section);
@@ -196,7 +245,7 @@ export function renderSettingsTab(appState: AppState, runtime: RuntimeState): st
         ${renderSidebar(section)}
         <div class="settings-main">
           ${renderStatBar(appState, runtime)}
-          <div class="settings-content">${renderContentPanel(appState, section)}</div>
+          <div class="settings-content">${renderContentPanel(appState, runtime, section)}</div>
         </div>
       </div>
     </section>

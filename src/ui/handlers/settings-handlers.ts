@@ -91,11 +91,11 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       return;
     }
 
-    const uploadInput = getInputTarget<HTMLInputElement>(event, root, '[data-action="upload-sound"]');
+    const uploadInput = getInputTarget<HTMLInputElement>(event, root, '[data-action="pick-sound"]');
     if (uploadInput?.files?.[0]) {
       const eventKey = readSoundEvent(uploadInput);
       if (eventKey) {
-        void Actions.uploadSoundForEvent(eventKey, uploadInput.files[0]);
+        void Actions.stageSoundForEvent(eventKey, uploadInput.files[0]);
       }
       uploadInput.value = '';
     }
@@ -114,6 +114,21 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       if (eventKey) {
         Actions.previewSoundEvent(eventKey);
       }
+      return;
+    }
+
+    const confirmButton = getActionTarget(event, root, '[data-action="confirm-sound"]');
+    if (confirmButton) {
+      const eventKey = readSoundEvent(confirmButton);
+      if (eventKey) {
+        Actions.confirmSoundUpload(eventKey);
+      }
+      return;
+    }
+
+    const cancelButton = getActionTarget(event, root, '[data-action="cancel-sound"]');
+    if (cancelButton) {
+      Actions.cancelSoundUpload();
       return;
     }
 

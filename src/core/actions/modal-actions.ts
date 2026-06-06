@@ -1,5 +1,5 @@
 import type { AnswerRecord, Category } from '../../types';
-import { availableQuestion } from '../../data';
+import { availableQuestion, isEssayQuestion } from '../../data';
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { questionRemainingSeconds } from '../question-timer';
@@ -103,9 +103,53 @@ export function closeModal(): void {
   appContext.setRuntimeState({ modal: null });
 }
 
+/** Mở lại câu hỏi từ lịch sử trả lời (chỉ xem) */
+export function openQuestionReview(submittedAt: string): void {
+  const appState = appContext.getAppState();
+  const record = appState.answerHistory.find((item) => item.submittedAt === submittedAt);
+  if (!record) {
+    showToast('Không tìm thấy lượt trả lời');
+    return;
+  }
+
+  let categoryId = '';
+  let question = null;
+  for (const category of appState.categories) {
+    const match = category.questions.find((item) => item.id === record.questionId);
+    if (match) {
+      categoryId = category.id;
+      question = match;
+      break;
+    }
+  }
+
+  if (!categoryId || !question) {
+    showToast('Câu hỏi không còn trong kho');
+    return;
+  }
+
+  stopTimer();
+  appContext.setRuntimeState({
+    modal: {
+      kind: 'question',
+      categoryId,
+      questionId: record.questionId,
+      timer: 0,
+      deadlineAt: Date.now(),
+      paused: true,
+      revealed: true,
+      remaining: 0,
+      selectedAnswer: record.playerAnswer,
+      playerAnswer: record.playerAnswer,
+      submitted: true,
+      readOnly: true,
+    },
+  });
+}
+
 export function toggleQuestionPause(): void {
   const runtime = appContext.getRuntimeState();
-  if (!runtime.modal || runtime.modal.kind !== 'question') {
+  if (!runtime.modal || runtime.modal.kind !== 'question' || runtime.modal.readOnly) {
     return;
   }
 
@@ -133,7 +177,7 @@ export function chooseQuestionAnswer(answer: string): void {
     return;
   }
 
-  if (runtime.modal.revealed || runtime.modal.submitted) {
+  if (runtime.modal.revealed || runtime.modal.submitted || runtime.modal.readOnly) {
     return;
   }
 
@@ -144,7 +188,32 @@ export function chooseQuestionAnswer(answer: string): void {
     playerAnswer: selectedAnswer,
   };
 
-  appContext.setRuntimeState({ modal: nextModal });
+  appContext.patchRuntimeState({ modal: nextModal });
+}
+
+export function revealAnswer(): void {
+  const runtime = appContext.getRuntimeState();
+  if (!runtime.modal || runtime.modal.kind !== 'question') {
+    return;
+  }
+
+  const modal = runtime.modal;
+  if (modal.readOnly || modal.submitted) {
+    return;
+  }
+
+  if (modal.revealed) {
+    closeModal();
+    return;
+  }
+
+  const remaining = questionRemainingSeconds(modal.deadlineAt);
+  appContext.setRuntimeState({
+    modal: { ...modal, remaining, revealed: true, paused: true },
+  });
+  stopTimer();
+  soundManager.stopCountdown();
+  soundManager.play('fanfare');
 }
 
 export function updatePlayerAnswer(answer: string): void {
@@ -153,7 +222,7 @@ export function updatePlayerAnswer(answer: string): void {
     return;
   }
 
-  if (runtime.modal.revealed || runtime.modal.submitted) {
+  if (runtime.modal.revealed || runtime.modal.submitted || runtime.modal.readOnly) {
     return;
   }
 
@@ -166,9 +235,10 @@ export function updatePlayerAnswer(answer: string): void {
 }
 
 export function submitQuestionAnswer(): void {
+  // Nộp + hiện đáp án + chấm điểm + lưu lịch sử (một thao tác)
   const runtime = appContext.getRuntimeState();
   const modal = runtime.modal;
-  if (!modal || modal.kind !== 'question' || modal.submitted) {
+  if (!modal || modal.kind !== 'question' || modal.submitted || modal.readOnly) {
     return;
   }
 
@@ -189,6 +259,7 @@ export function submitQuestionAnswer(): void {
   const isCorrect = !!question && rawAnswer === question.answer;
 
   stopTimer();
+  soundManager.stopCountdown();
 
   const nextModal = {
     ...modal,
@@ -217,6 +288,13 @@ export function submitQuestionAnswer(): void {
   }
 
   appContext.setRuntimeState({ modal: nextModal });
+
+  // Tự luận: không chấm tự động — chỉ fanfare nhẹ qua sound correct
+  if (question && isEssayQuestion(question)) {
+    soundManager.play('correct');
+    showToast('Đã nộp đáp án');
+    return;
+  }
 
   if (isCorrect) {
     soundManager.play('correct');

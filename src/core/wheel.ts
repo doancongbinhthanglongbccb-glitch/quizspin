@@ -87,7 +87,7 @@ export function getCurrentPointerAngle(model: WheelModel, rotationDeg: number): 
  * Góc trả về segment đang nằm dưới pointer.
  * Quy ước:
  * - wheel quay theo chiều kim đồng hồ
- * - pointer cố định ở đỉnh bánh xe
+ * - Pointer cố định bên phải bánh xe (3h)
  * - rotationDeg là góc đang xoay của wheel element
  */
 export function resolveWinningSegment(model: WheelModel, rotationDeg: number): WheelLandingResult {

@@ -1,6 +1,9 @@
 import { appContext } from '../../core/state';
 import type { QuestionDraft, QuestionFilter, QuestionType } from '../../types';
 import * as Actions from '../../core/actions';
+import { throttle } from '../../utils/throttle';
+
+const importExcel = throttle((file: File) => Actions.parseExcelImport(file), 800);
 
 function getActionTarget(event: Event, root: ParentNode, selector: string): HTMLElement | null {
   const target = event.target instanceof Element ? event.target.closest<HTMLElement>(selector) : null;
@@ -111,13 +114,19 @@ export function bindBankHandlers(root: ParentNode): () => void {
 
     const startEditButton = getActionTarget(event, root, '[data-action="start-edit-question"]');
     if (startEditButton) {
-      appContext.setRuntimeState({ editingQuestionId: startEditButton.dataset.id ?? null });
+      appContext.setRuntimeState({ editingQuestionId: startEditButton.dataset.id ?? null, bankFormOpen: true });
       Actions.ensureQuestionDraft(Actions.currentCategory());
       return;
     }
 
     if (getActionTarget(event, root, '[data-action="cancel-question-edit"]')) {
-      appContext.setRuntimeState({ editingQuestionId: null });
+      appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: false });
+      Actions.ensureQuestionDraft(Actions.currentCategory());
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="start-add-question"]')) {
+      appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: true });
       Actions.ensureQuestionDraft(Actions.currentCategory());
       return;
     }
@@ -177,7 +186,7 @@ export function bindBankHandlers(root: ParentNode): () => void {
     if (excelInput) {
       const file = excelInput.files?.[0];
       if (file) {
-        Actions.parseExcelImport(file);
+        importExcel(file);
       }
       excelInput.value = '';
     }

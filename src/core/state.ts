@@ -7,6 +7,13 @@ import { SOUND_EVENT_KEYS } from '../config/sounds';
  * RuntimeState: Trạng thái UI runtime (không persist)
  * Ví dụ: tab đang chọn, rotation của wheel, form draft, modal hiện tại
  */
+export type SoundUploadDraft = {
+  eventKey: SoundEventKey;
+  name: string;
+  mimeType: string;
+  dataUrl: string;
+};
+
 export type RuntimeState = {
   tab: 'spin' | 'bank' | 'settings';
   rotation: number; // độ quay của wheel
@@ -15,6 +22,8 @@ export type RuntimeState = {
   modal: ActiveModal;
   selectedCategoryId: string | null;
   editingQuestionId: string | null;
+  /** Form thêm/sửa câu hỏi đang mở */
+  bankFormOpen: boolean;
   questionDraft: QuestionDraft;
   questionFilter: 'all' | 'mcq' | 'essay';
   usedQuestionIds: Set<string>;
@@ -28,6 +37,10 @@ export type RuntimeState = {
   } | null;
   spinHistory: Array<{ label: string; color: string; ts: number }>;
   settingsSection: SettingsSection;
+  /** File âm thanh đang chờ xác nhận lưu (preview trước khi gán) */
+  soundUploadDraft: SoundUploadDraft | null;
+  /** Hiển thị màn intro trước khi vào app chính */
+  showIntro: boolean;
 };
 
 // Tạo state runtime mặc định
@@ -40,6 +53,7 @@ function createDefaultRuntimeState(): RuntimeState {
     modal: null,
     selectedCategoryId: null,
     editingQuestionId: null,
+    bankFormOpen: false,
     questionDraft: defaultQuestionDraft('mcq'),
     questionFilter: 'all',
     usedQuestionIds: new Set(),
@@ -48,6 +62,8 @@ function createDefaultRuntimeState(): RuntimeState {
     importReport: null,
     spinHistory: [],
     settingsSection: 'timer',
+    soundUploadDraft: null,
+    showIntro: false,
   };
 }
 
