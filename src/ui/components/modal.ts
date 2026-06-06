@@ -37,6 +37,9 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
       <div class="modal-timer">
         <div
           class="timer-ring timer-ring--large ${danger ? 'timer-ring--danger' : ''}"
+          data-question-timer-ring
+          data-timer-total="${total}"
+          data-timer-circumference="${circumference}"
           aria-label="Còn ${remaining} giây"
           style="--timer-circumference:${circumference};--timer-offset:${dashOffset}"
         >
@@ -69,6 +72,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
             />
             <circle
               class="timer-ring__progress"
+              data-question-timer-progress
               cx="50"
               cy="50"
               r="${radius}"
@@ -80,7 +84,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
             />
           </svg>
           <div class="timer-ring__center">
-            <span class="timer-ring__value">${remaining}</span>
+            <span class="timer-ring__value" data-question-timer-value>${remaining}</span>
             <span class="timer-ring__unit">giây</span>
           </div>
         </div>
@@ -159,7 +163,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
     return `
       <div class="modal-backdrop">
         <section class="modal-card modal-card--question">
-          ${timerRing}
+          ${submitted ? '' : timerRing}
           <div class="modal-meta">${badge}</div>
           <h2 class="modal-title">${escapeHtml(question.question)}</h2>
           ${options}
@@ -167,13 +171,14 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
           ${answerBox}
           <div class="modal-actions modal-actions--question">
             <div class="modal-actions__slot modal-actions__slot--left">
-              <button class="btn btn-ghost" data-action="toggle-pause">${modal.paused ? 'Tiếp tục' : 'Tạm dừng'}</button>
-            </div>
-            <div class="modal-actions__slot modal-actions__slot--center">
-              <button class="btn btn-accent" data-action="reveal-answer">${revealed ? 'Đóng' : 'Hiện đáp án'}</button>
+              ${submitted ? '' : `<button class="btn btn-ghost" data-action="toggle-pause">${modal.paused ? 'Tiếp tục' : 'Tạm dừng'}</button>`}
             </div>
             <div class="modal-actions__slot modal-actions__slot--right">
-              ${submitButton}
+              ${
+                submitted
+                  ? `<button class="btn btn-primary" data-action="close-modal">Đóng</button>`
+                  : submitButton
+              }
             </div>
           </div>
         </section>

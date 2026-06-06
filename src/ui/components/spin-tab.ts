@@ -69,12 +69,12 @@ export function renderSpinTab(appState: AppState, runtime: RuntimeState): string
 
           <div class="spin-side-block">
             <div class="stacked-card__title">Lịch sử quay</div>
-            <ul class="history-list history-list--scroll">${recent}</ul>
+            <ul class="history-list history-list--scroll" data-scroll-restore="spin-history">${recent}</ul>
           </div>
 
           <div class="spin-side-block">
             <div class="stacked-card__title">Lịch sử trả lời</div>
-            <ul class="answer-history-list history-list--scroll">${renderAnswerHistory(appState)}</ul>
+            <ul class="answer-history-list history-list--scroll" data-scroll-restore="answer-history">${renderAnswerHistory(appState)}</ul>
           </div>
         </aside>
       </div>

@@ -103,6 +103,8 @@ export type ActiveModal =
       categoryId: string;
       questionId: string;
       timer: number;
+      /** Unix ms — hết hạn; dùng để đồng bộ số giây hiển thị và tick âm thanh */
+      deadlineAt: number;
       paused: boolean;
       revealed: boolean;
       remaining: number;

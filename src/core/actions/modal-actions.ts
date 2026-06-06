@@ -2,6 +2,7 @@ import type { AnswerRecord, Category } from '../../types';
 import { availableQuestion } from '../../data';
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
+import { questionRemainingSeconds } from '../question-timer';
 import { showToast, startQuestionTimer, stopTimer } from './shared';
 import { resetQuestionFlags } from './question-actions';
 
@@ -25,16 +26,20 @@ export function openQuestionModal(category: Category): void {
   const usedQuestionIds = new Set(runtime.usedQuestionIds);
   usedQuestionIds.add(question.id);
 
+  const timerSec = appContext.getAppState().settings.timer;
+  const deadlineAt = Date.now() + timerSec * 1000;
+
   appContext.setRuntimeState({
     usedQuestionIds,
     modal: {
       kind: 'question',
       categoryId: category.id,
       questionId: question.id,
-      timer: appContext.getAppState().settings.timer,
+      timer: timerSec,
+      deadlineAt,
       paused: false,
       revealed: false,
-      remaining: appContext.getAppState().settings.timer,
+      remaining: timerSec,
       selectedAnswer: null,
       playerAnswer: null,
       submitted: false,
@@ -104,31 +109,22 @@ export function toggleQuestionPause(): void {
     return;
   }
 
-  const nextModal = { ...runtime.modal, paused: !runtime.modal.paused };
-  appContext.setRuntimeState({ modal: nextModal });
+  const modal = runtime.modal;
 
-  if (!nextModal.paused) {
-    startQuestionTimer();
-  } else {
+  if (!modal.paused) {
+    const remaining = questionRemainingSeconds(modal.deadlineAt);
+    appContext.setRuntimeState({
+      modal: { ...modal, remaining, paused: true },
+    });
     stopTimer();
-  }
-}
-
-export function revealAnswer(): void {
-  const runtime = appContext.getRuntimeState();
-  if (!runtime.modal) {
     return;
   }
 
-  if (runtime.modal.kind === 'question' && !runtime.modal.revealed) {
-    const nextModal = { ...runtime.modal, revealed: true, paused: true };
-    appContext.setRuntimeState({ modal: nextModal });
-    stopTimer();
-    soundManager.play('fanfare');
-    return;
-  }
-
-  closeModal();
+  const deadlineAt = Date.now() + modal.remaining * 1000;
+  appContext.setRuntimeState({
+    modal: { ...modal, deadlineAt, paused: false },
+  });
+  startQuestionTimer();
 }
 
 export function chooseQuestionAnswer(answer: string): void {
@@ -185,16 +181,19 @@ export function submitQuestionAnswer(): void {
     return;
   }
 
-  const remaining = Math.max(0, modal.remaining);
   const total = Math.max(1, modal.timer);
+  const remaining = questionRemainingSeconds(modal.deadlineAt);
   const elapsedSeconds = Math.min(total, total - remaining);
   const timeSpentMs = Math.max(0, elapsedSeconds * 1000);
 
   const isCorrect = !!question && rawAnswer === question.answer;
 
+  stopTimer();
+
   const nextModal = {
     ...modal,
     playerAnswer: rawAnswer,
+    remaining,
     submitted: true,
     revealed: true,
     paused: true,
@@ -218,7 +217,6 @@ export function submitQuestionAnswer(): void {
   }
 
   appContext.setRuntimeState({ modal: nextModal });
-  stopTimer();
 
   if (isCorrect) {
     soundManager.play('correct');

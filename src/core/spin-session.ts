@@ -22,8 +22,14 @@ export type SpinSessionCallbacks = {
   onComplete: (result: SpinSessionResult) => void;
 };
 
+function normalizeRotationDeg(angleDeg: number): number {
+  const next = angleDeg % 360;
+  return next < 0 ? next + 360 : next;
+}
+
 /**
  * Một phiên quay: animation canvas + âm thanh + finalize dùng chung elapsedMs từ rAF.
+ * Kết quả luôn theo segment đã random (`chosen`) — khớp kim + lịch sử + modal.
  */
 export class SpinSession {
   private animation: SpinAnimationController | null = null;
@@ -43,6 +49,7 @@ export class SpinSession {
     this.audio = { started: false, ended: false };
 
     const { durationMs, extraSpins } = SPIN_CONFIG;
+    const landingRotationDeg = this.landingRotation(model, chosen.id, fromRotationDeg);
 
     this.animation = startSpinAnimation({
       model,
@@ -52,12 +59,8 @@ export class SpinSession {
       onFrame: ({ rotationDeg, elapsedMs }) => {
         this.syncAudio(elapsedMs);
         WheelRenderer.draw(WHEEL_CANVAS_ID, model, rotationDeg);
-
-        if (!this.finalized && elapsedMs >= durationMs) {
-          this.complete(chosen, this.landingRotation(model, chosen.id, fromRotationDeg), callbacks);
-        }
       },
-      onComplete: ({ landing, finalRotationDeg, canceled }) => {
+      onComplete: ({ canceled }) => {
         if (canceled) {
           this.dispose();
           appContext.setRuntimeState({ spinning: false });
@@ -68,7 +71,7 @@ export class SpinSession {
           return;
         }
 
-        this.complete(landing.segment ?? chosen, finalRotationDeg, callbacks);
+        this.complete(chosen, landingRotationDeg, callbacks);
       },
     });
   }
@@ -92,7 +95,7 @@ export class SpinSession {
     this.endAudio();
     this.animation = null;
 
-    const normalized = rotationDeg % 360;
+    const normalized = normalizeRotationDeg(rotationDeg);
     WheelRenderer.draw(WHEEL_CANVAS_ID, this.model, normalized);
 
     appContext.setRuntimeState({

@@ -22,8 +22,6 @@ const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
   loseTurn: { frequency: 220, duration: 260, type: 'sawtooth' },
 };
 
-const POOLED_EVENTS = new Set<SoundEventKey>(['countdown']);
-
 export class SoundManager {
   private sustained = new Map<SoundEventKey, HTMLAudioElement>();
   private pooled = new Map<SoundEventKey, HTMLAudioElement>();
@@ -39,8 +37,8 @@ export class SoundManager {
       return;
     }
 
-    if (POOLED_EVENTS.has(event)) {
-      this.playPooled(event, source);
+    if (event === 'countdown') {
+      this.playCountdownTick(source);
       return;
     }
 
@@ -71,6 +69,16 @@ export class SoundManager {
   stopSpinSounds(): void {
     this.stop('spinBed');
     this.stop('spinStart');
+  }
+
+  stopCountdown(): void {
+    const audio = this.pooled.get('countdown');
+    if (!audio) {
+      return;
+    }
+
+    audio.pause();
+    audio.currentTime = 0;
   }
 
   resolveCustomSound(
@@ -118,25 +126,23 @@ export class SoundManager {
     });
   }
 
-  private playPooled(event: SoundEventKey, source: string | undefined): void {
+  /** Một tick mỗi giây — luôn restart clip (file tick có thể dài hơn 1s). */
+  private playCountdownTick(source: string | undefined): void {
     if (!source) {
-      this.playToneFallback(event);
+      this.playToneFallback('countdown');
       return;
     }
 
-    let audio = this.pooled.get(event);
+    let audio = this.pooled.get('countdown');
     if (!audio) {
       audio = new Audio(source);
       audio.volume = 0.9;
-      this.pooled.set(event, audio);
+      this.pooled.set('countdown', audio);
     }
 
-    if (!audio.paused && !audio.ended && audio.currentTime > 0.02) {
-      return;
-    }
-
+    audio.pause();
     audio.currentTime = 0;
-    void audio.play().catch(() => this.playToneFallback(event));
+    void audio.play().catch(() => this.playToneFallback('countdown'));
   }
 
   private playFresh(source: string | undefined, onFail: () => void): void {

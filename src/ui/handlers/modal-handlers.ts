@@ -39,11 +39,6 @@ export function bindModalHandlers(root: ParentNode): () => void {
       return;
     }
 
-    if (getActionTarget(event, root, '[data-action="reveal-answer"]')) {
-      Actions.revealAnswer();
-      return;
-    }
-
     if (getActionTarget(event, root, '[data-action="submit-answer"]')) {
       Actions.submitQuestionAnswer();
       return;

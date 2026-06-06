@@ -6,6 +6,7 @@ import { renderBankTab } from './components/bank-tab';
 import { renderSettingsTab } from './components/settings-tab';
 import { WheelRenderer } from './components/wheel';
 import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers } from './handlers';
+import { captureScroll, restoreScroll } from '../utils/scroll-restore';
 
 const TAB_META: Record<'spin' | 'bank' | 'settings', { label: string; short: string; icon: string }> = {
   spin: { label: 'Vòng quay', short: 'Quay', icon: '🎯' },
@@ -93,6 +94,7 @@ function renderTabs(): string {
 
 export function render(): void {
   const focusSnapshot = captureFocus();
+  const scrollSnapshot = captureScroll(appRoot);
   const appState = appContext.getAppState();
   const runtime = appContext.getRuntimeState();
   const content =
@@ -133,6 +135,7 @@ export function render(): void {
   eventCleanups = bindEvents();
   mountWheelCanvas();
   restoreFocus(focusSnapshot);
+  restoreScroll(appRoot, scrollSnapshot);
 }
 
 function bindEvents(): Array<() => void> {

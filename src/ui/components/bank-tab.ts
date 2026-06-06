@@ -153,7 +153,7 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
   return `
     <section class="panel panel--bank">
       <div class="bank-layout">
-        <aside class="bank-sidebar">
+        <aside class="bank-sidebar" data-scroll-restore="bank-sidebar">
           <div class="bank-sidebar__title">Lĩnh vực</div>
           <div class="category-strip category-strip--sidebar">
             ${categoryPills}
@@ -195,7 +195,7 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
 
           ${category ? renderFilterPills(runtime.questionFilter, typeCounts) : ''}
 
-          <div class="question-list">${questions || `<div class="empty-state">${emptyMessage}</div>`}</div>
+          <div class="question-list" data-scroll-restore="question-list">${questions || `<div class="empty-state">${emptyMessage}</div>`}</div>
         </div>
       </div>
     </section>

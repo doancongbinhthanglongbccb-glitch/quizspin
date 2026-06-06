@@ -16,7 +16,7 @@ import { SPIN_CONFIG } from './config/spin';
 export const DEFAULTS = {
   spinFullTurns: SPIN_CONFIG.extraSpins,
   spinDurationMs: SPIN_CONFIG.durationMs,
-  pointerOffsetDeg: 90, // pointer location offset used for rotation math
+  pointerOffsetDeg: 270, // kim cố định ở đỉnh canvas (12h); segment 0 bắt đầu từ 3h
   toastDurationMs: 2600,
   timerMinSec: 10,
   timerMaxSec: 300, // 5 phút
