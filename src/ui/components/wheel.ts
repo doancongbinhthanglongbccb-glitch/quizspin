@@ -6,9 +6,10 @@ import { getWheelDisplayRotation } from '../../utils/wheel-display-rotation';
 /**
  * HTML render function trả về canvas element
  */
-function renderWheelHTML(): string {
+function renderWheelHTML(spinning = false): string {
+  const spinningClass = spinning ? ' wheel-frame--spinning' : '';
   return `
-    <div class="wheel-frame" data-wheel-host aria-hidden="false"></div>
+    <div class="wheel-frame${spinningClass}" data-wheel-host aria-hidden="false"></div>
   `;
 }
 
@@ -18,10 +19,10 @@ function renderWheelHTML(): string {
 
 const WHEEL_CONFIG = {
   padding: 20,
-  pointerHeight: 32,
-  pointerWidth: 20,
-  centerDotRadius: 11,
-  segmentBorderWidth: 1.5,
+  pointerHeight: 42,
+  pointerWidth: 26,
+  centerDotRadius: 12,
+  segmentBorderWidth: 2,
   minRadius: 120,
   labelMaxFontSize: 28,
   labelMinFontSize: 14,
@@ -229,15 +230,22 @@ function drawSegment(
   ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
   ctx.restore();
 
-  // Viền segment — tinh tế, tách lớp rõ trên nền tối
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+  // Viền segment — tinh tế, glow nhẹ giữa các ô
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.62)';
   ctx.lineWidth = WHEEL_CONFIG.segmentBorderWidth;
   ctx.stroke();
 
   ctx.save();
   ctx.globalCompositeOperation = 'source-atop';
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.22)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.28)';
+  ctx.lineWidth = 1.25;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.strokeStyle = 'rgba(139, 92, 246, 0.14)';
+  ctx.lineWidth = 3;
   ctx.stroke();
   ctx.restore();
 
@@ -286,27 +294,29 @@ function drawPointer(ctx: CanvasRenderingContext2D, centerX: number, centerY: nu
 
   ctx.save();
 
-  ctx.shadowColor = 'rgba(251, 191, 36, 0.9)';
-  ctx.shadowBlur = 22;
-  ctx.shadowOffsetX = 2;
+  // Halo vàng gold — glow mạnh, shadow sâu
+  ctx.shadowColor = 'rgba(251, 191, 36, 0.95)';
+  ctx.shadowBlur = 34;
+  ctx.shadowOffsetX = 3;
   ctx.shadowOffsetY = 0;
-  ctx.fillStyle = 'rgba(251, 191, 36, 0.38)';
+  ctx.fillStyle = 'rgba(251, 191, 36, 0.42)';
   ctx.beginPath();
   ctx.moveTo(tipX, centerY);
-  ctx.lineTo(baseX + 3, centerY - pw * 0.78);
-  ctx.lineTo(baseX + 3, centerY + pw * 0.78);
+  ctx.lineTo(baseX + 5, centerY - pw * 0.82);
+  ctx.lineTo(baseX + 5, centerY + pw * 0.82);
   ctx.closePath();
   ctx.fill();
 
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-  ctx.shadowBlur = 12;
-  ctx.shadowOffsetX = 4;
-  ctx.shadowOffsetY = 0;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetX = 6;
+  ctx.shadowOffsetY = 2;
 
   const pointerGradient = ctx.createLinearGradient(tipX, centerY, baseX, centerY);
-  pointerGradient.addColorStop(0, '#fff7cc');
-  pointerGradient.addColorStop(0.45, '#fbbf24');
-  pointerGradient.addColorStop(1, '#d97706');
+  pointerGradient.addColorStop(0, '#fffbeb');
+  pointerGradient.addColorStop(0.35, '#fbbf24');
+  pointerGradient.addColorStop(0.72, '#f59e0b');
+  pointerGradient.addColorStop(1, '#b45309');
 
   ctx.fillStyle = pointerGradient;
   ctx.beginPath();
@@ -317,16 +327,25 @@ function drawPointer(ctx: CanvasRenderingContext2D, centerX: number, centerY: nu
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-  ctx.lineWidth = 1.35;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.82)';
+  ctx.lineWidth = 1.75;
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(180, 83, 9, 0.55)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(tipX, centerY);
+  ctx.lineTo(baseX, centerY - pw / 2);
+  ctx.lineTo(baseX, centerY + pw / 2);
+  ctx.closePath();
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(tipX + 2, centerY);
-  ctx.lineTo(baseX - ph * 0.22, centerY - pw * 0.22);
-  ctx.lineTo(baseX - ph * 0.22, centerY + pw * 0.22);
+  ctx.moveTo(tipX + 3, centerY);
+  ctx.lineTo(baseX - ph * 0.2, centerY - pw * 0.24);
+  ctx.lineTo(baseX - ph * 0.2, centerY + pw * 0.24);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
   ctx.fill();
 
   ctx.restore();
@@ -334,17 +353,38 @@ function drawPointer(ctx: CanvasRenderingContext2D, centerX: number, centerY: nu
 
 function drawWheelChrome(ctx: CanvasRenderingContext2D, radius: number): void {
   ctx.save();
-  const ringGradient = ctx.createRadialGradient(0, 0, radius * 0.65, 0, 0, radius + 10);
-  ringGradient.addColorStop(0, 'rgba(30, 27, 46, 0.95)');
-  ringGradient.addColorStop(0.55, 'rgba(18, 16, 28, 0.98)');
-  ringGradient.addColorStop(1, 'rgba(251, 191, 36, 0.35)');
+
+  ctx.shadowColor = 'rgba(139, 92, 246, 0.35)';
+  ctx.shadowBlur = 24;
+  ctx.strokeStyle = 'rgba(139, 92, 246, 0.22)';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius + 10, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const ringGradient = ctx.createRadialGradient(0, 0, radius * 0.62, 0, 0, radius + 10);
+  ringGradient.addColorStop(0, 'rgba(28, 25, 44, 0.96)');
+  ringGradient.addColorStop(0.5, 'rgba(14, 12, 24, 0.99)');
+  ringGradient.addColorStop(0.82, 'rgba(251, 191, 36, 0.22)');
+  ringGradient.addColorStop(1, 'rgba(251, 191, 36, 0.42)');
   ctx.fillStyle = ringGradient;
   ctx.beginPath();
-  ctx.arc(0, 0, radius + 6, 0, Math.PI * 2);
+  ctx.arc(0, 0, radius + 7, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
-  ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(251, 191, 36, 0.45)';
+  ctx.shadowBlur = 14;
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.58)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius + 7, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius + 4, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
@@ -421,8 +461,8 @@ function drawWheel(canvasId: string, model: WheelModel, rotationDeg: number): vo
   ctx.save();
   ctx.translate(centerX, centerY);
   drawCenterCap(ctx);
-  ctx.strokeStyle = 'rgba(251, 191, 36, 0.35)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.48)';
+  ctx.lineWidth = 2;
   ctx.stroke();
   ctx.restore();
 

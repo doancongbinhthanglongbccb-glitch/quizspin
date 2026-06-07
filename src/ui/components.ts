@@ -1,4 +1,4 @@
-import { appContext } from '../core/state';
+import { appContext, type RuntimeState } from '../core/state';
 import { buildWheelModel } from '../core/wheel';
 import { renderModal } from './components/modal';
 import { renderConfirmDialog } from './components/confirm-dialog';
@@ -67,6 +67,15 @@ type FocusSnapshot = {
   selectionEnd: number;
 } | null;
 
+const SETTINGS_FIELD_IDS = new Set([
+  'gifts-input',
+  'punishments-input',
+  'intro-link-label-input',
+  'intro-link-url-input',
+]);
+
+let lastRenderedSettingsSection: RuntimeState['settingsSection'] | null = null;
+
 function captureFocus(): FocusSnapshot {
   const active = document.activeElement;
   if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)) {
@@ -84,8 +93,12 @@ function captureFocus(): FocusSnapshot {
   };
 }
 
-function restoreFocus(snapshot: FocusSnapshot): void {
+function restoreFocus(snapshot: FocusSnapshot, skipSettingsFields = false): void {
   if (!snapshot) {
+    return;
+  }
+
+  if (skipSettingsFields && SETTINGS_FIELD_IDS.has(snapshot.id)) {
     return;
   }
 
@@ -144,9 +157,9 @@ function renderIntroReplayFab(): string {
       aria-label="${INTRO_COPY.replayLabel}"
       title="${INTRO_COPY.replayLabel}"
     >
-      <span class="text-[1.1rem] leading-none" aria-hidden="true">↻</span>
+      <span class="intro-replay-fab__icon" aria-hidden="true">↻</span>
       <span class="intro-replay-fab__label intro-replay-fab__label--short">INTRO</span>
-      <span class="intro-replay-fab__label intro-replay-fab__label--long hidden tablet:inline">${INTRO_COPY.replayLabel}</span>
+      <span class="intro-replay-fab__label intro-replay-fab__label--long">${INTRO_COPY.replayLabel}</span>
     </button>
   `;
 }
@@ -155,6 +168,10 @@ export function render(): void {
   Actions.closeModalIfQuestionMissing();
 
   const runtime = appContext.getRuntimeState();
+  const settingsSectionChanged =
+    runtime.tab === 'settings' &&
+    lastRenderedSettingsSection !== null &&
+    lastRenderedSettingsSection !== runtime.settingsSection;
 
   if (runtime.showIntro) {
     renderIntro();
@@ -163,15 +180,17 @@ export function render(): void {
 
   const focusSnapshot = captureFocus();
   const scrollSnapshot = captureScroll(appRoot);
-  const appState = appContext.getAppState();
-  const content =
-    runtime.tab === 'spin'
-      ? renderSpinTab(appState, runtime)
-      : runtime.tab === 'bank'
-        ? renderBankTab(appState, runtime)
-        : renderSettingsTab(appState, runtime);
 
   cleanupRenderLifecycle();
+
+  const appState = appContext.getAppState();
+  const nextRuntime = appContext.getRuntimeState();
+  const content =
+    nextRuntime.tab === 'spin'
+      ? renderSpinTab(appState, nextRuntime)
+      : nextRuntime.tab === 'bank'
+        ? renderBankTab(appState, nextRuntime)
+        : renderSettingsTab(appState, nextRuntime);
 
   const hosts = ensureOverlayHosts();
   const enteringFromIntro = consumeAppEntryAnimation();
@@ -206,23 +225,29 @@ export function render(): void {
     </div>
   `;
 
-  hosts.toast.innerHTML = runtime.toast
-    ? `<div class="toast fixed left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/10 bg-gray-900/95 px-5 py-3 text-ui font-semibold shadow-xl bottom-[calc(96px+env(safe-area-inset-bottom,0px))] lg:landscape:bottom-6">${runtime.toast}</div>`
+  hosts.toast.innerHTML = nextRuntime.toast
+    ? `<div class="toast fixed left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/10 bg-gray-900/95 px-5 py-3 text-ui font-semibold shadow-xl bottom-[calc(96px+env(safe-area-inset-bottom,0px))] lg:landscape:bottom-6">${nextRuntime.toast}</div>`
     : '';
 
-  const modalKey = getModalRenderKey(appState, runtime);
+  const modalKey = getModalRenderKey(appState, nextRuntime);
   if (modalKey !== lastModalRenderKey) {
     lastModalRenderKey = modalKey;
-    hosts.modal.innerHTML = renderModal(appState, runtime);
+    hosts.modal.innerHTML = renderModal(appState, nextRuntime);
   }
 
-  hosts.confirm.innerHTML = renderConfirmDialog(runtime.confirmDialog);
+  hosts.confirm.innerHTML = renderConfirmDialog(nextRuntime.confirmDialog);
   hosts.fab.innerHTML = renderIntroReplayFab();
 
   eventCleanups = bindEvents();
   mountWheelCanvas();
-  restoreFocus(focusSnapshot);
+  restoreFocus(focusSnapshot, settingsSectionChanged);
   restoreScroll(appRoot, scrollSnapshot);
+
+  if (nextRuntime.tab === 'settings') {
+    lastRenderedSettingsSection = nextRuntime.settingsSection;
+  } else {
+    lastRenderedSettingsSection = null;
+  }
 
   if (hasPendingLogoFlight()) {
     const headerLogo = appRoot.querySelector<HTMLImageElement>('.app-header__logo');

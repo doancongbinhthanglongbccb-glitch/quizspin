@@ -67,6 +67,8 @@ async function performClearAllData(): Promise<void> {
     usedPunishments: new Set(),
     importReport: null,
     confirmDialog: null,
+    settingsSection: 'timer',
+    settingsDraft: null,
   });
 
   ensureQuestionDraft(currentCategory());

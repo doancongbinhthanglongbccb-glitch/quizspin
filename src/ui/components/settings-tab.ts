@@ -21,10 +21,7 @@ function renderSidebar(active: SettingsSection): string {
   const dangerItem = SIDEBAR_ITEMS.find((item) => item.danger);
 
   const item = (entry: (typeof SIDEBAR_ITEMS)[number]) => {
-    const isActive =
-      entry.id === active ||
-      (entry.id === 'gifts' && active === 'punishments') ||
-      (entry.id === 'punishments' && active === 'gifts');
+    const isActive = entry.id === active;
     const classes = [
       'settings-sidebar__item',
       isActive ? 'settings-sidebar__item--active' : '',
@@ -187,9 +184,11 @@ function renderSoundPanel(appState: AppState, runtime: RuntimeState): string {
   `;
 }
 
-function renderRewardsPanel(appState: AppState, section: SettingsSection): string {
+function renderRewardsPanel(appState: AppState, runtime: RuntimeState, section: SettingsSection): string {
   const giftsActive = section === 'gifts';
   const punishmentsActive = section === 'punishments';
+  const giftsText = runtime.settingsDraft?.gifts ?? rewardItemsToText(appState.settings.gifts);
+  const punishmentsText = runtime.settingsDraft?.punishments ?? rewardItemsToText(appState.settings.punishments);
 
   return `
     <div class="settings-rewards-grid grid grid-cols-1 gap-3 max-lg:grid-cols-1 lg:landscape:grid-cols-2">
@@ -199,7 +198,7 @@ function renderRewardsPanel(appState: AppState, section: SettingsSection): strin
           class="textarea settings-textarea-compact"
           id="gifts-input"
           placeholder="Mỗi dòng = 1 phần quà"
-        >${rewardItemsToText(appState.settings.gifts)}</textarea>
+        >${escapeHtml(giftsText)}</textarea>
       </div>
       <div class="settings-panel-card ${punishmentsActive ? 'settings-panel-card--focus' : ''}">
         <p class="settings-panel-card__title"><span aria-hidden="true">🔥</span>Hình phạt</p>
@@ -207,14 +206,15 @@ function renderRewardsPanel(appState: AppState, section: SettingsSection): strin
           class="textarea settings-textarea-compact"
           id="punishments-input"
           placeholder="Mỗi dòng = 1 hình phạt"
-        >${rewardItemsToText(appState.settings.punishments)}</textarea>
+        >${escapeHtml(punishmentsText)}</textarea>
       </div>
     </div>
   `;
 }
 
-function renderIntroPanel(appState: AppState): string {
-  const { label, url } = appState.settings.introLink;
+function renderIntroPanel(appState: AppState, runtime: RuntimeState): string {
+  const label = runtime.settingsDraft?.introLabel ?? appState.settings.introLink.label;
+  const url = runtime.settingsDraft?.introUrl ?? appState.settings.introLink.url;
 
   return `
     <div class="settings-panel-card">
@@ -265,10 +265,10 @@ function renderContentPanel(appState: AppState, runtime: RuntimeState, section: 
     return renderSoundPanel(appState, runtime);
   }
   if (section === 'gifts' || section === 'punishments') {
-    return renderRewardsPanel(appState, section);
+    return renderRewardsPanel(appState, runtime, section);
   }
   if (section === 'intro') {
-    return renderIntroPanel(appState);
+    return renderIntroPanel(appState, runtime);
   }
   return renderDangerPanel();
 }

@@ -1,12 +1,8 @@
-import { appContext } from '../../core/state';
+import { appContext, type SettingsDraft } from '../../core/state';
 import type { SettingsSection, SoundEventKey } from '../../types';
 import { textToRewardItems } from '../../data';
 import { formatTimerDisplay } from '../../utils/timer-format';
-import { debounce } from '../../utils/debounce';
 import * as Actions from '../../core/actions';
-
-const REWARD_DEBOUNCE_MS = 400;
-const INTRO_LINK_DEBOUNCE_MS = 400;
 
 function getInputTarget<T extends HTMLInputElement | HTMLTextAreaElement>(event: Event, root: ParentNode, selector: string): T | null {
   const target = event.target instanceof Element ? event.target.closest(selector) : null;
@@ -45,51 +41,110 @@ function commitTimerValue(seconds: number): void {
   }));
 }
 
-function commitIntroLink(label: string, url: string): void {
-  appContext.setAppState((current) => ({
-    ...current,
-    settings: {
-      ...current.settings,
-      introLink: {
-        label: label.trim(),
-        url: url.trim(),
-      },
-    },
-  }));
+function patchSettingsDraft(patch: SettingsDraft): void {
+  const current = appContext.getRuntimeState().settingsDraft ?? {};
+  appContext.patchRuntimeState({
+    settingsDraft: { ...current, ...patch },
+  });
+}
+
+function readSettingsDraftFromDom(root: ParentNode): SettingsDraft {
+  const draft: SettingsDraft = { ...(appContext.getRuntimeState().settingsDraft ?? {}) };
+  const giftsInput = root.querySelector<HTMLTextAreaElement>('#gifts-input');
+  const punishmentsInput = root.querySelector<HTMLTextAreaElement>('#punishments-input');
+  const introLabelInput = root.querySelector<HTMLInputElement>('#intro-link-label-input');
+  const introUrlInput = root.querySelector<HTMLInputElement>('#intro-link-url-input');
+
+  if (giftsInput) {
+    draft.gifts = giftsInput.value;
+  }
+  if (punishmentsInput) {
+    draft.punishments = punishmentsInput.value;
+  }
+  if (introLabelInput) {
+    draft.introLabel = introLabelInput.value;
+  }
+  if (introUrlInput) {
+    draft.introUrl = introUrlInput.value;
+  }
+
+  return draft;
+}
+
+function persistSettingsDraft(draft: SettingsDraft): void {
+  const hasGifts = draft.gifts !== undefined;
+  const hasPunishments = draft.punishments !== undefined;
+  const hasIntro = draft.introLabel !== undefined || draft.introUrl !== undefined;
+
+  if (!hasGifts && !hasPunishments && !hasIntro) {
+    return;
+  }
+
+  appContext.setAppStateWithoutRender((current) => {
+    const settings = { ...current.settings };
+
+    if (hasGifts) {
+      settings.gifts = textToRewardItems(draft.gifts ?? '', current.settings.gifts, (text) => ({
+        id: crypto.randomUUID(),
+        text,
+      }));
+    }
+
+    if (hasPunishments) {
+      settings.punishments = textToRewardItems(draft.punishments ?? '', current.settings.punishments, (text) => ({
+        id: crypto.randomUUID(),
+        text,
+      }));
+    }
+
+    if (hasIntro) {
+      settings.introLink = {
+        label: (draft.introLabel ?? current.settings.introLink.label).trim(),
+        url: (draft.introUrl ?? current.settings.introLink.url).trim(),
+      };
+    }
+
+    return { ...current, settings };
+  });
+
+  const runtimePatch: Partial<ReturnType<typeof appContext.getRuntimeState>> = {
+    settingsDraft: null,
+  };
+  if (hasGifts) {
+    runtimePatch.usedGifts = new Set();
+  }
+  if (hasPunishments) {
+    runtimePatch.usedPunishments = new Set();
+  }
+  appContext.patchRuntimeStateWithoutRender(runtimePatch);
+}
+
+export function flushSettingsFromDom(root: ParentNode): void {
+  const giftsInput = root.querySelector('#gifts-input');
+  const punishmentsInput = root.querySelector('#punishments-input');
+  const introLabelInput = root.querySelector('#intro-link-label-input');
+  const introUrlInput = root.querySelector('#intro-link-url-input');
+
+  if (!giftsInput && !punishmentsInput && !introLabelInput && !introUrlInput) {
+    const draft = appContext.getRuntimeState().settingsDraft;
+    if (draft) {
+      persistSettingsDraft(draft);
+    }
+    return;
+  }
+
+  persistSettingsDraft(readSettingsDraftFromDom(root));
+}
+
+function switchSettingsSection(section: SettingsSection): void {
+  if (appContext.getRuntimeState().settingsSection === section) {
+    return;
+  }
+  appContext.setRuntimeState({ settingsSection: section });
 }
 
 export function bindSettingsHandlers(root: ParentNode): () => void {
-  const commitGifts = (value: string): void => {
-    appContext.setAppState((current) => ({
-      ...current,
-      settings: {
-        ...current.settings,
-        gifts: textToRewardItems(value, current.settings.gifts, (text) => ({ id: crypto.randomUUID(), text })),
-      },
-    }));
-    appContext.setRuntimeState({ usedGifts: new Set() });
-  };
-
-  const commitPunishments = (value: string): void => {
-    appContext.setAppState((current) => ({
-      ...current,
-      settings: {
-        ...current.settings,
-        punishments: textToRewardItems(value, current.settings.punishments, (text) => ({ id: crypto.randomUUID(), text })),
-      },
-    }));
-    appContext.setRuntimeState({ usedPunishments: new Set() });
-  };
-
-  const commitGiftsDebounced = debounce(commitGifts, REWARD_DEBOUNCE_MS);
-  const commitPunishmentsDebounced = debounce(commitPunishments, REWARD_DEBOUNCE_MS);
-  const commitIntroLinkDebounced = debounce(() => {
-    const labelEl = root.querySelector<HTMLInputElement>('#intro-link-label-input');
-    const urlEl = root.querySelector<HTMLInputElement>('#intro-link-url-input');
-    if (labelEl && urlEl) {
-      commitIntroLink(labelEl.value, urlEl.value);
-    }
-  }, INTRO_LINK_DEBOUNCE_MS);
+  let sectionHandledByPointer = false;
 
   const onInput = (event: Event): void => {
     const timerSlider = getInputTarget<HTMLInputElement>(event, root, '#timer-slider');
@@ -100,20 +155,25 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
 
     const giftsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#gifts-input');
     if (giftsInput) {
-      commitGiftsDebounced(giftsInput.value);
+      patchSettingsDraft({ gifts: giftsInput.value });
       return;
     }
 
     const punishmentsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#punishments-input');
     if (punishmentsInput) {
-      commitPunishmentsDebounced(punishmentsInput.value);
+      patchSettingsDraft({ punishments: punishmentsInput.value });
       return;
     }
 
     const introLabelInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-label-input');
     const introUrlInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-url-input');
     if (introLabelInput || introUrlInput) {
-      commitIntroLinkDebounced();
+      const labelEl = root.querySelector<HTMLInputElement>('#intro-link-label-input');
+      const urlEl = root.querySelector<HTMLInputElement>('#intro-link-url-input');
+      patchSettingsDraft({
+        introLabel: labelEl?.value,
+        introUrl: urlEl?.value,
+      });
     }
   };
 
@@ -143,37 +203,27 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
     }
   };
 
-  const onBlur = (event: Event): void => {
-    const giftsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#gifts-input');
-    if (giftsInput) {
-      commitGiftsDebounced.cancel();
-      commitGifts(giftsInput.value);
+  const onSectionSwitch = (event: Event): void => {
+    const sectionButton = getActionTarget(event, root, '[data-action="settings-section"]');
+    if (!sectionButton?.dataset.section) {
       return;
     }
 
-    const punishmentsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#punishments-input');
-    if (punishmentsInput) {
-      commitPunishmentsDebounced.cancel();
-      commitPunishments(punishmentsInput.value);
-      return;
-    }
-
-    const introLabelInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-label-input');
-    const introUrlInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-url-input');
-    if (introLabelInput || introUrlInput) {
-      commitIntroLinkDebounced.cancel();
-      const labelEl = root.querySelector<HTMLInputElement>('#intro-link-label-input');
-      const urlEl = root.querySelector<HTMLInputElement>('#intro-link-url-input');
-      if (labelEl && urlEl) {
-        commitIntroLink(labelEl.value, urlEl.value);
-      }
-    }
+    patchSettingsDraft(readSettingsDraftFromDom(root));
+    sectionHandledByPointer = true;
+    switchSettingsSection(sectionButton.dataset.section as SettingsSection);
+    queueMicrotask(() => {
+      sectionHandledByPointer = false;
+    });
   };
 
   const onClick = (event: Event): void => {
     const sectionButton = getActionTarget(event, root, '[data-action="settings-section"]');
     if (sectionButton?.dataset.section) {
-      appContext.setRuntimeState({ settingsSection: sectionButton.dataset.section as SettingsSection });
+      if (!sectionHandledByPointer) {
+        patchSettingsDraft(readSettingsDraftFromDom(root));
+        switchSettingsSection(sectionButton.dataset.section as SettingsSection);
+      }
       return;
     }
 
@@ -212,36 +262,23 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
 
   root.addEventListener('input', onInput);
   root.addEventListener('change', onChange);
-  root.addEventListener('blur', onBlur, true);
+  const supportsPointerEvents = typeof window !== 'undefined' && 'PointerEvent' in window;
+  if (supportsPointerEvents) {
+    root.addEventListener('pointerdown', onSectionSwitch);
+  } else {
+    root.addEventListener('mousedown', onSectionSwitch);
+  }
   root.addEventListener('click', onClick);
 
-  const flushPendingSettings = (): void => {
-    commitGiftsDebounced.cancel();
-    commitPunishmentsDebounced.cancel();
-    commitIntroLinkDebounced.cancel();
-
-    const giftsInput = root.querySelector<HTMLTextAreaElement>('#gifts-input');
-    if (giftsInput) {
-      commitGifts(giftsInput.value);
-    }
-
-    const punishmentsInput = root.querySelector<HTMLTextAreaElement>('#punishments-input');
-    if (punishmentsInput) {
-      commitPunishments(punishmentsInput.value);
-    }
-
-    const labelEl = root.querySelector<HTMLInputElement>('#intro-link-label-input');
-    const urlEl = root.querySelector<HTMLInputElement>('#intro-link-url-input');
-    if (labelEl && urlEl) {
-      commitIntroLink(labelEl.value, urlEl.value);
-    }
-  };
-
   return () => {
-    flushPendingSettings();
+    flushSettingsFromDom(root);
     root.removeEventListener('input', onInput);
     root.removeEventListener('change', onChange);
-    root.removeEventListener('blur', onBlur, true);
+    if (supportsPointerEvents) {
+      root.removeEventListener('pointerdown', onSectionSwitch);
+    } else {
+      root.removeEventListener('mousedown', onSectionSwitch);
+    }
     root.removeEventListener('click', onClick);
   };
 }

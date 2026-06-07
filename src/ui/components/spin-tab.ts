@@ -21,7 +21,7 @@ export function renderSpinTab(appState: AppState, runtime: RuntimeState): string
         <div class="spin-layout grid min-h-0 gap-3">
           <div class="spin-layout__wheel grid min-w-0 justify-items-center gap-2.5">
             <div class="spin-wheel-zone grid w-full max-w-full place-items-center">
-              ${WheelRenderer.renderHTML()}
+              ${WheelRenderer.renderHTML(runtime.spinning)}
             </div>
             <div class="spin-actions grid w-full gap-1.5 justify-items-stretch">
               <button class="btn btn-spin" data-action="spin" ${spinDisabled ? 'disabled' : ''} aria-label="Quay vòng quay ngay">

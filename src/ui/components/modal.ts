@@ -31,7 +31,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
     const total = Math.max(1, modal.timer);
     const progress = remaining / total;
     const danger = remaining > 0 && remaining <= 5;
-    const radius = 44;
+    const radius = 46;
     const circumference = 2 * Math.PI * radius;
     const dashOffset = circumference * (1 - progress);
 
@@ -48,16 +48,18 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
           <svg viewBox="0 0 100 100" class="timer-ring__svg" aria-hidden="true">
             <defs>
               <linearGradient id="timer-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#ddd6fe" />
-                <stop offset="50%" stop-color="#a78bfa" />
-                <stop offset="100%" stop-color="#8b5cf6" />
+                <stop offset="0%" stop-color="#ede9fe" />
+                <stop offset="35%" stop-color="#c4b5fd" />
+                <stop offset="68%" stop-color="#8b5cf6" />
+                <stop offset="100%" stop-color="#6d28d9" />
               </linearGradient>
               <linearGradient id="timer-ring-grad-danger" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#fca5a5" />
-                <stop offset="100%" stop-color="#ef4444" />
+                <stop offset="0%" stop-color="#fecaca" />
+                <stop offset="45%" stop-color="#f87171" />
+                <stop offset="100%" stop-color="#dc2626" />
               </linearGradient>
-              <filter id="timer-ring-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="3.5" result="blur" />
+              <filter id="timer-ring-glow" x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="4.5" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
@@ -127,7 +129,6 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
               >
                 <span class="option-chip__letter">${letter}</span>
                 <span class="option-chip__text">${escapeHtml(optionText)}</span>
-                <span class="option-chip__check" aria-hidden="true"></span>
               </button>`;
             })
             .join('')}
@@ -150,7 +151,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
 
     const answerBox =
       readOnly || revealed || submitted
-        ? `<div class="answer-box answer-box--revealed">
+        ? `<div class="answer-box answer-box--revealed" role="status">
           <div class="answer-box__title">✓ Đáp án đúng</div>
           <pre class="answer-box__content">${escapeHtml(question.answer)}</pre>
         </div>`
@@ -189,18 +190,23 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
         </div>`
       : submitted
         ? `<div class="modal-actions modal-actions--center flex flex-wrap justify-center">${submitButton}</div>`
-        : `<div class="modal-actions modal-actions--question grid grid-cols-[auto_1fr_auto] items-center gap-2.5 pt-1 max-[479px]:grid-cols-1">
-            <div class="modal-actions__slot modal-actions__slot--left flex min-w-0 justify-start max-[479px]:justify-stretch">${pauseButton}</div>
-            <div class="modal-actions__slot modal-actions__slot--center flex min-w-0 justify-center max-[479px]:justify-stretch">${revealButton}</div>
-            <div class="modal-actions__slot modal-actions__slot--right flex min-w-0 justify-end max-[479px]:justify-stretch">${submitButton}</div>
-          </div>`;
+        : isMcq
+          ? `<div class="modal-actions modal-actions--question modal-actions--mcq">
+              <div class="modal-actions__slot modal-actions__slot--left">${pauseButton}</div>
+              <div class="modal-actions__slot modal-actions__slot--center">${revealButton}</div>
+            </div>`
+          : `<div class="modal-actions modal-actions--question">
+              <div class="modal-actions__slot modal-actions__slot--left">${pauseButton}</div>
+              <div class="modal-actions__slot modal-actions__slot--center">${revealButton}</div>
+              <div class="modal-actions__slot modal-actions__slot--right">${submitButton}</div>
+            </div>`;
 
     return `
-      <div class="modal-backdrop fixed inset-0 z-20 grid place-items-center p-4 animate-modal-backdrop-in bg-slate-950/75 backdrop-blur-sm">
+      <div class="modal-backdrop modal-backdrop--question fixed inset-0 z-20 animate-modal-backdrop-in bg-slate-950/75 backdrop-blur-sm">
         <section class="modal-card modal-card--question ${readOnly ? 'modal-card--readonly' : ''}">
           ${readOnly || submitted ? '' : timerRing}
           <div class="modal-meta flex flex-wrap justify-center gap-2">${badge}${reviewBadge}</div>
-          <h2 class="modal-title m-0 text-center text-[clamp(1.35rem,3.2vw,2rem)] leading-snug">${escapeHtml(question.question)}</h2>
+          <h2 class="modal-title">${escapeHtml(question.question)}</h2>
           ${options}
           ${essayInput}
           ${answerBox}

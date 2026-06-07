@@ -19,6 +19,14 @@ export type SoundUploadDraft = {
   dataUrl: string;
 };
 
+/** Bản nháp form Cài đặt — cập nhật khi gõ, không re-render */
+export type SettingsDraft = {
+  gifts?: string;
+  punishments?: string;
+  introLabel?: string;
+  introUrl?: string;
+};
+
 export type RuntimeState = {
   tab: 'spin' | 'bank' | 'settings';
   rotation: number; // độ quay của wheel
@@ -42,6 +50,7 @@ export type RuntimeState = {
   } | null;
   confirmDialog: ConfirmDialog | null;
   settingsSection: SettingsSection;
+  settingsDraft: SettingsDraft | null;
   /** File âm thanh đang chờ xác nhận lưu (preview trước khi gán) */
   soundUploadDraft: SoundUploadDraft | null;
   /** Hiển thị màn intro trước khi vào app chính */
@@ -67,14 +76,20 @@ function createDefaultRuntimeState(): RuntimeState {
     importReport: null,
     confirmDialog: null,
     settingsSection: 'timer',
+    settingsDraft: null,
     soundUploadDraft: null,
     showIntro: false,
   };
 }
 
+function cloneSettingsDraft(draft: SettingsDraft | null): SettingsDraft | null {
+  return draft ? { ...draft } : null;
+}
+
 function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
   return {
     ...runtimeState,
+    settingsDraft: cloneSettingsDraft(runtimeState.settingsDraft),
     questionDraft: { ...runtimeState.questionDraft },
     usedQuestionIds: new Set(runtimeState.usedQuestionIds),
     usedGifts: new Set(runtimeState.usedGifts),
@@ -116,6 +131,9 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
     confirmDialog: Object.prototype.hasOwnProperty.call(update, 'confirmDialog')
       ? (update.confirmDialog ?? null)
       : current.confirmDialog,
+    settingsDraft: Object.prototype.hasOwnProperty.call(update, 'settingsDraft')
+      ? cloneSettingsDraft(update.settingsDraft ?? null)
+      : cloneSettingsDraft(current.settingsDraft),
   };
 
   return cloneRuntimeState(merged);
@@ -281,6 +299,13 @@ export class AppContext {
     this.notifyPersistSubscribers();
   }
 
+  /** Lưu AppState + persist mà không re-render (dùng khi flush form Cài đặt) */
+  setAppStateWithoutRender(update: AppState | ((current: AppState) => AppState)): void {
+    const nextState = typeof update === 'function' ? update(this.appState) : update;
+    this.appState = normalizeAppState(nextState);
+    this.notifyPersistSubscribers();
+  }
+
   /**
    * Lấy RuntimeState hiện tại (UI state)
    */
@@ -300,6 +325,11 @@ export class AppContext {
    * Cập nhật RuntimeState mà không re-render (dùng khi gõ text trong form)
    */
   patchRuntimeState(update: Partial<RuntimeState>): void {
+    this.runtimeState = mergeRuntimeState(this.runtimeState, update);
+  }
+
+  /** Cập nhật RuntimeState mà không re-render */
+  patchRuntimeStateWithoutRender(update: Partial<RuntimeState>): void {
     this.runtimeState = mergeRuntimeState(this.runtimeState, update);
   }
 
