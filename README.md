@@ -2,114 +2,90 @@
 
 Ứng dụng học tập tương tác với vòng quay, câu hỏi trắc nghiệm/tự luận, quà tặng và hình phạt. Hoạt động **100% offline** trên Android (Capacitor) và trình duyệt.
 
+**Phiên bản:** `0.1.0` (beta nội bộ)
+
 ---
 
 ## Tính năng hiện có
 
-| Phase | Nội dung |
-|-------|----------|
-| **1 — Vòng quay** | Canvas wheel, animation quay, modal quà/phạt/thông báo, 3 tab, swipe đổi tab, responsive |
-| **2 — Ngân hàng** | CRUD lĩnh vực & câu hỏi, MCQ/Essay, filter, import Excel đa format |
-| **3 — Modal & trả lời** | Timer SVG, chọn/nộp đáp án, lưu `answerHistory`, SoundManager + upload âm thanh |
+| Khu vực | Nội dung |
+|---------|----------|
+| **Màn Intro** | Logo, nhạc nền (clip ~26s), nút vào game + nút link ngoài (tùy cấu hình), animation logo bay lên header |
+| **Vòng quay** | Canvas wheel, kim cố định đồng bộ kết quả, animation 5s, modal quà/phạt/thông báo |
+| **Ngân hàng** | CRUD lĩnh vực & câu hỏi, MCQ/Essay, filter, import Excel đa format |
+| **Modal câu hỏi** | Timer SVG, chọn đáp án, chấm khi hiện đáp án/hết giờ, âm thanh đúng/sai |
+| **Cài đặt** | Timer, âm thanh, quà/phạt, màn intro, xóa dữ liệu (confirm 2 bước) |
+
+### Màn Intro
+
+- Hiển thị lần đầu (hoặc bấm nút **INTRO** góc màn hình để xem lại)
+- Nút chính: **VÒNG XOAY KIẾN THỨC** — vào app, logo bay lên header
+- Nút phụ (nếu có URL trong Cài đặt → Màn Intro): mở link ngoài, ví dụ «Kiểm tra nhận thức»
+- Nhạc `introBed` — clip ngắn lặp, không phát full file gốc
 
 ### Tab Vòng Quay
-- Nút **QUAY NGAY** — random segment (lĩnh vực / quà / phạt / thêm lượt / mất lượt)
-- Sidebar: trạng thái, số câu, **lịch sử quay**, **lịch sử trả lời**
-- Âm thanh quay 5s: `spinBed` (nền), `spinStart` (bánh xe), `spinStop` (dừng) — file mặc định hoặc upload custom
+
+- Nút **BẮT ĐẦU QUAY** — random segment (lĩnh vực / quà / phạt / thêm lượt / mất lượt)
+- Sidebar: trạng thái, tổng số câu, số lĩnh vực
+- Cần ít nhất **1 quà** và **1 hình phạt** trong Cài đặt mới quay được
+- Âm thanh quay 5s: `spinBed` + `spinStart` → `spinStop` khi dừng
 
 ### Modal câu hỏi
-- Timer tròn SVG, nhấp nháy đỏ khi ≤ 5 giây
-- **MCQ**: card A/B/C/D, chọn đáp án, highlight đúng/sai sau nộp/reveal
-- **Essay**: textarea lớn, auto-resize
-- **Tạm dừng** | **Hiện đáp án** (chỉ reveal, không lưu) | **Nộp đáp án** (chấm + lưu record + sound)
+
+- Timer tròn SVG, đỏ khi ≤ 5 giây
+- **MCQ (trắc nghiệm)**
+  - Chọn đáp án → chỉ highlight, **không chấm ngay**
+  - **Hiện đáp án** — nếu đã chọn: chấm + hiện đúng/sai + lưu lịch sử; nếu chưa chọn: chỉ xem đáp án
+  - **Hết giờ** — tự chấm nếu đã chọn; chưa chọn thì hiện đáp án + toast «Hết giờ»
+- **Essay (tự luận)**
+  - Gõ trong textarea (auto-resize)
+  - **Nộp đáp án** khi đã có nội dung → lưu + fanfare (không chấm tự động)
+  - **Hiện đáp án** — xem đáp án mẫu (không chấm)
+- **Tạm dừng / Tiếp tục** — đóng băng thời gian hiển thị khi chấm
+- `answerHistory` được **lưu vào storage** nhưng **chưa có màn xem lại** trên UI
 
 ### Tab Ngân hàng
-- Pill lĩnh vực (scroll / sidebar landscape), thêm / đổi tên / xóa (long-press)
+
+- Pill lĩnh vực (scroll / sidebar landscape), thêm / đổi tên / xóa (long-press → prompt)
 - Form thêm/sửa câu: loại MCQ hoặc Essay, phương án, đáp án
 - Upload Excel, báo cáo import (imported / skipped / diagnostics)
 - Lọc: Tất cả · MCQ · Essay
+- Xóa câu / lĩnh vực qua **hộp thoại xác nhận** trong app
 
 ### Tab Cài đặt
-- Slider thời gian (10s–5 phút)
-- Bật/tắt âm thanh
-- Upload âm thanh tùy chỉnh cho 11 event (`spinBed`, `spinStart`, `spinStop`, `countdown`, `correct`, `wrong`, `fanfare`, `gift`, `punishment`, `extraTurn`, `loseTurn`)
-- Danh sách quà tặng & hình phạt (mỗi dòng một mục)
-- Xóa toàn bộ dữ liệu (confirm 2 bước)
 
----
+| Mục | Nội dung |
+|-----|----------|
+| Thời gian | Slider 10s–5 phút |
+| Âm thanh | Bật/tắt + upload/preview cho 12 event |
+| Quà / Phạt | Mỗi dòng một mục, random không trùng trong phiên |
+| Màn Intro | Tên nút link + URL (để trống URL = ẩn nút) |
+| Nguy hiểm | Xóa toàn bộ dữ liệu (confirm 2 bước) |
 
-## Cấu trúc source
-
-```
-src/
-├── main.ts                 # Entry → bootstrap()
-├── types.ts                # Domain types
-├── config.ts               # Palette, wheel segments, defaults
-├── config/
-│   ├── spin.ts             # SPIN_CONFIG (duration, extraSpins)
-│   └── sounds.ts           # DEFAULT_SOUND_FILES, SOUND_EVENT_KEYS
-├── data.ts                 # Sample state, migrate, Excel parse, helpers
-├── storage.ts              # Capacitor Preferences + localStorage fallback
-├── styles.css              # Dark theme + responsive breakpoints
-│
-├── core/
-│   ├── state.ts            # AppContext: AppState (persist) + RuntimeState (UI)
-│   ├── wheel.ts            # Wheel model & landing math
-│   ├── spin-session.ts     # Một timeline animation + audio khi quay
-│   ├── question-timer.ts   # Countdown modal câu hỏi
-│   ├── toast.ts            # Toast notification
-│   ├── sound-manager.ts    # Builtin tones + custom dataUrl playback
-│   └── actions/            # Business logic (spin, modal, bank, sound, import…)
-│
-├── ui/
-│   ├── components.ts       # Root render, tab routing, lifecycle
-│   ├── components/         # spin-tab, bank-tab, settings-tab, modal, wheel
-│   └── handlers/           # DOM events → actions
-│
-└── utils/
-    ├── animate.ts          # Spin animation controller
-    └── timer-format.ts     # Format hiển thị slider thời gian
-```
-
-Âm thanh mặc định nằm trong `public/sounds/` (Vite copy sang `dist/sounds/` khi build).
-
-**Luồng dữ liệu:** `Action` cập nhật `AppContext` → subscriber gọi `render()` + `saveState()`.
-
-### State
-
-```ts
-// Persist (storage key: appState)
-AppState {
-  categories: Category[]
-  settings: Settings        // timer, sound, gifts, punishments, sounds
-  answerHistory: AnswerRecord[]
-}
-
-// Runtime (không persist)
-RuntimeState {
-  tab, rotation, spinning, modal, toast,
-  questionDraft, usedQuestionIds, usedGifts, usedPunishments,
-  spinHistory, importReport, …
-}
-```
+**12 sound event:** `introBed`, `spinBed`, `spinStart`, `spinStop`, `countdown`, `correct`, `wrong`, `fanfare`, `gift`, `punishment`, `extraTurn`, `loseTurn`
 
 ---
 
 ## Hướng dẫn sử dụng nhanh
 
 ### Chuẩn bị phiên
-1. **Cài đặt** — thời gian, quà/phạt, âm thanh (tùy chọn upload file)
+
+1. **Cài đặt** — thời gian, quà/phạt, âm thanh (tùy chọn), link intro (tùy chọn)
 2. **Ngân hàng** — tạo lĩnh vực, thêm câu (tay hoặc Excel)
-3. Cần ít nhất **1 quà** và **1 hình phạt** mới quay được
+3. Cần ít nhất **1 quà** và **1 hình phạt**
 
 ### Chơi
-1. Tab **Vòng Quay** → **QUAY NGAY**
-2. Trúng **lĩnh vực** → modal câu hỏi (random câu chưa dùng trong lĩnh vực)
-3. Chọn/ghi đáp án → **Nộp đáp án** (học sinh) hoặc **Hiện đáp án** (MC giải thích)
-4. Trúng quà/phạt/lượt → modal tương ứng → **Đóng**
+
+1. Bỏ qua / hoàn thành **Intro** → tab **Vòng Quay**
+2. **BẮT ĐẦU QUAY**
+3. Trúng **lĩnh vực** → câu hỏi random (ưu tiên câu chưa dùng trong lĩnh vực đó)
+4. **MCQ:** chọn đáp án → **Hiện đáp án** hoặc chờ hết giờ
+5. **Essay:** gõ → **Nộp đáp án** hoặc **Hiện đáp án**
+6. Trúng quà/phạt/lượt → modal tương ứng → **Đóng**
 
 ### Chống trùng trong phiên
-- Câu hỏi / quà / phạt đã dùng không lặp lại cho đến khi hết danh sách → tự reset pool lĩnh vực/danh sách đó.
+
+- Câu hỏi / quà / phạt đã dùng không lặp cho đến khi hết pool → tự reset và chọn random lại
 
 ---
 
@@ -125,32 +101,87 @@ App tự nhận diện header và loại câu (MCQ/Essay) từ nội dung cột 
 | Khoa học | Vai trò của nước trong đời sống? | *(để trống)* | Nước tham gia trao đổi chất… |
 
 **Quy tắc:**
+
 - **Options có dữ liệu** → trắc nghiệm (MCQ)
-- **Options trống** → tự luận (Essay), đáp án nằm ở cột **Đáp án đúng**
-- **Lĩnh vực** có thể để trống → gán vào lĩnh vực đang chọn trên app
+- **Options trống** → tự luận (Essay)
+- **Lĩnh vực** trống → gán vào lĩnh vực đang chọn trên app
 
-### Legacy 3 cột (không lĩnh vực)
+### Legacy
 
-| Câu hỏi | Phương án | Đáp án đúng |
-|---------|-----------|-------------|
-| … | A…B…C…D… | C. … |
-| … | *(trống)* | Đoạn tự luận |
+- **3 cột:** Câu hỏi | Phương án | Đáp án đúng
+- **2 cột:** Câu hỏi | Đáp án
+- File `.xlsx` / `.xls`; file cũ có cột **Loại** vẫn import được
+- Dòng lỗi liệt kê trong báo cáo import
 
-### Legacy 2 cột
+---
 
-| Câu hỏi | Đáp án |
-|---------|--------|
-| … | … |
+## Cấu trúc source
 
-- File: `.xlsx` / `.xls`
-- File cũ có cột **Loại** (mcq/essay) vẫn import được
-- Dòng lỗi được liệt kê trong báo cáo import (số dòng + lý do)
+```
+src/
+├── main.ts
+├── types.ts
+├── config.ts
+├── config/
+│   ├── spin.ts             # SPIN_CONFIG (5s, extraSpins)
+│   ├── sounds.ts           # DEFAULT_SOUND_FILES, INTRO_BED_CLIP
+│   └── intro.ts            # INTRO_ASSETS, INTRO_COPY
+├── data.ts
+├── storage.ts
+├── styles.css              # Wheel, timer SVG, intro, responsive hooks
+│
+├── core/
+│   ├── state.ts            # AppContext: AppState + RuntimeState
+│   ├── wheel.ts            # Segment layout & landing math
+│   ├── spin-session.ts     # Animation + audio khi quay
+│   ├── question-timer.ts
+│   ├── sound-manager.ts
+│   └── actions/
+│
+├── ui/
+│   ├── components.ts       # Shell render + overlay hosts (modal/toast)
+│   ├── components/         # spin, bank, settings, modal, wheel, intro…
+│   ├── handlers/
+│   ├── intro-transition.ts
+│   └── intro-logo-transition.ts
+│
+└── utils/
+    ├── animate.ts          # Timed spin animation
+    ├── angles.ts           # normalizeDeg
+    ├── debounce.ts
+    ├── modal-render-key.ts # Tránh rebuild modal khi chỉ chọn đáp án
+    ├── wheel-display-rotation.ts
+    └── …
+```
+
+**Luồng dữ liệu:** `Action` → `AppContext` → subscriber `render()` + `saveState()` (chỉ `AppState`).
+
+### State
+
+```ts
+// Persist (key: appState)
+AppState {
+  categories: Category[]
+  settings: Settings   // timer, sound, gifts, punishments, sounds, introLink
+  answerHistory: AnswerRecord[]
+}
+
+// Runtime (không persist)
+RuntimeState {
+  tab, rotation, spinning, modal, toast, showIntro,
+  questionDraft, usedQuestionIds, usedGifts, usedPunishments,
+  confirmDialog, importReport, …
+}
+```
+
+Âm thanh mặc định: `public/sounds/` → `dist/sounds/` khi build.
 
 ---
 
 ## Phát triển
 
 ### Yêu cầu
+
 - Node.js 18+
 - npm
 
@@ -165,6 +196,7 @@ npm run dev
 
 ```bash
 npm run build
+npm run preview   # xem bản build local
 ```
 
 ### Capacitor / Android
@@ -181,32 +213,41 @@ npm run android
 
 | Hạng mục | Stack |
 |----------|--------|
-| UI | Vanilla TypeScript + CSS (Tailwind utilities) |
+| UI | Vanilla TypeScript + Tailwind utilities + `styles.css` |
 | Build | Vite 6 |
 | Mobile | Capacitor 7 |
-| Storage | `@capacitor/preferences` |
+| Storage | `@capacitor/preferences` (+ localStorage fallback) |
 | Excel | SheetJS (`xlsx`) |
 | Wheel | Canvas API |
-| Âm thanh | Web Audio API + HTMLAudioElement (custom) |
+| Âm thanh | Web Audio + HTMLAudioElement (custom upload) |
 
 ---
 
-## Roadmap (bước tiếp theo)
+## Hạn chế / roadmap
 
-- [ ] Layout landscape/tablet hoàn chỉnh (sidebar nav, spin 60/40)
+**Đã có**
+
+- [x] Intro + logo transition
+- [x] Kim vòng quay đồng bộ kết quả
+- [x] MCQ: chọn → chấm khi Hiện đáp án / hết giờ
+- [x] Timer pause/resume + app background (Capacitor)
+- [x] Confirm dialog thay `window.confirm` (xóa dữ liệu)
+- [x] Tailwind cho layout chính
+
+**Còn lại**
+
+- [ ] UI xem lại `answerHistory`
+- [ ] Đổi tên/xóa lĩnh vực bằng modal thay `window.prompt`
 - [ ] Tên đội / người chơi trên màn quay
-- [x] Fanfare khi MC bấm Hiện đáp án
-- [x] Timer dừng/tiếp tục khi app background/foreground (Capacitor pause/resume)
-- [ ] Phiên chơi: reset used flags + tùy chọn xóa lịch sử trả lời
-- [ ] Tính điểm từ `question.points`
-- [ ] Quản lý thư viện âm thanh (dọn file không dùng)
-- [ ] Build APK & test thiết bị Android thật
+- [ ] Tính điểm (`question.points`)
+- [ ] Test tự động (wheel landing, MCQ flow)
+- [ ] Build APK & smoke test thiết bị Android
 
 ---
 
 ## Tài liệu thiết kế
 
-Chi tiết spec gốc: [`voong-quay-kien-thuc-plan.md`](./voong-quay-kien-thuc-plan.md)
+Spec gốc: [`voong-quay-kien-thuc-plan.md`](./voong-quay-kien-thuc-plan.md)
 
 ---
 
