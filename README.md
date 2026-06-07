@@ -71,7 +71,7 @@
 ### Chuẩn bị phiên
 
 1. **Cài đặt** — thời gian, quà/phạt, âm thanh (tùy chọn), link intro (tùy chọn)
-2. **Ngân hàng** — tạo lĩnh vực, thêm câu (tay hoặc Excel)
+2. **Ngân hàng** — tạo lĩnh vực, thêm câu (tay hoặc import file mẫu trong `test-data/`)
 3. Cần ít nhất **1 quà** và **1 hình phạt**
 
 ### Chơi
@@ -91,33 +91,58 @@
 
 ## Import Excel
 
-App tự nhận diện header và loại câu (MCQ/Essay) từ nội dung cột **Options**.
+Mọi câu import vào **lĩnh vực đang chọn** trên tab Ngân hàng (app không tự phân theo tên lĩnh vực trong file). Chọn đúng lĩnh vực trước khi upload.
 
-### Format chuẩn — 4 cột (khuyến nghị)
+App tự nhận header (dòng 1) và loại câu từ cột **Phương án**:
 
-| Lĩnh vực | Câu hỏi | Options | Đáp án đúng |
-|----------|---------|---------|-------------|
-| Lịch sử | Việt Nam giành độc lập năm nào? | A. 1945<br>B. 1954<br>C. 1975<br>D. 1986 | A. 1945 |
-| Khoa học | Vai trò của nước trong đời sống? | *(để trống)* | Nước tham gia trao đổi chất… |
+- **Phương án có dữ liệu** → trắc nghiệm (MCQ)
+- **Phương án trống** → tự luận (Essay)
 
-**Quy tắc:**
+### File mẫu (`test-data/`)
 
-- **Options có dữ liệu** → trắc nghiệm (MCQ)
-- **Options trống** → tự luận (Essay)
-- **Lĩnh vực** trống → gán vào lĩnh vực đang chọn trên app
+| File | Loại | Format | Số câu |
+|------|------|--------|--------|
+| [`quizspin-trac-nghiem.xlsx`](./test-data/quizspin-trac-nghiem.xlsx) | MCQ | 3 cột | 6 |
+| [`quizspin-tu-luan.xlsx`](./test-data/quizspin-tu-luan.xlsx) | Essay | 2 cột | 3 |
 
-### Legacy
+**Cách dùng nhanh:** Ngân hàng → chọn lĩnh vực → Import Excel → chọn file mẫu → kiểm tra toast và báo cáo import.
 
-- **3 cột:** Câu hỏi | Phương án | Đáp án đúng
-- **2 cột:** Câu hỏi | Đáp án
-- File `.xlsx` / `.xls`; file cũ có cột **Loại** vẫn import được
-- Dòng lỗi liệt kê trong báo cáo import
+### Trắc nghiệm — 3 cột (khuyến nghị)
+
+| Câu hỏi | Phương án | Đáp án đúng |
+|---------|-----------|-------------|
+| Việt Nam tuyên bố độc lập vào ngày nào? | A. 2/9/1945<br>B. 30/4/1975<br>C. 19/5/1890<br>D. 7/5/1954 | A. 2/9/1945 |
+
+Phương án có thể xuống dòng (khuyến nghị), hoặc ngăn bằng `;` / `,`.
+
+### Tự luận — 2 cột (khuyến nghị)
+
+| Câu hỏi | Đáp án mẫu |
+|---------|------------|
+| Nêu vai trò của nước trong đời sống con người. | Nước tham gia trao đổi chất, điều hòa thân nhiệt… |
+
+Cột **Đáp án mẫu** hiển thị khi host bấm **Hiện đáp án** trong modal (không chấm tự động).
+
+### Format khác (vẫn hỗ trợ)
+
+| Format | Cột | Ghi chú |
+|--------|-----|---------|
+| Essay 3 cột | Câu hỏi \| Phương án *(trống)* \| Đáp án mẫu | Tương đương 2 cột |
+| Legacy 4 cột | Lĩnh vực \| Câu hỏi \| Phương án \| Đáp án | Cột Lĩnh vực chỉ để ghi chú / thống kê báo cáo |
+| Legacy typed | Có cột **Loại** (mcq/essay) | File Excel cũ |
+
+- File `.xlsx` / `.xls`; chỉ đọc **sheet đầu tiên**
+- Dòng lỗi liệt kê trong báo cáo import (imported / skipped / diagnostics)
 
 ---
 
 ## Cấu trúc source
 
 ```
+test-data/
+├── quizspin-trac-nghiem.xlsx   # 6 câu MCQ mẫu
+└── quizspin-tu-luan.xlsx       # 3 câu Essay mẫu
+
 src/
 ├── main.ts
 ├── types.ts
@@ -242,6 +267,7 @@ npm run android
 - [ ] Tính điểm (`question.points`)
 - [ ] Test tự động (wheel landing, MCQ flow)
 - [ ] Build APK & smoke test thiết bị Android
+- [x] File Excel mẫu trắc nghiệm & tự luận (`test-data/`)
 
 ---
 
