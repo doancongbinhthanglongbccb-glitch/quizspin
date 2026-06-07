@@ -4,6 +4,8 @@ import { appContext } from './state';
 import { soundManager } from './sound-manager';
 import { WheelRenderer } from '../ui/components/wheel';
 import { startSpinAnimation, type SpinAnimationController } from '../utils/animate';
+import { normalizeDeg } from '../utils/angles';
+import { setLiveWheelRotation } from '../utils/wheel-display-rotation';
 import type { WheelSegment } from '../types';
 
 const WHEEL_CANVAS_ID = 'wheel-canvas';
@@ -21,11 +23,6 @@ export type SpinSessionResult = {
 export type SpinSessionCallbacks = {
   onComplete: (result: SpinSessionResult) => void;
 };
-
-function normalizeRotationDeg(angleDeg: number): number {
-  const next = angleDeg % 360;
-  return next < 0 ? next + 360 : next;
-}
 
 /**
  * Một phiên quay: animation canvas + âm thanh + finalize dùng chung elapsedMs từ rAF.
@@ -57,10 +54,12 @@ export class SpinSession {
       targetSegmentId: chosen.id,
       config: { extraSpins, durationMs },
       onFrame: ({ rotationDeg, elapsedMs }) => {
+        setLiveWheelRotation(rotationDeg);
         this.syncAudio(elapsedMs);
         WheelRenderer.draw(WHEEL_CANVAS_ID, model, rotationDeg);
       },
       onComplete: ({ canceled }) => {
+        setLiveWheelRotation(null);
         if (canceled) {
           this.dispose();
           appContext.setRuntimeState({ spinning: false });
@@ -77,6 +76,7 @@ export class SpinSession {
   }
 
   cancel(): void {
+    setLiveWheelRotation(null);
     this.animation?.cancel();
     this.animation = null;
     this.dispose();
@@ -94,8 +94,9 @@ export class SpinSession {
     this.finalized = true;
     this.endAudio();
     this.animation = null;
+    setLiveWheelRotation(null);
 
-    const normalized = normalizeRotationDeg(rotationDeg);
+    const normalized = normalizeDeg(rotationDeg);
     WheelRenderer.draw(WHEEL_CANVAS_ID, this.model, normalized);
 
     appContext.setRuntimeState({

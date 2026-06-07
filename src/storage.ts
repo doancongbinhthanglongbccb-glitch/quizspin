@@ -56,15 +56,6 @@ export async function removeValue(key: string): Promise<void> {
 }
 
 /**
- * Load AppState từ single atomic key 'appState'
- * FIX: Trước dùng 2 keys riêng (settings, categories) → dễ inconsistency
- * Giờ dùng 1 key nguyên tử → safe hơn
- */
-export async function loadState(): Promise<AppState | null> {
-  return await readJson<AppState | null>('appState', null);
-}
-
-/**
  * Save AppState vào single atomic key 'appState'
  */
 export const saveState = (state: AppState) => writeJson('appState', state);

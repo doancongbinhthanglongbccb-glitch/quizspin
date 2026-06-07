@@ -9,18 +9,13 @@ export const DEFAULT_FIXED_SEGMENTS: WheelSegment[] = [
   { id: 'lose-turn', label: 'Mất lượt', kind: 'loseTurn', color: '#577590' },
 ];
 
-export { SPIN_CONFIG } from './config/spin';
-
 import { SPIN_CONFIG } from './config/spin';
 
 export const DEFAULTS = {
   spinFullTurns: SPIN_CONFIG.extraSpins,
-  spinDurationMs: SPIN_CONFIG.durationMs,
   pointerOffsetDeg: 0, // kim cố định bên phải (3h); segment 0 bắt đầu từ 3h
   toastDurationMs: 2600,
   timerMinSec: 10,
   timerMaxSec: 300, // 5 phút
   questionPoints: 10,
 };
-
-export default DEFAULTS;

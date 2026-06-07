@@ -1,6 +1,7 @@
-import type { AppState, SpinKind, WheelSegment } from '../types';
+import type { AppState, WheelSegment } from '../types';
 import { buildWheelSegments } from '../data';
 import { DEFAULTS } from '../config';
+import { normalizeDeg } from '../utils/angles';
 
 export type WheelLayoutSegment = WheelSegment & {
   index: number;
@@ -27,11 +28,6 @@ export type WheelLandingResult = {
   normalizedRotationDeg: number;
   landingAngleDeg: number;
 };
-
-function normalizeDeg(angleDeg: number): number {
-  const next = angleDeg % 360;
-  return next < 0 ? next + 360 : next;
-}
 
 function isAngleWithinSegment(angleDeg: number, startAngleDeg: number, endAngleDeg: number): boolean {
   if (startAngleDeg < endAngleDeg) {
@@ -70,15 +66,7 @@ export function buildWheelModel(appState: AppState, pointerOffsetDeg = DEFAULTS.
   };
 }
 
-/**
- * Tính góc hiện tại đang nằm dưới pointer cố định.
- *
- * Quy ước vật lý:
- * - Pointer đứng yên ở một góc cố định.
- * - Wheel quay theo chiều kim đồng hồ.
- * - Khi wheel quay thêm `rotationDeg`, góc thực tế dưới pointer sẽ bị trừ đi tương ứng.
- */
-export function getCurrentPointerAngle(model: WheelModel, rotationDeg: number): number {
+function getCurrentPointerAngle(model: WheelModel, rotationDeg: number): number {
   const normalizedRotationDeg = normalizeDeg(rotationDeg);
   return normalizeDeg(model.pointerAngleDeg - normalizedRotationDeg);
 }
@@ -121,8 +109,6 @@ export function buildLandingRotation(model: WheelModel, targetSegmentId: string,
   const pointerOffsetDeg = params.pointerOffsetDeg ?? model.pointerAngleDeg;
   const extraSpins = params.extraSpins ?? DEFAULTS.spinFullTurns;
 
-  // normalize(pointerOffset - rotation) === centerAngle
-  // => normalize(rotation) === normalize(pointerOffset - centerAngle)
   const targetNormalizedRotation = normalizeDeg(pointerOffsetDeg - target.centerAngle);
   const currentNormalized = normalizeDeg(params.startRotationDeg);
   let deltaDeg = normalizeDeg(targetNormalizedRotation - currentNormalized);
@@ -132,27 +118,4 @@ export function buildLandingRotation(model: WheelModel, targetSegmentId: string,
 
   const extraSpinDeg = Math.max(0, extraSpins) * 360;
   return params.startRotationDeg + extraSpinDeg + deltaDeg;
-}
-
-export function getSegmentById(model: WheelModel, segmentId: string): WheelLayoutSegment | null {
-  return model.segments.find((segment) => segment.id === segmentId) ?? null;
-}
-
-export function getSegmentByAngle(model: WheelModel, angleDeg: number): WheelLayoutSegment | null {
-  const normalizedAngleDeg = normalizeDeg(angleDeg);
-
-  return model.segments.find((segment) => isAngleWithinSegment(normalizedAngleDeg, segment.startAngle, segment.endAngle)) ?? null;
-}
-
-export function createWheelModelFromSegments(segments: WheelSegment[], pointerOffsetDeg = DEFAULTS.pointerOffsetDeg): WheelModel {
-  const layoutSegments = createWheelLayout(segments);
-  return {
-    segments: layoutSegments,
-    sliceDeg: layoutSegments.length > 0 ? 360 / layoutSegments.length : 360,
-    pointerAngleDeg: pointerOffsetDeg,
-  };
-}
-
-export function isGiftKind(kind: SpinKind): boolean {
-  return kind === 'gift' || kind === 'punishment';
 }

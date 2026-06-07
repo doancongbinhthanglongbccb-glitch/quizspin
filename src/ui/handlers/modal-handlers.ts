@@ -59,6 +59,8 @@ export function bindModalHandlers(root: ParentNode): () => void {
     if (chooseAnswerButton) {
       const answer = chooseAnswerButton.dataset.answer;
       if (answer) {
+        event.preventDefault();
+        event.stopPropagation();
         Actions.chooseQuestionAnswer(decodeURIComponent(answer));
         syncMcqSelection(root, chooseAnswerButton);
       }

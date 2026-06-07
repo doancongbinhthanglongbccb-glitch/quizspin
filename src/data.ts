@@ -1,7 +1,6 @@
 import * as XLSX from 'xlsx';
 import type {
   AppState,
-  AnswerRecord,
   Category,
   ImportResult,
   ImportStats,
@@ -102,10 +101,6 @@ export function getQuestionOptions(question: Question): string[] {
 
 export function questionTypeLabel(type: QuestionType): string {
   return type === 'mcq' ? 'Trắc nghiệm' : 'Tự luận';
-}
-
-export function questionTypeIcon(type: QuestionType): string {
-  return type === 'mcq' ? '🔤' : '📝';
 }
 
 export function parseQuestionTypeInput(value: string): QuestionType | null {
@@ -379,62 +374,6 @@ export const SOUND_EVENT_LABELS: Record<SoundEventKey, string> = {
   loseTurn: 'Mất lượt',
 };
 
-export function findQuestionById(appState: AppState, questionId: string): Question | null {
-  for (const category of appState.categories) {
-    const match = category.questions.find((item) => item.id === questionId);
-    if (match) {
-      return match;
-    }
-  }
-  return null;
-}
-
-export function formatAnswerTime(timeSpentMs?: number): string {
-  if (typeof timeSpentMs !== 'number' || timeSpentMs < 0) {
-    return '—';
-  }
-
-  const totalSeconds = Math.max(0, Math.round(timeSpentMs / 1000));
-  if (totalSeconds < 60) {
-    return `${totalSeconds}s`;
-  }
-
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}m ${seconds}s`;
-}
-
-export function summarizeAnswerRecord(appState: AppState, record: AnswerRecord): { label: string; timeLabel: string } {
-  const question = findQuestionById(appState, record.questionId);
-  const raw = question?.question?.trim() || 'Câu hỏi đã xóa';
-  const label = raw.length > 72 ? `${raw.slice(0, 72)}…` : raw;
-  return { label, timeLabel: formatAnswerTime(record.timeSpentMs) };
-}
-
-export function describeAnswerRecord(
-  appState: AppState,
-  record: AnswerRecord,
-): {
-  questionLabel: string;
-  playerAnswer: string;
-  correctAnswer: string;
-  timeLabel: string;
-} {
-  const question = findQuestionById(appState, record.questionId);
-  const rawQuestion = question?.question?.trim() || 'Câu hỏi đã xóa';
-  const questionLabel = rawQuestion.length > 64 ? `${rawQuestion.slice(0, 64)}…` : rawQuestion;
-  const correctAnswer = question?.answer?.trim() || '—';
-  const playerAnswer = record.playerAnswer?.trim() || '—';
-  const truncate = (text: string, max = 48) => (text.length > max ? `${text.slice(0, max)}…` : text);
-
-  return {
-    questionLabel,
-    playerAnswer: truncate(playerAnswer),
-    correctAnswer: truncate(correctAnswer),
-    timeLabel: formatAnswerTime(record.timeSpentMs),
-  };
-}
-
 export function availableQuestion(questionList: Question[], usedQuestionIds: Set<string>): Question | null {
   const unused = questionList.filter((item) => !usedQuestionIds.has(item.id));
   const source = unused.length > 0 ? unused : questionList;
@@ -461,31 +400,6 @@ export function buildWheelSegments(categories: Category[]): WheelSegment[] {
       }),
     ),
   ];
-}
-
-export function migrateRewardItems<T extends { id: string; text: string }>(items: unknown, createItem: (text: string) => T): T[] {
-  if (!Array.isArray(items)) {
-    return [];
-  }
-
-  return items
-    .map((item) => {
-      if (typeof item === 'string') {
-        const text = normalizeText(item);
-        return text ? createItem(text) : null;
-      }
-      if (item && typeof item === 'object') {
-        const candidate = item as { id?: unknown; text?: unknown };
-        const text = typeof candidate.text === 'string' ? normalizeText(candidate.text) : '';
-        const id = typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id.trim() : uid();
-        if (!text) {
-          return null;
-        }
-        return { id, text };
-      }
-      return null;
-    })
-    .filter((item): item is T => Boolean(item));
 }
 
 function bumpCategoryStats(stats: ImportStats, categoryName: string | null, type: QuestionType): void {

@@ -514,15 +514,11 @@ html {
   }
 
   .option-chip {
-    @apply grid min-h-24 w-full grid-cols-[auto_1fr_auto] items-center gap-4 rounded-card border-2 border-white/10 bg-white/[0.05] px-5 py-[18px] text-left text-inherit transition-[border-color,background,box-shadow,transform] duration-[180ms];
+    @apply grid min-h-24 w-full grid-cols-[auto_1fr_auto] items-center gap-4 rounded-card border-2 border-white/10 bg-white/[0.05] px-5 py-[18px] text-left text-inherit transition-[border-color,background,box-shadow] duration-[180ms];
   }
 
   .option-chip:hover:not(:disabled):not(.option-chip--locked) {
     @apply border-white/[0.18] bg-white/[0.07];
-  }
-
-  .option-chip:active:not(:disabled) {
-    transform: scale(0.98);
   }
 
   .option-chip--locked {

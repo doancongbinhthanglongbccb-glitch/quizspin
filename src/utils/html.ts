@@ -5,7 +5,3 @@ export function escapeHtml(value: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
 }
-
-export function escapeAttr(value: string): string {
-  return escapeHtml(value).replaceAll("'", '&#39;');
-}

@@ -1,7 +1,7 @@
 import { normalizeQuestion, parseMcqOptions, resetUsedFlags } from '../../data';
 import type { Category, QuestionDraft, QuestionFilter, QuestionType } from '../../types';
 import { appContext } from '../state';
-import { showToast } from './shared';
+import { showToast, stopTimer } from './shared';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
 
 export function setQuestionFilter(filter: QuestionFilter): void {
@@ -79,6 +79,16 @@ export function saveQuestionDraft(): void {
 }
 
 export function deleteQuestion(categoryId: string, questionId: string): void {
+  const runtime = appContext.getRuntimeState();
+  if (
+    runtime.modal?.kind === 'question' &&
+    runtime.modal.categoryId === categoryId &&
+    runtime.modal.questionId === questionId
+  ) {
+    stopTimer();
+    appContext.setRuntimeState({ modal: null });
+  }
+
   appContext.setAppState((current) => ({
     ...current,
     categories: current.categories.map((category) =>
@@ -86,8 +96,7 @@ export function deleteQuestion(categoryId: string, questionId: string): void {
     ),
   }));
 
-  const runtime = appContext.getRuntimeState();
-  const nextUsedQuestionIds = new Set(runtime.usedQuestionIds);
+  const nextUsedQuestionIds = new Set(appContext.getRuntimeState().usedQuestionIds);
   nextUsedQuestionIds.delete(questionId);
   appContext.setRuntimeState({ usedQuestionIds: nextUsedQuestionIds });
 

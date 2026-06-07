@@ -13,12 +13,12 @@ import {
   openNoticeModal,
   openQuestionModal,
   closeModal,
+  closeModalIfQuestionMissing,
   toggleQuestionPause,
   chooseQuestionAnswer,
   submitQuestionAnswer,
   revealAnswer,
   updatePlayerAnswer,
-  openQuestionReview,
 } from './modal-actions';
 import { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory } from './category-actions';
 import {
@@ -41,19 +41,18 @@ import {
   requestDeleteQuestion,
 } from './confirm-actions';
 
-export { appContext };
 export { clearEverything, parseExcelImport };
 export {
   openGiftModal,
   openNoticeModal,
   openQuestionModal,
   closeModal,
+  closeModalIfQuestionMissing,
   toggleQuestionPause,
   chooseQuestionAnswer,
   submitQuestionAnswer,
   revealAnswer,
   updatePlayerAnswer,
-  openQuestionReview,
 };
 export { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory };
 export { saveQuestionDraft, deleteQuestion, resetQuestionFlags, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };

@@ -13,6 +13,7 @@ import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHand
 import { captureScroll, restoreScroll } from '../utils/scroll-restore';
 import { consumeAppEntryAnimation } from './intro-transition';
 import { hasPendingLogoFlight, runLogoFlightToHeader } from './intro-logo-transition';
+import { getModalRenderKey } from '../utils/modal-render-key';
 
 const TAB_META: Record<'spin' | 'bank' | 'settings', { label: string; short: string; icon: string }> = {
   spin: { label: 'Vòng Quay', short: 'Quay', icon: '🎖️' },
@@ -23,6 +24,42 @@ const TAB_META: Record<'spin' | 'bank' | 'settings', { label: string; short: str
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 let wheelCleanup: (() => void) | null = null;
 let eventCleanups: Array<() => void> = [];
+let lastModalRenderKey = '';
+
+type OverlayHosts = {
+  shell: HTMLElement;
+  toast: HTMLElement;
+  modal: HTMLElement;
+  confirm: HTMLElement;
+  fab: HTMLElement;
+};
+
+let overlayHosts: OverlayHosts | null = null;
+
+function ensureOverlayHosts(): OverlayHosts {
+  if (overlayHosts?.shell.isConnected) {
+    return overlayHosts;
+  }
+
+  appRoot.replaceChildren();
+
+  const shell = document.createElement('div');
+  const toast = document.createElement('div');
+  const modal = document.createElement('div');
+  const confirm = document.createElement('div');
+  const fab = document.createElement('div');
+
+  shell.id = 'app-shell-root';
+  toast.id = 'toast-host';
+  modal.id = 'modal-host';
+  confirm.id = 'confirm-host';
+  fab.id = 'intro-fab-host';
+
+  appRoot.append(shell, toast, modal, confirm, fab);
+  overlayHosts = { shell, toast, modal, confirm, fab };
+  lastModalRenderKey = '';
+  return overlayHosts;
+}
 
 type FocusSnapshot = {
   id: string;
@@ -115,6 +152,8 @@ function renderIntroReplayFab(): string {
 }
 
 export function render(): void {
+  Actions.closeModalIfQuestionMissing();
+
   const runtime = appContext.getRuntimeState();
 
   if (runtime.showIntro) {
@@ -134,13 +173,14 @@ export function render(): void {
 
   cleanupRenderLifecycle();
 
+  const hosts = ensureOverlayHosts();
   const enteringFromIntro = consumeAppEntryAnimation();
   const logoHandoff = hasPendingLogoFlight();
   const appShellClass = enteringFromIntro
     ? `app-shell app-shell--entering${logoHandoff ? ' app-shell--entering-logo' : ''} flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row`
     : 'app-shell flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row';
 
-  appRoot.innerHTML = `
+  hosts.shell.innerHTML = `
     <div class="${appShellClass}">
       ${renderTabs()}
 
@@ -163,13 +203,21 @@ export function render(): void {
           ${content}
         </main>
       </div>
-
-      ${runtime.toast ? `<div class="toast fixed left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/10 bg-gray-900/95 px-5 py-3 text-ui font-semibold shadow-xl bottom-[calc(96px+env(safe-area-inset-bottom,0px))] lg:landscape:bottom-6">${runtime.toast}</div>` : ''}
-      ${renderModal(appState, runtime)}
-      ${renderConfirmDialog(runtime.confirmDialog)}
-      ${renderIntroReplayFab()}
     </div>
   `;
+
+  hosts.toast.innerHTML = runtime.toast
+    ? `<div class="toast fixed left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/10 bg-gray-900/95 px-5 py-3 text-ui font-semibold shadow-xl bottom-[calc(96px+env(safe-area-inset-bottom,0px))] lg:landscape:bottom-6">${runtime.toast}</div>`
+    : '';
+
+  const modalKey = getModalRenderKey(appState, runtime);
+  if (modalKey !== lastModalRenderKey) {
+    lastModalRenderKey = modalKey;
+    hosts.modal.innerHTML = renderModal(appState, runtime);
+  }
+
+  hosts.confirm.innerHTML = renderConfirmDialog(runtime.confirmDialog);
+  hosts.fab.innerHTML = renderIntroReplayFab();
 
   eventCleanups = bindEvents();
   mountWheelCanvas();
@@ -189,6 +237,8 @@ export function render(): void {
 function renderIntro(): void {
   cleanupRenderLifecycle();
   cleanupWheel();
+  overlayHosts = null;
+  lastModalRenderKey = '';
   appRoot.innerHTML = renderIntroScreen(appContext.getAppState());
   eventCleanups = [bindIntroHandlers(appRoot)];
 }

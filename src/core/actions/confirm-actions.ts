@@ -4,7 +4,8 @@ import { appContext } from '../state';
 import { clearState, saveState } from '../../storage';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
 import { deleteQuestion } from './question-actions';
-import { showToast } from './shared';
+import { closeModal } from './modal-actions';
+import { showToast, stopTimer } from './shared';
 
 export function requestDeleteQuestion(categoryId: string, questionId: string): void {
   appContext.setRuntimeState({
@@ -34,13 +35,18 @@ export function cancelConfirmDialog(): void {
 }
 
 function performDeleteCategory(categoryId: string): void {
+  const runtime = appContext.getRuntimeState();
+  if (runtime.modal?.kind === 'question' && runtime.modal.categoryId === categoryId) {
+    closeModal();
+  }
+
   appContext.setAppState((current) => {
     const next = current.categories.filter((item) => item.id !== categoryId);
     return { ...current, categories: next.length ? next : [makeCategory('Lĩnh vực mới')] };
   });
 
-  const runtime = appContext.getRuntimeState();
-  if (runtime.selectedCategoryId === categoryId) {
+  const nextRuntime = appContext.getRuntimeState();
+  if (nextRuntime.selectedCategoryId === categoryId) {
     appContext.setRuntimeState({ selectedCategoryId: appContext.getAppState().categories[0]?.id ?? null });
   }
 
@@ -51,9 +57,11 @@ async function performClearAllData(): Promise<void> {
   const sampleState = createSampleState();
   appContext.setAppState(sampleState);
 
+  stopTimer();
   appContext.setRuntimeState({
     selectedCategoryId: sampleState.categories[0]?.id ?? null,
     editingQuestionId: null,
+    modal: null,
     usedQuestionIds: new Set(),
     usedGifts: new Set(),
     usedPunishments: new Set(),

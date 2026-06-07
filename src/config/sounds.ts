@@ -1,7 +1,7 @@
 import type { SoundEventKey } from '../types';
 
 /** Đoạn nhạc intro lặp (giây) — tối ưu thời lượng, không phát full ~3.7 phút */
-export const INTRO_BED_CLIP = {
+const INTRO_BED_CLIP = {
   startSec: 0,
   durationSec: 26,
   volume: 0.82,

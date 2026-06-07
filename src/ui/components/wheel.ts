@@ -1,10 +1,12 @@
 import { appContext } from '../../core/state';
 import type { WheelModel, WheelLayoutSegment } from '../../core/wheel';
+import { degreesToRadians } from '../../utils/angles';
+import { getWheelDisplayRotation } from '../../utils/wheel-display-rotation';
 
 /**
  * HTML render function trả về canvas element
  */
-export function renderWheelHTML(): string {
+function renderWheelHTML(): string {
   return `
     <div class="wheel-frame" data-wheel-host aria-hidden="false"></div>
   `;
@@ -37,7 +39,7 @@ type WheelMountState = {
 
 let mountState: WheelMountState | null = null;
 
-export function buildModelSignature(model: WheelModel): string {
+function buildModelSignature(model: WheelModel): string {
   return model.segments.map((segment) => `${segment.id}:${segment.label}:${segment.color}`).join('|');
 }
 
@@ -50,15 +52,6 @@ type CanvasSize = {
 const canvasSizeCache = new WeakMap<HTMLCanvasElement, CanvasSize>();
 
 const LABEL_FONT_STACK = 'Arial, "Segoe UI", sans-serif';
-
-function degreesToRadians(angleDeg: number): number {
-  return (angleDeg * Math.PI) / 180;
-}
-
-function normalizeDegrees(angleDeg: number): number {
-  const next = angleDeg % 360;
-  return next < 0 ? next + 360 : next;
-}
 
 function getCachedCanvasSize(canvas: HTMLCanvasElement): CanvasSize {
   const cachedSize = canvasSizeCache.get(canvas);
@@ -373,7 +366,7 @@ function drawCenterCap(ctx: CanvasRenderingContext2D): void {
  * Vẽ toàn bộ wheel vào canvas.
  * Rotation được apply via transform trước khi vẽ segments.
  */
-export function drawWheel(canvasId: string, model: WheelModel, rotationDeg: number): void {
+function drawWheel(canvasId: string, model: WheelModel, rotationDeg: number): void {
   const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
   if (!canvas) {
     console.warn(`Canvas element with id "${canvasId}" not found`);
@@ -436,7 +429,7 @@ export function drawWheel(canvasId: string, model: WheelModel, rotationDeg: numb
   drawPointer(ctx, centerX, centerY, radius);
 }
 
-export function destroyWheelMount(): void {
+function destroyWheelMount(): void {
   mountState?.cleanup();
   mountState = null;
 }
@@ -444,7 +437,7 @@ export function destroyWheelMount(): void {
 /**
  * Giữ một canvas wheel duy nhất — chỉ recreate khi model đổi.
  */
-export function ensureWheelMounted(
+function ensureWheelMounted(
   hostSelector: string,
   model: WheelModel,
   rotationDeg: number,
@@ -482,7 +475,7 @@ export function ensureWheelMounted(
  * Setup canvas element: khởi tạo, xử lý resize, vẽ lần đầu.
  * Trả về cleanup function.
  */
-export function setupWheelCanvas(canvasId: string, model: WheelModel, initialRotationDeg = 0): () => void {
+function setupWheelCanvas(canvasId: string, model: WheelModel, initialRotationDeg = 0): () => void {
   const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
   if (!canvas) {
     console.warn(`Canvas element with id "${canvasId}" not found during setup`);
@@ -497,7 +490,7 @@ export function setupWheelCanvas(canvasId: string, model: WheelModel, initialRot
   let resizeTimeout: number | undefined;
   const refreshCanvas = (): void => {
     initializeCanvasForHighDPI(canvas);
-    drawWheel(canvasId, model, appContext.getRuntimeState().rotation);
+    drawWheel(canvasId, model, getWheelDisplayRotation());
   };
 
   const scheduleRefresh = (): void => {
@@ -533,9 +526,7 @@ export function setupWheelCanvas(canvasId: string, model: WheelModel, initialRot
  */
 export const WheelRenderer = {
   renderHTML: renderWheelHTML,
-  setup: setupWheelCanvas,
   ensure: ensureWheelMounted,
   destroy: destroyWheelMount,
   draw: drawWheel,
-  initialize: initializeCanvasForHighDPI,
 };

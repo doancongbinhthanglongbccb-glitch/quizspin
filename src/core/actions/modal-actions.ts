@@ -1,10 +1,26 @@
-import type { AnswerRecord, Category } from '../../types';
+import type { ActiveModal, AnswerRecord, Category } from '../../types';
 import { availableQuestion, isEssayQuestion, isMcqAnswerCorrect, isMcqQuestion } from '../../data';
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { questionRemainingSeconds } from '../question-timer';
 import { showToast, startQuestionTimer, stopTimer } from './shared';
 import { resetQuestionFlags } from './question-actions';
+
+type QuestionModal = Extract<NonNullable<ActiveModal>, { kind: 'question' }>;
+
+function modalRemainingSeconds(modal: QuestionModal): number {
+  if (modal.paused) {
+    return Math.max(0, modal.remaining);
+  }
+  return questionRemainingSeconds(modal.deadlineAt);
+}
+
+function pickRandomItem<T>(items: T[]): T | null {
+  if (items.length === 0) {
+    return null;
+  }
+  return items[Math.floor(Math.random() * items.length)];
+}
 
 export function openQuestionModal(category: Category): void {
   const runtime = appContext.getRuntimeState();
@@ -23,7 +39,7 @@ export function openQuestionModal(category: Category): void {
     return;
   }
 
-  const usedQuestionIds = new Set(runtime.usedQuestionIds);
+  const usedQuestionIds = new Set(freshRuntime.usedQuestionIds);
   usedQuestionIds.add(question.id);
 
   const timerSec = appContext.getAppState().settings.timer;
@@ -68,21 +84,20 @@ export function openGiftModal(kind: 'gift' | 'punishment'): void {
   const usedSet = kind === 'gift' ? new Set(runtime.usedGifts) : new Set(runtime.usedPunishments);
   const candidates = items.filter((it) => !usedSet.has(it.id));
 
-  let chosen = candidates[0];
+  let chosen = pickRandomItem(candidates);
   if (!chosen) {
     usedSet.clear();
-    chosen = items[Math.floor(Math.random() * items.length)];
+    chosen = pickRandomItem(items);
+  }
+
+  if (!chosen) {
+    return;
   }
 
   usedSet.add(chosen.id);
 
-  appContext.setRuntimeState(
-    kind === 'gift'
-      ? { usedGifts: usedSet }
-      : { usedPunishments: usedSet },
-  );
-
   appContext.setRuntimeState({
+    ...(kind === 'gift' ? { usedGifts: usedSet } : { usedPunishments: usedSet }),
     modal: {
       kind: 'gift',
       title: kind === 'gift' ? 'Quà tặng 🎁' : 'Hình phạt 😈',
@@ -103,48 +118,20 @@ export function closeModal(): void {
   appContext.setRuntimeState({ modal: null });
 }
 
-/** Mở lại câu hỏi từ lịch sử trả lời (chỉ xem) */
-export function openQuestionReview(submittedAt: string): void {
+/** Đóng modal câu hỏi nếu category/question không còn trong kho */
+export function closeModalIfQuestionMissing(): void {
+  const runtime = appContext.getRuntimeState();
+  const modal = runtime.modal;
+  if (!modal || modal.kind !== 'question') {
+    return;
+  }
+
   const appState = appContext.getAppState();
-  const record = appState.answerHistory.find((item) => item.submittedAt === submittedAt);
-  if (!record) {
-    showToast('Không tìm thấy lượt trả lời');
-    return;
+  const category = appState.categories.find((item) => item.id === modal.categoryId);
+  const question = category?.questions.find((item) => item.id === modal.questionId);
+  if (!category || !question) {
+    closeModal();
   }
-
-  let categoryId = '';
-  let question = null;
-  for (const category of appState.categories) {
-    const match = category.questions.find((item) => item.id === record.questionId);
-    if (match) {
-      categoryId = category.id;
-      question = match;
-      break;
-    }
-  }
-
-  if (!categoryId || !question) {
-    showToast('Câu hỏi không còn trong kho');
-    return;
-  }
-
-  stopTimer();
-  appContext.setRuntimeState({
-    modal: {
-      kind: 'question',
-      categoryId,
-      questionId: record.questionId,
-      timer: 0,
-      deadlineAt: Date.now(),
-      paused: true,
-      revealed: true,
-      remaining: 0,
-      selectedAnswer: record.playerAnswer,
-      playerAnswer: record.playerAnswer,
-      submitted: true,
-      readOnly: true,
-    },
-  });
 }
 
 export function toggleQuestionPause(): void {
@@ -241,7 +228,7 @@ export function revealAnswer(): void {
     }
   }
 
-  const remaining = questionRemainingSeconds(modal.deadlineAt);
+  const remaining = modalRemainingSeconds(modal);
   appContext.setRuntimeState({
     modal: { ...modal, remaining, revealed: true, paused: true },
   });
@@ -286,7 +273,7 @@ export function submitQuestionAnswer(): void {
   }
 
   const total = Math.max(1, modal.timer);
-  const remaining = questionRemainingSeconds(modal.deadlineAt);
+  const remaining = modalRemainingSeconds(modal);
   const elapsedSeconds = Math.min(total, total - remaining);
   const timeSpentMs = Math.max(0, elapsedSeconds * 1000);
 

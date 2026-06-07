@@ -2,6 +2,7 @@ import { appContext } from '../../core/state';
 import type { SettingsSection, SoundEventKey } from '../../types';
 import { textToRewardItems } from '../../data';
 import { formatTimerDisplay } from '../../utils/timer-format';
+import { debounce } from '../../utils/debounce';
 import * as Actions from '../../core/actions';
 
 const REWARD_DEBOUNCE_MS = 400;
@@ -58,10 +59,6 @@ function commitIntroLink(label: string, url: string): void {
 }
 
 export function bindSettingsHandlers(root: ParentNode): () => void {
-  let giftsDebounce: ReturnType<typeof setTimeout> | null = null;
-  let punishmentsDebounce: ReturnType<typeof setTimeout> | null = null;
-  let introLinkDebounce: ReturnType<typeof setTimeout> | null = null;
-
   const commitGifts = (value: string): void => {
     appContext.setAppState((current) => ({
       ...current,
@@ -84,6 +81,16 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
     appContext.setRuntimeState({ usedPunishments: new Set() });
   };
 
+  const commitGiftsDebounced = debounce(commitGifts, REWARD_DEBOUNCE_MS);
+  const commitPunishmentsDebounced = debounce(commitPunishments, REWARD_DEBOUNCE_MS);
+  const commitIntroLinkDebounced = debounce(() => {
+    const labelEl = root.querySelector<HTMLInputElement>('#intro-link-label-input');
+    const urlEl = root.querySelector<HTMLInputElement>('#intro-link-url-input');
+    if (labelEl && urlEl) {
+      commitIntroLink(labelEl.value, urlEl.value);
+    }
+  }, INTRO_LINK_DEBOUNCE_MS);
+
   const onInput = (event: Event): void => {
     const timerSlider = getInputTarget<HTMLInputElement>(event, root, '#timer-slider');
     if (timerSlider) {
@@ -93,35 +100,20 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
 
     const giftsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#gifts-input');
     if (giftsInput) {
-      if (giftsDebounce) {
-        clearTimeout(giftsDebounce);
-      }
-      giftsDebounce = setTimeout(() => commitGifts(giftsInput.value), REWARD_DEBOUNCE_MS);
+      commitGiftsDebounced(giftsInput.value);
       return;
     }
 
     const punishmentsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#punishments-input');
     if (punishmentsInput) {
-      if (punishmentsDebounce) {
-        clearTimeout(punishmentsDebounce);
-      }
-      punishmentsDebounce = setTimeout(() => commitPunishments(punishmentsInput.value), REWARD_DEBOUNCE_MS);
+      commitPunishmentsDebounced(punishmentsInput.value);
       return;
     }
 
     const introLabelInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-label-input');
     const introUrlInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-url-input');
     if (introLabelInput || introUrlInput) {
-      if (introLinkDebounce) {
-        clearTimeout(introLinkDebounce);
-      }
-      introLinkDebounce = setTimeout(() => {
-        const labelEl = root.querySelector<HTMLInputElement>('#intro-link-label-input');
-        const urlEl = root.querySelector<HTMLInputElement>('#intro-link-url-input');
-        if (labelEl && urlEl) {
-          commitIntroLink(labelEl.value, urlEl.value);
-        }
-      }, INTRO_LINK_DEBOUNCE_MS);
+      commitIntroLinkDebounced();
     }
   };
 
@@ -154,20 +146,14 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
   const onBlur = (event: Event): void => {
     const giftsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#gifts-input');
     if (giftsInput) {
-      if (giftsDebounce) {
-        clearTimeout(giftsDebounce);
-        giftsDebounce = null;
-      }
+      commitGiftsDebounced.cancel();
       commitGifts(giftsInput.value);
       return;
     }
 
     const punishmentsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#punishments-input');
     if (punishmentsInput) {
-      if (punishmentsDebounce) {
-        clearTimeout(punishmentsDebounce);
-        punishmentsDebounce = null;
-      }
+      commitPunishmentsDebounced.cancel();
       commitPunishments(punishmentsInput.value);
       return;
     }
@@ -175,10 +161,7 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
     const introLabelInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-label-input');
     const introUrlInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-url-input');
     if (introLabelInput || introUrlInput) {
-      if (introLinkDebounce) {
-        clearTimeout(introLinkDebounce);
-        introLinkDebounce = null;
-      }
+      commitIntroLinkDebounced.cancel();
       const labelEl = root.querySelector<HTMLInputElement>('#intro-link-label-input');
       const urlEl = root.querySelector<HTMLInputElement>('#intro-link-url-input');
       if (labelEl && urlEl) {
@@ -232,16 +215,30 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
   root.addEventListener('blur', onBlur, true);
   root.addEventListener('click', onClick);
 
+  const flushPendingSettings = (): void => {
+    commitGiftsDebounced.cancel();
+    commitPunishmentsDebounced.cancel();
+    commitIntroLinkDebounced.cancel();
+
+    const giftsInput = root.querySelector<HTMLTextAreaElement>('#gifts-input');
+    if (giftsInput) {
+      commitGifts(giftsInput.value);
+    }
+
+    const punishmentsInput = root.querySelector<HTMLTextAreaElement>('#punishments-input');
+    if (punishmentsInput) {
+      commitPunishments(punishmentsInput.value);
+    }
+
+    const labelEl = root.querySelector<HTMLInputElement>('#intro-link-label-input');
+    const urlEl = root.querySelector<HTMLInputElement>('#intro-link-url-input');
+    if (labelEl && urlEl) {
+      commitIntroLink(labelEl.value, urlEl.value);
+    }
+  };
+
   return () => {
-    if (giftsDebounce) {
-      clearTimeout(giftsDebounce);
-    }
-    if (punishmentsDebounce) {
-      clearTimeout(punishmentsDebounce);
-    }
-    if (introLinkDebounce) {
-      clearTimeout(introLinkDebounce);
-    }
+    flushPendingSettings();
     root.removeEventListener('input', onInput);
     root.removeEventListener('change', onChange);
     root.removeEventListener('blur', onBlur, true);
