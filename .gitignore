@@ -1,2 +1,24 @@
+# Dependencies
 node_modules/
+
+# Web build (regenerate: npm run build)
 dist/
+
+# Capacitor asset-tool scratch (duplicate of public/images)
+assets/
+
+# Environment / secrets
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.idea/
+*.swp
+*.swo
+
+# Android Studio project metadata (under android/)
+android/.idea/

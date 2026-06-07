@@ -494,7 +494,9 @@ function ensureWheelMounted(
     if (!host.contains(mountState.canvas)) {
       host.replaceChildren(mountState.canvas);
     }
-    initializeCanvasForHighDPI(mountState.canvas);
+    if (!appContext.getRuntimeState().spinning) {
+      initializeCanvasForHighDPI(mountState.canvas);
+    }
     drawWheel(canvasId, model, rotationDeg);
     return mountState.cleanup;
   }
@@ -534,6 +536,10 @@ function setupWheelCanvas(canvasId: string, model: WheelModel, initialRotationDe
   };
 
   const scheduleRefresh = (): void => {
+    if (appContext.getRuntimeState().spinning) {
+      return;
+    }
+
     if (resizeTimeout) {
       window.clearTimeout(resizeTimeout);
     }

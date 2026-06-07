@@ -4,12 +4,19 @@ import { currentCategory } from './category-actions';
 import { showToast } from './shared';
 
 export function parseExcelImport(file: File): void {
+  const categoryAtPick = currentCategory();
+  if (!categoryAtPick) {
+    return;
+  }
+
+  const targetCategoryId = categoryAtPick.id;
   const reader = new FileReader();
 
   reader.onerror = () => showToast('Không thể đọc file Excel');
   reader.onload = () => {
-    const category = currentCategory();
+    const category = appContext.getAppState().categories.find((item) => item.id === targetCategoryId);
     if (!category) {
+      showToast('Lĩnh vực đã bị xóa');
       return;
     }
 
@@ -27,7 +34,7 @@ export function parseExcelImport(file: File): void {
 
       const stamped = parsed.questions.map((question) => ({ ...question, categoryId: category.id }));
 
-      appContext.setAppState((current) => ({
+      appContext.setAppStateWithoutRender((current) => ({
         ...current,
         categories: current.categories.map((item) =>
           item.id === category.id ? { ...item, questions: [...item.questions, ...stamped] } : item,

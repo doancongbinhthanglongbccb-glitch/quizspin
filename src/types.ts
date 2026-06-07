@@ -107,7 +107,10 @@ export type AnswerRecord = {
 export type ConfirmDialog =
   | { kind: 'delete-question'; categoryId: string; questionId: string }
   | { kind: 'delete-category'; categoryId: string; categoryName: string; questionCount: number }
-  | { kind: 'clear-all-data'; step: 1 | 2 };
+  | { kind: 'clear-all-data'; step: 1 | 2 }
+  | { kind: 'add-category' }
+  | { kind: 'rename-category'; categoryId: string; categoryName: string }
+  | { kind: 'category-menu'; categoryId: string; categoryName: string };
 
 export type ActiveModal =
   | {

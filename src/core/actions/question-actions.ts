@@ -80,14 +80,19 @@ export function saveQuestionDraft(): void {
 
 export function deleteQuestion(categoryId: string, questionId: string): void {
   const runtime = appContext.getRuntimeState();
-  if (
+  const shouldCloseModal =
     runtime.modal?.kind === 'question' &&
     runtime.modal.categoryId === categoryId &&
-    runtime.modal.questionId === questionId
-  ) {
+    runtime.modal.questionId === questionId;
+
+  if (shouldCloseModal) {
     stopTimer();
-    appContext.setRuntimeState({ modal: null });
   }
+
+  const nextUsedQuestionIds = new Set(runtime.usedQuestionIds);
+  nextUsedQuestionIds.delete(questionId);
+
+  const editingCleared = runtime.editingQuestionId === questionId;
 
   appContext.setAppState((current) => ({
     ...current,
@@ -96,12 +101,13 @@ export function deleteQuestion(categoryId: string, questionId: string): void {
     ),
   }));
 
-  const nextUsedQuestionIds = new Set(appContext.getRuntimeState().usedQuestionIds);
-  nextUsedQuestionIds.delete(questionId);
-  appContext.setRuntimeState({ usedQuestionIds: nextUsedQuestionIds });
+  appContext.setRuntimeState({
+    ...(shouldCloseModal ? { modal: null } : {}),
+    usedQuestionIds: nextUsedQuestionIds,
+    ...(editingCleared ? { editingQuestionId: null, bankFormOpen: false } : {}),
+  });
 
-  if (runtime.editingQuestionId === questionId) {
-    appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: false });
+  if (editingCleared) {
     ensureQuestionDraft(currentCategory());
   }
 }
@@ -114,11 +120,11 @@ export function resetQuestionFlags(category: Category): void {
     nextUsedQuestionIds.delete(question.id);
   }
 
-  appContext.setRuntimeState({ usedQuestionIds: nextUsedQuestionIds });
   appContext.setAppState((current) => ({
     ...current,
     categories: current.categories.map((item) => (item.id === category.id ? { ...item, questions: resetUsedFlags(item.questions) } : item)),
   }));
+  appContext.setRuntimeState({ usedQuestionIds: nextUsedQuestionIds });
 }
 
 export function saveQuestionEdit(

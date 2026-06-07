@@ -34,7 +34,7 @@ function ensureQuestionDeadline(): number | null {
   }
 
   const deadlineAt = Date.now() + modal.remaining * 1000;
-  appContext.setRuntimeState({
+  appContext.patchRuntimeState({
     modal: { ...modal, deadlineAt },
   });
   return deadlineAt;

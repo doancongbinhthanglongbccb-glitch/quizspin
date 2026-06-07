@@ -3,10 +3,13 @@ import * as Actions from '../../core/actions';
 import { soundManager } from '../../core/sound-manager';
 import { markAppEntryAnimation } from '../intro-transition';
 import {
+  clearLogoFlight,
   getLogoFlightSwitchDelay,
   snapshotLogoRect,
   startLogoFlight,
 } from '../intro-logo-transition';
+import { openExternalUrl } from '../../utils/open-external-url';
+import { showToast } from '../../core/toast';
 
 const INTRO_EXIT_MS = 480;
 
@@ -17,9 +20,12 @@ function getActionTarget(event: Event, root: ParentNode, selector: string): HTML
   return target && root.contains(target) ? target : null;
 }
 
-function finishIntroExit(): void {
-  introExitPending = false;
-  void Actions.completeIntro();
+async function finishIntroExit(): Promise<void> {
+  try {
+    await Actions.completeIntro();
+  } finally {
+    introExitPending = false;
+  }
 }
 
 function beginIntroExit(root: ParentNode): void {
@@ -39,7 +45,7 @@ function beginIntroExit(root: ParentNode): void {
   }
 
   if (!screen) {
-    finishIntroExit();
+    void finishIntroExit();
     return;
   }
 
@@ -52,7 +58,7 @@ function beginIntroExit(root: ParentNode): void {
     }
     done = true;
     screen.removeEventListener('animationend', onAnimationEnd);
-    finishIntroExit();
+    void finishIntroExit();
   };
 
   const onAnimationEnd = (event: AnimationEvent): void => {
@@ -70,21 +76,17 @@ function beginIntroExit(root: ParentNode): void {
   window.setTimeout(complete, switchDelay);
 }
 
-function isSafeExternalUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
-function openIntroLink(): void {
+async function openIntroLink(): Promise<void> {
   const url = appContext.getAppState().settings.introLink.url.trim();
-  if (!isSafeExternalUrl(url)) {
+  if (!url) {
+    showToast('Chưa cấu hình liên kết');
     return;
   }
-  window.open(url, '_blank', 'noopener,noreferrer');
+
+  const opened = await openExternalUrl(url);
+  if (!opened) {
+    showToast('Không mở được liên kết');
+  }
 }
 
 export function bindIntroHandlers(root: ParentNode): () => void {
@@ -92,7 +94,7 @@ export function bindIntroHandlers(root: ParentNode): () => void {
 
   const onClick = (event: Event): void => {
     if (getActionTarget(event, root, '[data-action="open-intro-link"]')) {
-      openIntroLink();
+      void openIntroLink();
       return;
     }
 
@@ -110,6 +112,7 @@ export function bindIntroHandlers(root: ParentNode): () => void {
   return () => {
     root.removeEventListener('click', onClick);
     soundManager.stop('introBed');
+    clearLogoFlight();
     introExitPending = false;
   };
 }

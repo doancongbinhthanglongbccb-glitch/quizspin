@@ -636,10 +636,12 @@ export function rewardItemsToText(items: Array<{ text: string }>): string {
 
 export function textToRewardItems<T extends { id: string; text: string }>(text: string, existing: T[], createItem: (text: string) => T): T[] {
   const lines = text.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
-  return lines.map((line, index) => {
-    const existingItem = existing[index];
-    if (existingItem) {
-      return { ...existingItem, text: line };
+  const byText = new Map(existing.map((item) => [item.text.trim(), item]));
+
+  return lines.map((line) => {
+    const matched = byText.get(line);
+    if (matched) {
+      return { ...matched, text: line };
     }
     return createItem(line);
   });

@@ -1,6 +1,6 @@
 import { appContext, type SettingsDraft } from '../../core/state';
 import type { SettingsSection, SoundEventKey } from '../../types';
-import { textToRewardItems } from '../../data';
+import { rewardItemsToText, textToRewardItems } from '../../data';
 import { formatTimerDisplay } from '../../utils/timer-format';
 import * as Actions from '../../core/actions';
 
@@ -80,18 +80,23 @@ function persistSettingsDraft(draft: SettingsDraft): void {
     return;
   }
 
-  appContext.setAppStateWithoutRender((current) => {
-    const settings = { ...current.settings };
+  const current = appContext.getAppState();
+  const giftsChanged = hasGifts && (draft.gifts ?? '').trim() !== rewardItemsToText(current.settings.gifts).trim();
+  const punishmentsChanged =
+    hasPunishments && (draft.punishments ?? '').trim() !== rewardItemsToText(current.settings.punishments).trim();
+
+  appContext.setAppStateWithoutRender((state) => {
+    const settings = { ...state.settings };
 
     if (hasGifts) {
-      settings.gifts = textToRewardItems(draft.gifts ?? '', current.settings.gifts, (text) => ({
+      settings.gifts = textToRewardItems(draft.gifts ?? '', state.settings.gifts, (text) => ({
         id: crypto.randomUUID(),
         text,
       }));
     }
 
     if (hasPunishments) {
-      settings.punishments = textToRewardItems(draft.punishments ?? '', current.settings.punishments, (text) => ({
+      settings.punishments = textToRewardItems(draft.punishments ?? '', state.settings.punishments, (text) => ({
         id: crypto.randomUUID(),
         text,
       }));
@@ -99,21 +104,21 @@ function persistSettingsDraft(draft: SettingsDraft): void {
 
     if (hasIntro) {
       settings.introLink = {
-        label: (draft.introLabel ?? current.settings.introLink.label).trim(),
-        url: (draft.introUrl ?? current.settings.introLink.url).trim(),
+        label: (draft.introLabel ?? state.settings.introLink.label).trim(),
+        url: (draft.introUrl ?? state.settings.introLink.url).trim(),
       };
     }
 
-    return { ...current, settings };
+    return { ...state, settings };
   });
 
   const runtimePatch: Partial<ReturnType<typeof appContext.getRuntimeState>> = {
     settingsDraft: null,
   };
-  if (hasGifts) {
+  if (giftsChanged) {
     runtimePatch.usedGifts = new Set();
   }
-  if (hasPunishments) {
+  if (punishmentsChanged) {
     runtimePatch.usedPunishments = new Set();
   }
   appContext.patchRuntimeStateWithoutRender(runtimePatch);

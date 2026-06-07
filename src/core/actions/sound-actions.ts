@@ -26,15 +26,21 @@ function isAudioFile(file: File): boolean {
   return file.type.startsWith('audio/') || ACCEPTED_AUDIO.test(file.name);
 }
 
+function pruneSoundLibrary(library: CustomSound[], bindings: Partial<Record<SoundEventKey, string>>): CustomSound[] {
+  const usedIds = new Set(Object.values(bindings).filter((id): id is string => Boolean(id)));
+  return library.filter((item) => usedIds.has(item.id));
+}
+
 function persistSoundBinding(eventKey: SoundEventKey, sound: CustomSound): void {
   appContext.setAppState((current) => {
-    const library = [...(current.settings.sounds?.library ?? []), sound];
+    const bindings = { ...(current.settings.sounds?.bindings ?? {}), [eventKey]: sound.id };
+    const library = pruneSoundLibrary([...(current.settings.sounds?.library ?? []), sound], bindings);
     return {
       ...current,
       settings: {
         ...current.settings,
         sounds: {
-          bindings: { ...(current.settings.sounds?.bindings ?? {}), [eventKey]: sound.id },
+          bindings,
           library,
         },
       },
@@ -113,6 +119,7 @@ export function clearSoundBinding(eventKey: SoundEventKey): void {
   appContext.setAppState((current) => {
     const bindings = { ...(current.settings.sounds?.bindings ?? {}) };
     delete bindings[eventKey];
+    const library = pruneSoundLibrary(current.settings.sounds?.library ?? [], bindings);
 
     return {
       ...current,
@@ -120,7 +127,7 @@ export function clearSoundBinding(eventKey: SoundEventKey): void {
         ...current.settings,
         sounds: {
           bindings,
-          library: current.settings.sounds?.library ?? [],
+          library,
         },
       },
     };

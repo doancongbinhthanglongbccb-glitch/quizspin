@@ -1,6 +1,7 @@
 import { App } from '@capacitor/app';
 import { appContext } from '../state';
-import { startQuestionTimer, stopQuestionTimer } from '../question-timer';
+import { questionRemainingSeconds, startQuestionTimer, stopQuestionTimer } from '../question-timer';
+import { enqueuePersist, resetPersistErrorFlag } from '../persist-queue';
 import { saveState, readJson, readHasSeenIntro } from '../../storage';
 import type { AppState } from '../../types';
 // Import explicit file to avoid TS module resolution ambiguity between
@@ -35,7 +36,10 @@ import { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBi
 import { completeIntro, showIntro } from './intro-actions';
 import {
   cancelConfirmDialog,
+  confirmDeleteCategoryFromMenu,
   confirmDialogAction,
+  confirmRenameCategoryFromMenu,
+  requestCategoryMenu,
   requestClearAllData,
   requestDeleteCategory,
   requestDeleteQuestion,
@@ -61,7 +65,10 @@ export { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBi
 export { completeIntro, showIntro };
 export {
   cancelConfirmDialog,
+  confirmDeleteCategoryFromMenu,
   confirmDialogAction,
+  confirmRenameCategoryFromMenu,
+  requestCategoryMenu,
   requestClearAllData,
   requestDeleteCategory,
   requestDeleteQuestion,
@@ -77,15 +84,17 @@ export async function setupUI(): Promise<void> {
   });
 
   appContext.subscribePersist(() => {
-    void appContext
-      .persistAppState(async (_key, value) => {
+    enqueuePersist(() =>
+      appContext.persistAppState(async (_key, value) => {
         await saveState(value);
-      })
-      .catch(() => undefined);
+      }),
+    );
   });
 }
 
 export async function bootstrap(): Promise<void> {
+  resetPersistErrorFlag();
+
   await appContext.loadFromStorage(async (key) => {
     return await readJson<AppState | null>(key, null);
   });
@@ -106,12 +115,19 @@ export async function bootstrap(): Promise<void> {
 
   void App.addListener('pause', () => {
     stopQuestionTimer();
+    void KeepAwake.allowSleep().catch(() => undefined);
   });
 
   void App.addListener('resume', () => {
+    void KeepAwake.keepAwake().catch(() => undefined);
     const runtime = appContext.getRuntimeState();
     const modal = runtime.modal;
-    if (modal?.kind === 'question' && !modal.paused && !modal.revealed && modal.remaining > 0) {
+    if (
+      modal?.kind === 'question' &&
+      !modal.paused &&
+      !modal.revealed &&
+      questionRemainingSeconds(modal.deadlineAt) > 0
+    ) {
       startQuestionTimer();
     }
   });

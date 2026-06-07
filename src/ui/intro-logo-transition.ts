@@ -2,6 +2,7 @@ import { INTRO_COPY } from '../config/intro';
 
 const LOGO_FLIGHT_MS = 640;
 const APP_SWITCH_DELAY_MS = 160;
+const LOGO_FLIGHT_ORPHAN_MS = LOGO_FLIGHT_MS + APP_SWITCH_DELAY_MS + 800;
 
 export type LogoFlightSnapshot = {
   left: number;
@@ -13,6 +14,7 @@ export type LogoFlightSnapshot = {
 let pendingFlight: LogoFlightSnapshot | null = null;
 let flightElement: HTMLImageElement | null = null;
 let flightCleanupTimer: ReturnType<typeof setTimeout> | null = null;
+let flightOrphanTimer: ReturnType<typeof setTimeout> | null = null;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -51,6 +53,16 @@ export function startLogoFlight(from: LogoFlightSnapshot, src: string): boolean 
   img.style.height = `${from.height}px`;
   document.body.appendChild(img);
   flightElement = img;
+
+  if (flightOrphanTimer) {
+    clearTimeout(flightOrphanTimer);
+  }
+  flightOrphanTimer = setTimeout(() => {
+    if (flightElement === img) {
+      clearLogoFlight();
+    }
+  }, LOGO_FLIGHT_ORPHAN_MS);
+
   return true;
 }
 
@@ -96,6 +108,10 @@ export function clearLogoFlight(): void {
   if (flightCleanupTimer) {
     clearTimeout(flightCleanupTimer);
     flightCleanupTimer = null;
+  }
+  if (flightOrphanTimer) {
+    clearTimeout(flightOrphanTimer);
+    flightOrphanTimer = null;
   }
   flightElement?.remove();
   flightElement = null;

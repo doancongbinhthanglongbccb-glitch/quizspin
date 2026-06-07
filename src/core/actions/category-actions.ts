@@ -1,5 +1,5 @@
 import type { Category } from '../../types';
-import { defaultQuestionDraft, makeCategory, questionToDraft } from '../../data';
+import { defaultQuestionDraft, questionToDraft } from '../../data';
 import { appContext } from '../state';
 
 export function currentCategory(): Category | null {
@@ -40,28 +40,4 @@ export function selectCategory(categoryId: string): void {
   ensureQuestionDraft(category);
 }
 
-export function addCategory(): void {
-  const name = window.prompt('Tên lĩnh vực mới?');
-  if (!name?.trim()) {
-    return;
-  }
-
-  const nextCategory = makeCategory(name.trim());
-  appContext.setAppState((current) => ({ ...current, categories: [...current.categories, nextCategory] }));
-  appContext.setRuntimeState({ selectedCategoryId: nextCategory.id });
-  ensureQuestionDraft(nextCategory);
-}
-
-export function renameCategory(category: Category): void {
-  const name = window.prompt('Đổi tên lĩnh vực', category.name);
-  if (!name?.trim()) {
-    return;
-  }
-
-  appContext.setAppState((current) => ({
-    ...current,
-    categories: current.categories.map((item) => (item.id === category.id ? { ...item, name: name.trim() } : item)),
-  }));
-}
-
-export { requestDeleteCategory as deleteCategory } from './confirm-actions';
+export { requestAddCategory as addCategory, requestRenameCategory as renameCategory, requestDeleteCategory as deleteCategory } from './confirm-actions';

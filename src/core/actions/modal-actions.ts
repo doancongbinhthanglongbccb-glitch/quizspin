@@ -3,6 +3,8 @@ import { availableQuestion, isEssayQuestion, isMcqAnswerCorrect, isMcqQuestion }
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { questionRemainingSeconds } from '../question-timer';
+import { syncQuestionPauseButton } from '../../utils/modal-dom-sync';
+import { syncSpinUi } from '../../utils/sync-spin-ui';
 import { showToast, startQuestionTimer, stopTimer } from './shared';
 import { resetQuestionFlags } from './question-actions';
 
@@ -116,6 +118,7 @@ export function openNoticeModal(text: string, sound: 'extraTurn' | 'loseTurn'): 
 export function closeModal(): void {
   stopTimer();
   appContext.setRuntimeState({ modal: null });
+  syncSpinUi();
 }
 
 /** Đóng modal câu hỏi nếu category/question không còn trong kho */
@@ -130,7 +133,8 @@ export function closeModalIfQuestionMissing(): void {
   const category = appState.categories.find((item) => item.id === modal.categoryId);
   const question = category?.questions.find((item) => item.id === modal.questionId);
   if (!category || !question) {
-    closeModal();
+    stopTimer();
+    appContext.patchRuntimeState({ modal: null });
   }
 }
 
@@ -144,17 +148,19 @@ export function toggleQuestionPause(): void {
 
   if (!modal.paused) {
     const remaining = questionRemainingSeconds(modal.deadlineAt);
-    appContext.setRuntimeState({
+    appContext.patchRuntimeState({
       modal: { ...modal, remaining, paused: true },
     });
+    syncQuestionPauseButton(true);
     stopTimer();
     return;
   }
 
   const deadlineAt = Date.now() + modal.remaining * 1000;
-  appContext.setRuntimeState({
+  appContext.patchRuntimeState({
     modal: { ...modal, deadlineAt, paused: false },
   });
+  syncQuestionPauseButton(false);
   startQuestionTimer();
 }
 
@@ -302,7 +308,7 @@ export function submitQuestionAnswer(): void {
     : null;
 
   if (answerRecord) {
-    appContext.setAppState((current) => ({
+    appContext.setAppStateWithoutRender((current) => ({
       ...current,
       answerHistory: [answerRecord, ...current.answerHistory],
     }));

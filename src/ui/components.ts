@@ -10,10 +10,16 @@ import { INTRO_ASSETS, INTRO_COPY } from '../config/intro';
 import { WheelRenderer } from './components/wheel';
 import * as Actions from '../core/actions';
 import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers } from './handlers';
+import { initModalDom } from './handlers/modal-handlers';
+import { syncToastDom } from '../utils/sync-toast-dom';
 import { captureScroll, restoreScroll } from '../utils/scroll-restore';
 import { consumeAppEntryAnimation } from './intro-transition';
 import { hasPendingLogoFlight, runLogoFlightToHeader } from './intro-logo-transition';
 import { getModalRenderKey } from '../utils/modal-render-key';
+import { getShellRenderKey } from '../utils/shell-render-key';
+import { syncSpinUi } from '../utils/sync-spin-ui';
+import { canReplayIntro, canSwitchTab, getNavigationBlockReason } from '../utils/navigation-guard';
+import { showToast } from '../core/toast';
 
 const TAB_META: Record<'spin' | 'bank' | 'settings', { label: string; short: string; icon: string }> = {
   spin: { label: 'Vòng Quay', short: 'Quay', icon: '🎖️' },
@@ -25,6 +31,11 @@ const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 let wheelCleanup: (() => void) | null = null;
 let eventCleanups: Array<() => void> = [];
 let lastModalRenderKey = '';
+let lastShellRenderKey = '';
+let lastConfirmKey = '';
+let lastToastMessage = '';
+let isRendering = false;
+let pendingRender = false;
 
 type OverlayHosts = {
   shell: HTMLElement;
@@ -58,6 +69,9 @@ function ensureOverlayHosts(): OverlayHosts {
   appRoot.append(shell, toast, modal, confirm, fab);
   overlayHosts = { shell, toast, modal, confirm, fab };
   lastModalRenderKey = '';
+  lastShellRenderKey = '';
+  lastConfirmKey = '';
+  lastToastMessage = '';
   return overlayHosts;
 }
 
@@ -165,6 +179,25 @@ function renderIntroReplayFab(): string {
 }
 
 export function render(): void {
+  if (isRendering) {
+    pendingRender = true;
+    return;
+  }
+
+  isRendering = true;
+
+  try {
+    renderOnce();
+  } finally {
+    isRendering = false;
+    if (pendingRender) {
+      pendingRender = false;
+      queueMicrotask(() => render());
+    }
+  }
+}
+
+function renderOnce(): void {
   Actions.closeModalIfQuestionMissing();
 
   const runtime = appContext.getRuntimeState();
@@ -178,70 +211,100 @@ export function render(): void {
     return;
   }
 
-  const focusSnapshot = captureFocus();
-  const scrollSnapshot = captureScroll(appRoot);
-
-  cleanupRenderLifecycle();
-
   const appState = appContext.getAppState();
   const nextRuntime = appContext.getRuntimeState();
-  const content =
-    nextRuntime.tab === 'spin'
-      ? renderSpinTab(appState, nextRuntime)
-      : nextRuntime.tab === 'bank'
-        ? renderBankTab(appState, nextRuntime)
-        : renderSettingsTab(appState, nextRuntime);
-
   const hosts = ensureOverlayHosts();
-  const enteringFromIntro = consumeAppEntryAnimation();
-  const logoHandoff = hasPendingLogoFlight();
-  const appShellClass = enteringFromIntro
-    ? `app-shell app-shell--entering${logoHandoff ? ' app-shell--entering-logo' : ''} flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row`
-    : 'app-shell flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row';
-
-  hosts.shell.innerHTML = `
-    <div class="${appShellClass}">
-      ${renderTabs()}
-
-      <div class="app-body flex-1 w-full min-w-0 max-w-full overflow-x-clip p-4 pb-nav [-webkit-overflow-scrolling:touch] lg:landscape:pb-4">
-        <header class="app-header mb-[18px] min-w-0 max-w-full rounded-[18px] border border-accent-yellow/20 px-4 py-3.5 pb-4">
-          <div class="flex min-w-0 items-center gap-3.5">
-            <img
-              class="app-header__logo h-12 w-auto shrink-0 rounded-full border-2 border-accent-yellow/45 bg-[#0f2410] object-cover shadow-lg max-lg:h-12 lg:landscape:h-11 xl:landscape:h-14"
-              src="${INTRO_ASSETS.headerLogo}"
-              alt="${INTRO_COPY.logoAlt}"
-              width="56"
-              height="56"
-              decoding="async"
-            />
-            <h1 class="app-header__title m-0 min-w-0 flex-1 truncate">VÒNG QUAY KIẾN THỨC</h1>
-          </div>
-        </header>
-
-        <main class="content-area grid w-full min-w-0 max-w-full gap-[18px]" data-swipe-zone="content">
-          ${content}
-        </main>
-      </div>
-    </div>
-  `;
-
-  hosts.toast.innerHTML = nextRuntime.toast
-    ? `<div class="toast fixed left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/10 bg-gray-900/95 px-5 py-3 text-ui font-semibold shadow-xl bottom-[calc(96px+env(safe-area-inset-bottom,0px))] lg:landscape:bottom-6">${nextRuntime.toast}</div>`
-    : '';
-
+  const shellKey = getShellRenderKey(appState, nextRuntime);
   const modalKey = getModalRenderKey(appState, nextRuntime);
+  const confirmKey = JSON.stringify(nextRuntime.confirmDialog);
+  const shouldRebuildShell = shellKey !== lastShellRenderKey;
+
+  if (
+    !shouldRebuildShell &&
+    modalKey === lastModalRenderKey &&
+    confirmKey === lastConfirmKey &&
+    nextRuntime.toast === lastToastMessage
+  ) {
+    return;
+  }
+
+  const focusSnapshot = shouldRebuildShell ? captureFocus() : null;
+  const scrollSnapshot = shouldRebuildShell ? captureScroll(appRoot) : null;
+
+  if (shouldRebuildShell) {
+    cleanupRenderLifecycle();
+
+    const content =
+      nextRuntime.tab === 'spin'
+        ? renderSpinTab(appState, nextRuntime)
+        : nextRuntime.tab === 'bank'
+          ? renderBankTab(appState, nextRuntime)
+          : renderSettingsTab(appState, nextRuntime);
+
+    const enteringFromIntro = consumeAppEntryAnimation();
+    const logoHandoff = hasPendingLogoFlight();
+    const appShellClass = enteringFromIntro
+      ? `app-shell app-shell--entering${logoHandoff ? ' app-shell--entering-logo' : ''} flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row`
+      : 'app-shell flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row';
+
+    hosts.shell.innerHTML = `
+      <div class="${appShellClass}">
+        ${renderTabs()}
+
+        <div class="app-body flex-1 w-full min-w-0 max-w-full overflow-x-clip p-4 pb-nav [-webkit-overflow-scrolling:touch] lg:landscape:pb-4">
+          <header class="app-header mb-[18px] min-w-0 max-w-full rounded-[18px] border border-accent-yellow/20 px-4 py-3.5 pb-4">
+            <div class="flex min-w-0 items-center gap-3.5">
+              <img
+                class="app-header__logo h-12 w-auto shrink-0 rounded-full border-2 border-accent-yellow/45 bg-[#0f2410] object-cover shadow-lg max-lg:h-12 lg:landscape:h-11 xl:landscape:h-14"
+                src="${INTRO_ASSETS.headerLogo}"
+                alt="${INTRO_COPY.logoAlt}"
+                width="56"
+                height="56"
+                decoding="async"
+              />
+              <h1 class="app-header__title m-0 min-w-0 flex-1 truncate">VÒNG QUAY KIẾN THỨC</h1>
+            </div>
+          </header>
+
+          <main class="content-area grid w-full min-w-0 max-w-full gap-[18px]" data-swipe-zone="content">
+            ${content}
+          </main>
+        </div>
+      </div>
+    `;
+
+    lastShellRenderKey = shellKey;
+    hosts.fab.innerHTML = renderIntroReplayFab();
+    eventCleanups = bindEvents();
+    mountWheelCanvas();
+    if (nextRuntime.tab === 'spin') {
+      syncSpinUi();
+    }
+
+    if (focusSnapshot) {
+      restoreFocus(focusSnapshot, settingsSectionChanged);
+    }
+    if (scrollSnapshot) {
+      restoreScroll(appRoot, scrollSnapshot);
+    }
+  }
+
+  if (nextRuntime.toast !== lastToastMessage) {
+    lastToastMessage = nextRuntime.toast;
+    syncToastDom(nextRuntime.toast, hosts.toast);
+  }
+
   if (modalKey !== lastModalRenderKey) {
     lastModalRenderKey = modalKey;
     hosts.modal.innerHTML = renderModal(appState, nextRuntime);
+    initModalDom(appRoot);
+    syncSpinUi();
   }
 
-  hosts.confirm.innerHTML = renderConfirmDialog(nextRuntime.confirmDialog);
-  hosts.fab.innerHTML = renderIntroReplayFab();
-
-  eventCleanups = bindEvents();
-  mountWheelCanvas();
-  restoreFocus(focusSnapshot, settingsSectionChanged);
-  restoreScroll(appRoot, scrollSnapshot);
+  if (confirmKey !== lastConfirmKey) {
+    lastConfirmKey = confirmKey;
+    hosts.confirm.innerHTML = renderConfirmDialog(nextRuntime.confirmDialog);
+  }
 
   if (nextRuntime.tab === 'settings') {
     lastRenderedSettingsSection = nextRuntime.settingsSection;
@@ -264,6 +327,9 @@ function renderIntro(): void {
   cleanupWheel();
   overlayHosts = null;
   lastModalRenderKey = '';
+  lastShellRenderKey = '';
+  lastConfirmKey = '';
+  lastToastMessage = '';
   appRoot.innerHTML = renderIntroScreen(appContext.getAppState());
   eventCleanups = [bindIntroHandlers(appRoot)];
 }
@@ -277,6 +343,16 @@ function bindConfirmHandlers(): () => void {
 
     if (target.dataset.action === 'cancel-confirm') {
       Actions.cancelConfirmDialog();
+      return;
+    }
+
+    if (target.dataset.action === 'confirm-rename-category') {
+      Actions.confirmRenameCategoryFromMenu();
+      return;
+    }
+
+    if (target.dataset.action === 'confirm-delete-category') {
+      Actions.confirmDeleteCategoryFromMenu();
       return;
     }
 
@@ -308,6 +384,10 @@ function bindNavigationEvents(): () => void {
     const introTarget =
       event.target instanceof Element ? event.target.closest<HTMLElement>('[data-action="show-intro"]') : null;
     if (introTarget && appRoot.contains(introTarget)) {
+      if (!canReplayIntro()) {
+        showToast('Đang quay, vui lòng chờ');
+        return;
+      }
       cleanupWheel();
       Actions.showIntro();
       return;
@@ -315,6 +395,14 @@ function bindNavigationEvents(): () => void {
 
     const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-action="switch-tab"]') : null;
     if (!target || !appRoot.contains(target)) {
+      return;
+    }
+
+    if (!canSwitchTab()) {
+      const reason = getNavigationBlockReason();
+      if (reason) {
+        showToast(reason);
+      }
       return;
     }
 

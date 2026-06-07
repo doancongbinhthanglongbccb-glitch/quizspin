@@ -50,9 +50,35 @@ function syncEssaySubmitButton(root: ParentNode): void {
   }
 }
 
-export function bindModalHandlers(root: ParentNode): () => void {
+function syncMcqSelectionFromState(root: ParentNode): void {
+  const runtime = appContext.getRuntimeState();
+  if (!runtime.modal || runtime.modal.kind !== 'question') {
+    return;
+  }
+
+  const selectedAnswer = (runtime.modal.selectedAnswer ?? '').trim();
+  if (!selectedAnswer) {
+    return;
+  }
+
+  const buttons = root.querySelectorAll<HTMLElement>('[data-action="choose-answer"]');
+  for (const button of buttons) {
+    const answer = button.dataset.answer;
+    if (answer && decodeURIComponent(answer) === selectedAnswer) {
+      syncMcqSelection(root, button);
+      return;
+    }
+  }
+}
+
+export function initModalDom(root: ParentNode): void {
   resizeEssayFields(root);
   syncEssaySubmitButton(root);
+  syncMcqSelectionFromState(root);
+}
+
+export function bindModalHandlers(root: ParentNode): () => void {
+  initModalDom(root);
 
   const onClick = (event: Event): void => {
     const chooseAnswerButton = getActionTarget(event, root, '[data-action="choose-answer"]');

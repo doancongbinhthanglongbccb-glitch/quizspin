@@ -1,5 +1,6 @@
 import type { RuntimeState } from '../core/state';
 import type { AppState } from '../types';
+import { getQuestionOptions } from '../data';
 
 /**
  * Chữ ký HTML modal — chỉ rebuild khi đổi.
@@ -18,6 +19,8 @@ export function getModalRenderKey(appState: AppState, runtime: RuntimeState): st
       return '';
     }
 
+    const optionsSig = question.type === 'mcq' ? getQuestionOptions(question).join('\n') : '';
+
     return [
       'question',
       modal.categoryId,
@@ -25,9 +28,9 @@ export function getModalRenderKey(appState: AppState, runtime: RuntimeState): st
       question.question,
       question.answer,
       question.type,
+      optionsSig,
       modal.submitted,
       modal.revealed,
-      modal.paused,
       modal.readOnly ?? false,
       modal.timer,
     ].join('|');

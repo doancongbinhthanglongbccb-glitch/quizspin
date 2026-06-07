@@ -5,6 +5,8 @@ import { throttle } from '../../utils/throttle';
 
 const importExcel = throttle((file: File) => Actions.parseExcelImport(file), 800);
 
+let draftSnapshot: QuestionDraft | null = null;
+
 function getActionTarget(event: Event, root: ParentNode, selector: string): HTMLElement | null {
   const target = event.target instanceof Element ? event.target.closest<HTMLElement>(selector) : null;
   return target && root.contains(target) ? target : null;
@@ -39,6 +41,33 @@ function syncDraftFromDom(root: ParentNode): void {
   Actions.updateQuestionDraft(readDraftFromDom(root));
 }
 
+function captureDraftSnapshotFromState(): void {
+  draftSnapshot = { ...appContext.getRuntimeState().questionDraft };
+}
+
+function isDraftDirty(root: ParentNode): boolean {
+  const runtime = appContext.getRuntimeState();
+  if (!runtime.bankFormOpen || !draftSnapshot) {
+    return false;
+  }
+
+  const current = readDraftFromDom(root);
+  return (
+    current.type !== draftSnapshot.type ||
+    current.question !== draftSnapshot.question ||
+    current.options !== draftSnapshot.options ||
+    current.answer !== draftSnapshot.answer
+  );
+}
+
+function confirmDiscardDraft(root: ParentNode): boolean {
+  if (!isDraftDirty(root)) {
+    return true;
+  }
+
+  return window.confirm('Bỏ thay đổi chưa lưu?');
+}
+
 const LONG_PRESS_MS = 520;
 
 export function bindBankHandlers(root: ParentNode): () => void {
@@ -58,14 +87,7 @@ export function bindBankHandlers(root: ParentNode): () => void {
       return;
     }
 
-    const action = window.prompt('Bấm giữ lĩnh vực:\n1 = Đổi tên\n2 = Xóa lĩnh vực\n\nNhập 1 hoặc 2:', '1');
-    if (action === '1') {
-      Actions.renameCategory(target);
-      return;
-    }
-    if (action === '2') {
-      Actions.deleteCategory(target);
-    }
+    Actions.requestCategoryMenu(target);
   };
 
   const onPointerDown = (event: Event): void => {
@@ -107,6 +129,10 @@ export function bindBankHandlers(root: ParentNode): () => void {
     if (selectCategoryButton) {
       const id = selectCategoryButton.dataset.id;
       if (id) {
+        if (!confirmDiscardDraft(root)) {
+          return;
+        }
+        draftSnapshot = null;
         Actions.selectCategory(id);
       }
       return;
@@ -116,10 +142,15 @@ export function bindBankHandlers(root: ParentNode): () => void {
     if (startEditButton) {
       appContext.setRuntimeState({ editingQuestionId: startEditButton.dataset.id ?? null, bankFormOpen: true });
       Actions.ensureQuestionDraft(Actions.currentCategory());
+      captureDraftSnapshotFromState();
       return;
     }
 
     if (getActionTarget(event, root, '[data-action="cancel-question-edit"]')) {
+      if (!confirmDiscardDraft(root)) {
+        return;
+      }
+      draftSnapshot = null;
       appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: false });
       Actions.ensureQuestionDraft(Actions.currentCategory());
       return;
@@ -128,6 +159,7 @@ export function bindBankHandlers(root: ParentNode): () => void {
     if (getActionTarget(event, root, '[data-action="start-add-question"]')) {
       appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: true });
       Actions.ensureQuestionDraft(Actions.currentCategory());
+      captureDraftSnapshotFromState();
       return;
     }
 
@@ -167,6 +199,7 @@ export function bindBankHandlers(root: ParentNode): () => void {
     if (getActionTarget(event, root, '[data-action="save-question"]')) {
       syncDraftFromDom(root);
       Actions.saveQuestionDraft();
+      draftSnapshot = null;
     }
   };
 
@@ -205,6 +238,10 @@ export function bindBankHandlers(root: ParentNode): () => void {
 
   return () => {
     clearLongPress();
+    if (appContext.getRuntimeState().bankFormOpen) {
+      syncDraftFromDom(root);
+    }
+    draftSnapshot = null;
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
     root.removeEventListener('input', onInput);

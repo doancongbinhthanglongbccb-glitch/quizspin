@@ -5,6 +5,7 @@ import { soundManager } from './sound-manager';
 import { WheelRenderer } from '../ui/components/wheel';
 import { startSpinAnimation, type SpinAnimationController } from '../utils/animate';
 import { normalizeDeg } from '../utils/angles';
+import { syncSpinUi } from '../utils/sync-spin-ui';
 import { setLiveWheelRotation } from '../utils/wheel-display-rotation';
 import type { WheelSegment } from '../types';
 
@@ -62,7 +63,8 @@ export class SpinSession {
         setLiveWheelRotation(null);
         if (canceled) {
           this.dispose();
-          appContext.setRuntimeState({ spinning: false });
+          appContext.patchRuntimeState({ spinning: false });
+          syncSpinUi();
           return;
         }
 
@@ -99,10 +101,11 @@ export class SpinSession {
     const normalized = normalizeDeg(rotationDeg);
     WheelRenderer.draw(WHEEL_CANVAS_ID, this.model, normalized);
 
-    appContext.setRuntimeState({
+    appContext.patchRuntimeState({
       spinning: false,
       rotation: normalized,
     });
+    syncSpinUi();
 
     callbacks.onComplete({ segment, rotationDeg: normalized });
   }

@@ -11,7 +11,7 @@ const BLOCK_SWIPE_SELECTOR =
 
 function canSwipeNavigate(): boolean {
   const runtime = appContext.getRuntimeState();
-  return !runtime.spinning && !runtime.modal;
+  return !runtime.spinning && !runtime.modal && !runtime.confirmDialog && !runtime.showIntro;
 }
 
 function switchTabByDirection(direction: 1 | -1, onBeforeSwitch?: () => void): void {

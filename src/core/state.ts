@@ -58,7 +58,7 @@ export type RuntimeState = {
 };
 
 // Tạo state runtime mặc định
-function createDefaultRuntimeState(): RuntimeState {
+export function createDefaultRuntimeState(): RuntimeState {
   return {
     tab: 'spin',
     rotation: 0,

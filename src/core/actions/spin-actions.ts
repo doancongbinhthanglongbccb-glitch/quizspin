@@ -2,6 +2,7 @@ import { buildWheelModel } from '../wheel';
 import { appContext } from '../state';
 import { spinSession } from '../spin-session';
 import { openGiftModal, openNoticeModal, openQuestionModal } from './modal-actions';
+import { syncSpinUi } from '../../utils/sync-spin-ui';
 import { showToast } from './shared';
 import type { WheelSegment } from '../../types';
 
@@ -59,7 +60,8 @@ export function spin(): void {
   const chosen = model.segments[Math.floor(Math.random() * model.segments.length)];
 
   spinSession.cancel();
-  appContext.setRuntimeState({ spinning: true, rotation: runtime.rotation });
+  appContext.patchRuntimeState({ spinning: true, rotation: runtime.rotation });
+  syncSpinUi();
 
   spinSession.start(model, chosen, runtime.rotation, {
     onComplete: ({ segment }) => resolveSegmentAction(segment),
