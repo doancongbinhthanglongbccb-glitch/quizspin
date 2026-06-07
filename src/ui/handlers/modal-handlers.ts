@@ -19,6 +19,14 @@ function resizeEssayFields(root: ParentNode): void {
   root.querySelectorAll<HTMLTextAreaElement>('[data-action="player-answer-input"]').forEach(autoResizeTextarea);
 }
 
+function syncMcqSelection(root: ParentNode, selectedButton: HTMLElement): void {
+  root.querySelectorAll<HTMLElement>('[data-action="choose-answer"]').forEach((button) => {
+    const isSelected = button === selectedButton;
+    button.classList.toggle('option-chip--selected', isSelected);
+    button.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+  });
+}
+
 function syncEssaySubmitButton(root: ParentNode): void {
   const slot = root.querySelector<HTMLElement>('.modal-actions__slot--right');
   const textarea = root.querySelector<HTMLTextAreaElement>('[data-action="player-answer-input"]');
@@ -52,7 +60,7 @@ export function bindModalHandlers(root: ParentNode): () => void {
       const answer = chooseAnswerButton.dataset.answer;
       if (answer) {
         Actions.chooseQuestionAnswer(decodeURIComponent(answer));
-        Actions.submitQuestionAnswer();
+        syncMcqSelection(root, chooseAnswerButton);
       }
       return;
     }

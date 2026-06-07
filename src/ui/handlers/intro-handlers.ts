@@ -1,6 +1,12 @@
+import { appContext } from '../../core/state';
 import * as Actions from '../../core/actions';
 import { soundManager } from '../../core/sound-manager';
 import { markAppEntryAnimation } from '../intro-transition';
+import {
+  getLogoFlightSwitchDelay,
+  snapshotLogoRect,
+  startLogoFlight,
+} from '../intro-logo-transition';
 
 const INTRO_EXIT_MS = 480;
 
@@ -18,14 +24,25 @@ function finishIntroExit(): void {
 
 function beginIntroExit(root: ParentNode): void {
   const screen = root.querySelector<HTMLElement>('.intro-screen');
+  const logo = root.querySelector<HTMLImageElement>('.intro-screen__logo');
+
+  markAppEntryAnimation();
+  soundManager.stop('introBed');
+
+  let logoHandoff = false;
+  if (logo) {
+    logoHandoff = startLogoFlight(snapshotLogoRect(logo), logo.src);
+    if (logoHandoff) {
+      logo.classList.add('intro-screen__logo--handoff');
+      screen?.classList.add('intro-screen--logo-handoff');
+    }
+  }
+
   if (!screen) {
-    markAppEntryAnimation();
     finishIntroExit();
     return;
   }
 
-  markAppEntryAnimation();
-  soundManager.stop('introBed');
   screen.classList.add('intro-screen--exiting');
 
   let done = false;
@@ -42,17 +59,43 @@ function beginIntroExit(root: ParentNode): void {
     if (event.target !== screen || event.animationName !== 'intro-fade-out') {
       return;
     }
-    complete();
+    if (!logoHandoff) {
+      complete();
+    }
   };
 
   screen.addEventListener('animationend', onAnimationEnd);
-  window.setTimeout(complete, INTRO_EXIT_MS + 50);
+
+  const switchDelay = logoHandoff ? getLogoFlightSwitchDelay() : INTRO_EXIT_MS + 50;
+  window.setTimeout(complete, switchDelay);
+}
+
+function isSafeExternalUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function openIntroLink(): void {
+  const url = appContext.getAppState().settings.introLink.url.trim();
+  if (!isSafeExternalUrl(url)) {
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 export function bindIntroHandlers(root: ParentNode): () => void {
   soundManager.playLoop('introBed');
 
   const onClick = (event: Event): void => {
+    if (getActionTarget(event, root, '[data-action="open-intro-link"]')) {
+      openIntroLink();
+      return;
+    }
+
     if (!getActionTarget(event, root, '[data-action="complete-intro"]')) {
       return;
     }

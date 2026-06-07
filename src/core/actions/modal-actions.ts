@@ -1,5 +1,5 @@
 import type { AnswerRecord, Category } from '../../types';
-import { availableQuestion, isEssayQuestion } from '../../data';
+import { availableQuestion, isEssayQuestion, isMcqAnswerCorrect, isMcqQuestion } from '../../data';
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { questionRemainingSeconds } from '../question-timer';
@@ -191,6 +191,27 @@ export function chooseQuestionAnswer(answer: string): void {
   appContext.patchRuntimeState({ modal: nextModal });
 }
 
+export function handleQuestionTimeUp(): void {
+  const runtime = appContext.getRuntimeState();
+  const modal = runtime.modal;
+  if (!modal || modal.kind !== 'question' || modal.submitted || modal.readOnly) {
+    return;
+  }
+
+  const rawAnswer = (modal.playerAnswer ?? modal.selectedAnswer ?? '').trim();
+  if (rawAnswer) {
+    submitQuestionAnswer();
+    return;
+  }
+
+  stopTimer();
+  soundManager.stopCountdown();
+  appContext.setRuntimeState({
+    modal: { ...modal, remaining: 0, revealed: true, paused: true },
+  });
+  showToast('Hết giờ');
+}
+
 export function revealAnswer(): void {
   const runtime = appContext.getRuntimeState();
   if (!runtime.modal || runtime.modal.kind !== 'question') {
@@ -205,6 +226,19 @@ export function revealAnswer(): void {
   if (modal.revealed) {
     closeModal();
     return;
+  }
+
+  const appState = appContext.getAppState();
+  const question = appState.categories
+    .find((item) => item.id === modal.categoryId)
+    ?.questions.find((item) => item.id === modal.questionId);
+
+  if (question && isMcqQuestion(question)) {
+    const rawAnswer = (modal.playerAnswer ?? modal.selectedAnswer ?? '').trim();
+    if (rawAnswer) {
+      submitQuestionAnswer();
+      return;
+    }
   }
 
   const remaining = questionRemainingSeconds(modal.deadlineAt);
@@ -256,7 +290,7 @@ export function submitQuestionAnswer(): void {
   const elapsedSeconds = Math.min(total, total - remaining);
   const timeSpentMs = Math.max(0, elapsedSeconds * 1000);
 
-  const isCorrect = !!question && rawAnswer === question.answer;
+  const isCorrect = !!question && (isEssayQuestion(question) || isMcqAnswerCorrect(rawAnswer, question));
 
   stopTimer();
   soundManager.stopCountdown();

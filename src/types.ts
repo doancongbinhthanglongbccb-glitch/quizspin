@@ -14,7 +14,12 @@ export type Question = {
 
 export type QuestionFilter = 'all' | QuestionType;
 
-export type SettingsSection = 'timer' | 'sound' | 'gifts' | 'punishments' | 'danger';
+export type SettingsSection = 'timer' | 'sound' | 'gifts' | 'punishments' | 'intro' | 'danger';
+
+export type IntroLinkSettings = {
+  label: string;
+  url: string;
+};
 
 export type QuestionDraft = {
   type: QuestionType;
@@ -72,6 +77,7 @@ export type Settings = {
   gifts: RewardItem[];
   punishments: PunishmentItem[];
   sounds?: SoundSettings;
+  introLink: IntroLinkSettings;
 };
 
 export type AppState = {
@@ -97,6 +103,11 @@ export type AnswerRecord = {
   timeSpentMs?: number;
   submittedAt: string;
 };
+
+export type ConfirmDialog =
+  | { kind: 'delete-question'; categoryId: string; questionId: string }
+  | { kind: 'delete-category'; categoryId: string; categoryName: string; questionCount: number }
+  | { kind: 'clear-all-data'; step: 1 | 2 };
 
 export type ActiveModal =
   | {

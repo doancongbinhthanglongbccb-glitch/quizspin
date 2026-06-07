@@ -21,9 +21,9 @@ const WHEEL_CONFIG = {
   centerDotRadius: 11,
   segmentBorderWidth: 1.5,
   minRadius: 120,
-  labelMaxFontSize: 22,
-  labelMinFontSize: 11,
-  labelFontScale: 0.088,
+  labelMaxFontSize: 28,
+  labelMinFontSize: 14,
+  labelFontScale: 0.108,
   labelMaxLines: 3,
 };
 
@@ -161,7 +161,7 @@ function trimTextToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: 
 
 function resolveLabelFontBounds(radius: number): { max: number; min: number } {
   const max = Math.round(
-    Math.min(34, Math.max(WHEEL_CONFIG.labelMinFontSize + 2, radius * WHEEL_CONFIG.labelFontScale)),
+    Math.min(40, Math.max(WHEEL_CONFIG.labelMinFontSize + 2, radius * WHEEL_CONFIG.labelFontScale)),
   );
   const min = Math.round(Math.max(WHEEL_CONFIG.labelMinFontSize, max * 0.52));
   return { max, min };
@@ -191,9 +191,9 @@ function fitLabelLayout(
   return { fontSize: minFontSize, lines: fallbackLines };
 }
 
+/** Lật 180° khi nhãn nằm nửa trên vòng — tránh chữ đọc ngược trên màn hình. */
 function shouldFlipLabel(angleDeg: number): boolean {
-  const normalizedAngle = normalizeDegrees(angleDeg);
-  return normalizedAngle > 90 && normalizedAngle < 270;
+  return Math.sin(degreesToRadians(angleDeg)) < 0;
 }
 
 /**

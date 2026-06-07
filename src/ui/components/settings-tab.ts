@@ -3,7 +3,8 @@ import { formatTimerDisplay } from '../../utils/timer-format';
 import type { RuntimeState } from '../../core/state';
 import type { AppState } from '../../types';
 import { DEFAULT_SOUND_FILE_NAMES, SOUND_EVENT_GROUPS } from '../../config/sounds';
-import { rewardItemsToText, SOUND_EVENT_LABELS } from '../../data';
+import { DEFAULT_INTRO_LINK_LABEL, rewardItemsToText, SOUND_EVENT_LABELS } from '../../data';
+import { escapeHtml } from '../../utils/html';
 import type { SettingsSection, SoundEventKey } from '../../types';
 
 const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; danger?: boolean }> = [
@@ -11,6 +12,7 @@ const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; d
   { id: 'sound', label: 'Âm thanh', icon: '🔊' },
   { id: 'gifts', label: 'Quà tặng', icon: '🎁' },
   { id: 'punishments', label: 'Hình phạt', icon: '🔥' },
+  { id: 'intro', label: 'Màn Intro', icon: '🎬' },
   { id: 'danger', label: 'Xóa dữ liệu', icon: '🗑', danger: true },
 ];
 
@@ -38,16 +40,16 @@ function renderSidebar(active: SettingsSection): string {
         data-action="settings-section"
         data-section="${entry.id}"
       >
-        <span class="settings-sidebar__icon" aria-hidden="true">${entry.icon}</span>
+        <span class="settings-sidebar__icon shrink-0 text-[1.1rem] leading-none" aria-hidden="true">${entry.icon}</span>
         <span>${entry.label}</span>
       </button>
     `;
   };
 
   return `
-    <nav class="settings-sidebar" aria-label="Mục cài đặt">
+    <nav class="settings-sidebar flex w-full shrink-0 flex-col gap-1 max-lg:flex-row max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:touch-pan-x max-lg:overscroll-x-contain max-lg:pb-1 max-lg:[-webkit-overflow-scrolling:touch] max-md:flex-wrap max-md:gap-1.5 lg:w-[188px] lg:flex-col lg:overflow-visible lg:pb-0" aria-label="Mục cài đặt">
       ${mainItems.map(item).join('')}
-      <div class="settings-sidebar__spacer" aria-hidden="true"></div>
+      <div class="settings-sidebar__spacer min-h-10 flex-1 max-lg:hidden" aria-hidden="true"></div>
       ${dangerItem ? item(dangerItem) : ''}
     </nav>
   `;
@@ -59,18 +61,18 @@ function renderStatBar(appState: AppState, runtime: RuntimeState): string {
   const usedCount = runtime.usedQuestionIds.size;
 
   return `
-    <div class="settings-stats">
-      <div class="settings-stat-box">
-        <p class="settings-stat-box__label">Lĩnh vực</p>
-        <p class="settings-stat-box__value">${categoryCount}</p>
+    <div class="settings-stats flex gap-2.5 max-md:flex-col max-lg:grid max-lg:grid-cols-3 lg:flex lg:flex-row">
+      <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
+        <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Lĩnh vực</p>
+        <p class="settings-stat-box__value m-0 text-display font-bold text-white">${categoryCount}</p>
       </div>
-      <div class="settings-stat-box">
-        <p class="settings-stat-box__label">Tổng câu</p>
-        <p class="settings-stat-box__value">${totalQuestions}</p>
+      <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
+        <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Tổng câu</p>
+        <p class="settings-stat-box__value m-0 text-display font-bold text-white">${totalQuestions}</p>
       </div>
-      <div class="settings-stat-box">
-        <p class="settings-stat-box__label">Đã dùng</p>
-        <p class="settings-stat-box__value settings-stat-box__value--accent">${usedCount}</p>
+      <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
+        <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Đã dùng</p>
+        <p class="settings-stat-box__value settings-stat-box__value--accent m-0 text-display font-bold text-[#afa9ec]">${usedCount}</p>
       </div>
     </div>
   `;
@@ -105,7 +107,7 @@ function renderSoundEventRow(
         <button type="button" class="btn btn--small btn-ghost" data-action="preview-sound" data-sound-event="${eventKey}">Nghe lại</button>
       `
     : `
-        <label class="btn btn--small btn-ghost sound-upload-label">
+        <label class="btn btn--small btn-ghost sound-upload-label m-0 cursor-pointer">
           Chọn file
           <input
             type="file"
@@ -124,12 +126,12 @@ function renderSoundEventRow(
       `;
 
   return `
-    <div class="sound-event-row ${isPending ? 'sound-event-row--pending' : ''}">
-      <div class="sound-event-row__info">
-        <strong>${SOUND_EVENT_LABELS[eventKey]}</strong>
-        <span class="sound-event-row__name">${fileLabel}</span>
+    <div class="sound-event-row flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3 max-lg:flex-col max-lg:items-stretch max-md:flex-col max-md:items-stretch xl:landscape:flex-row xl:landscape:items-center ${isPending ? 'sound-event-row--pending' : ''}">
+      <div class="sound-event-row__info grid min-w-0 gap-1">
+        <strong class="text-subtitle">${SOUND_EVENT_LABELS[eventKey]}</strong>
+        <span class="sound-event-row__name truncate text-caption text-subtle">${fileLabel}</span>
       </div>
-      <div class="sound-event-row__actions">${pendingActions}</div>
+      <div class="sound-event-row__actions flex flex-wrap justify-end gap-2 max-lg:justify-start max-md:justify-stretch max-md:[&_.btn]:flex-1">${pendingActions}</div>
     </div>
   `;
 }
@@ -137,9 +139,9 @@ function renderSoundEventRow(
 function renderSoundEvents(appState: AppState, runtime: RuntimeState): string {
   return SOUND_EVENT_GROUPS.map(
     (group) => `
-      <div class="settings-sound-group">
-        <p class="settings-sound-group__title">${group.title}</p>
-        <div class="sound-events">
+      <div class="settings-sound-group grid gap-2.5 [&+&]:mt-[18px]">
+        <p class="settings-sound-group__title m-0 text-caption font-extrabold uppercase tracking-widest text-violet-300/85">${group.title}</p>
+        <div class="sound-events grid gap-3 mt-3 xl:landscape:grid-cols-2">
           ${group.keys.map((eventKey) => renderSoundEventRow(appState, runtime, eventKey)).join('')}
         </div>
       </div>
@@ -153,14 +155,14 @@ function renderTimerPanel(appState: AppState): string {
   return `
     <div class="settings-panel-card">
       <p class="settings-panel-card__title"><span aria-hidden="true">⏱</span>Thời gian đếm ngược mỗi câu</p>
-      <div class="settings-timer-slider">
-        <span class="settings-timer-slider__edge">${DEFAULTS.timerMinSec}s</span>
-        <input id="timer-slider" type="range" min="${DEFAULTS.timerMinSec}" max="${DEFAULTS.timerMaxSec}" value="${appState.settings.timer}" />
-        <span class="settings-timer-slider__edge">5 phút</span>
+      <div class="settings-timer-slider flex items-center gap-3 mb-2.5">
+        <span class="settings-timer-slider__edge shrink-0 text-caption text-white/45">${DEFAULTS.timerMinSec}s</span>
+        <input id="timer-slider" class="flex-1" type="range" min="${DEFAULTS.timerMinSec}" max="${DEFAULTS.timerMaxSec}" value="${appState.settings.timer}" />
+        <span class="settings-timer-slider__edge shrink-0 text-caption text-white/45">5 phút</span>
       </div>
-      <div class="settings-timer-value">
-        <span class="settings-timer-value__number" id="timer-slider-value">${value}</span>
-        <span class="settings-timer-value__unit" id="timer-slider-unit">${unit}</span>
+      <div class="settings-timer-value text-center">
+        <span class="settings-timer-value__number text-[clamp(1.75rem,4vw,2rem)] font-bold text-white" id="timer-slider-value">${value}</span>
+        <span class="settings-timer-value__unit text-ui text-white/45" id="timer-slider-unit">${unit}</span>
       </div>
     </div>
   `;
@@ -169,16 +171,16 @@ function renderTimerPanel(appState: AppState): string {
 function renderSoundPanel(appState: AppState, runtime: RuntimeState): string {
   return `
     <div class="settings-panel-card">
-      <div class="settings-panel-card__head">
-        <p class="settings-panel-card__title settings-panel-card__title--inline"><span aria-hidden="true">🔊</span>Âm thanh</p>
-        <label class="settings-toggle">
-          <input id="sound-toggle" type="checkbox" ${appState.settings.sound ? 'checked' : ''} />
+      <div class="settings-panel-card__head flex items-center justify-between gap-3 mb-2.5">
+        <p class="settings-panel-card__title settings-panel-card__title--inline m-0 flex items-center gap-2"><span aria-hidden="true">🔊</span>Âm thanh</p>
+        <label class="settings-toggle inline-flex shrink-0 cursor-pointer">
+          <input id="sound-toggle" type="checkbox" class="absolute h-0 w-0 opacity-0" ${appState.settings.sound ? 'checked' : ''} />
           <span class="settings-toggle__track" aria-hidden="true"></span>
         </label>
       </div>
-      <p class="settings-sound-note muted">
+      <p class="settings-sound-note mb-3.5 text-caption leading-relaxed text-slate-300/90">
         Upload file <strong>.mp3 / .wav / .ogg</strong> (tối đa 2MB). Chọn file để nghe thử trước, sau đó bấm <strong>Lưu</strong> để gán.
-        Mặc định nằm trong <code>public/sounds/</code>.
+        Mặc định nằm trong <code class="text-caption text-violet-300/95">public/sounds/</code>.
       </p>
       ${renderSoundEvents(appState, runtime)}
     </div>
@@ -190,7 +192,7 @@ function renderRewardsPanel(appState: AppState, section: SettingsSection): strin
   const punishmentsActive = section === 'punishments';
 
   return `
-    <div class="settings-rewards-grid">
+    <div class="settings-rewards-grid grid grid-cols-1 gap-3 max-lg:grid-cols-1 lg:landscape:grid-cols-2">
       <div class="settings-panel-card ${giftsActive ? 'settings-panel-card--focus' : ''}">
         <p class="settings-panel-card__title"><span aria-hidden="true">🎁</span>Quà tặng</p>
         <textarea
@@ -211,11 +213,43 @@ function renderRewardsPanel(appState: AppState, section: SettingsSection): strin
   `;
 }
 
+function renderIntroPanel(appState: AppState): string {
+  const { label, url } = appState.settings.introLink;
+
+  return `
+    <div class="settings-panel-card">
+      <p class="settings-panel-card__title"><span aria-hidden="true">🎬</span>Nút liên kết màn Intro</p>
+      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
+        Nút thứ hai trên màn Intro (bên cạnh «Vòng xoay kiến thức»). Chỉ hiện khi đã nhập đường dẫn hợp lệ (<code class="text-caption text-violet-300/95">https://...</code>).
+      </p>
+      <label class="bank-form-label" for="intro-link-label-input">Tên nút</label>
+      <input
+        id="intro-link-label-input"
+        class="input mb-3"
+        type="text"
+        data-settings-field="intro-link-label"
+        placeholder="${DEFAULT_INTRO_LINK_LABEL}"
+        value="${escapeHtml(label)}"
+      />
+      <label class="bank-form-label" for="intro-link-url-input">Đường dẫn (URL)</label>
+      <input
+        id="intro-link-url-input"
+        class="input"
+        type="url"
+        inputmode="url"
+        data-settings-field="intro-link-url"
+        placeholder="https://example.com/kiem-tra"
+        value="${escapeHtml(url)}"
+      />
+    </div>
+  `;
+}
+
 function renderDangerPanel(): string {
   return `
     <div class="settings-panel-card settings-panel-card--danger">
       <p class="settings-panel-card__title"><span aria-hidden="true">🗑</span>Xóa toàn bộ dữ liệu</p>
-      <p class="settings-danger-copy">
+      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
         Xóa sạch toàn bộ lĩnh vực, câu hỏi, lịch sử trả lời và đưa app về dữ liệu mẫu. Hành động này không thể hoàn tác.
       </p>
       <button type="button" class="btn btn-danger" data-action="clear-all">Xóa sạch toàn bộ kho câu hỏi</button>
@@ -233,6 +267,9 @@ function renderContentPanel(appState: AppState, runtime: RuntimeState, section: 
   if (section === 'gifts' || section === 'punishments') {
     return renderRewardsPanel(appState, section);
   }
+  if (section === 'intro') {
+    return renderIntroPanel(appState);
+  }
   return renderDangerPanel();
 }
 
@@ -240,10 +277,10 @@ export function renderSettingsTab(appState: AppState, runtime: RuntimeState): st
   const section = runtime.settingsSection;
 
   return `
-    <section class="panel panel--settings">
-      <div class="settings-layout">
+    <section class="panel panel--settings p-[18px]">
+      <div class="settings-layout flex items-stretch gap-3.5 max-lg:flex-col lg:flex-row">
         ${renderSidebar(section)}
-        <div class="settings-main">
+        <div class="settings-main flex min-w-0 flex-1 flex-col gap-3">
           ${renderStatBar(appState, runtime)}
           <div class="settings-content">${renderContentPanel(appState, runtime, section)}</div>
         </div>

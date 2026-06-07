@@ -1,6 +1,7 @@
 import { appContext } from '../core/state';
 import { buildWheelModel } from '../core/wheel';
 import { renderModal } from './components/modal';
+import { renderConfirmDialog } from './components/confirm-dialog';
 import { renderSpinTab } from './components/spin-tab';
 import { renderBankTab } from './components/bank-tab';
 import { renderSettingsTab } from './components/settings-tab';
@@ -11,6 +12,7 @@ import * as Actions from '../core/actions';
 import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers } from './handlers';
 import { captureScroll, restoreScroll } from '../utils/scroll-restore';
 import { consumeAppEntryAnimation } from './intro-transition';
+import { hasPendingLogoFlight, runLogoFlightToHeader } from './intro-logo-transition';
 
 const TAB_META: Record<'spin' | 'bank' | 'settings', { label: string; short: string; icon: string }> = {
   spin: { label: 'Vòng Quay', short: 'Quay', icon: '🎖️' },
@@ -80,9 +82,9 @@ function renderTabs(): string {
         aria-label="${meta.label}"
         aria-current="${runtime.tab === key ? 'page' : 'false'}"
       >
-        <span class="nav-tab__icon" aria-hidden="true">${meta.icon}</span>
-        <span class="nav-tab__label">${meta.label}</span>
-        <span class="nav-tab__short">${meta.short}</span>
+        <span class="nav-tab__icon leading-none max-md:text-[1.2rem] md:max-lg:text-[1.65rem] lg:text-[1.75rem]" aria-hidden="true">${meta.icon}</span>
+        <span class="nav-tab__label font-bold leading-tight max-md:hidden">${meta.label}</span>
+        <span class="nav-tab__short text-[0.7rem] font-bold leading-tight md:hidden">${meta.short}</span>
       </button>
     `;
   };
@@ -105,9 +107,9 @@ function renderIntroReplayFab(): string {
       aria-label="${INTRO_COPY.replayLabel}"
       title="${INTRO_COPY.replayLabel}"
     >
-      <span class="intro-replay-fab__icon" aria-hidden="true">↻</span>
+      <span class="text-[1.1rem] leading-none" aria-hidden="true">↻</span>
       <span class="intro-replay-fab__label intro-replay-fab__label--short">INTRO</span>
-      <span class="intro-replay-fab__label intro-replay-fab__label--long">${INTRO_COPY.replayLabel}</span>
+      <span class="intro-replay-fab__label intro-replay-fab__label--long hidden tablet:inline">${INTRO_COPY.replayLabel}</span>
     </button>
   `;
 }
@@ -132,34 +134,39 @@ export function render(): void {
 
   cleanupRenderLifecycle();
 
-  const appShellClass = consumeAppEntryAnimation() ? 'app-shell app-shell--entering' : 'app-shell';
+  const enteringFromIntro = consumeAppEntryAnimation();
+  const logoHandoff = hasPendingLogoFlight();
+  const appShellClass = enteringFromIntro
+    ? `app-shell app-shell--entering${logoHandoff ? ' app-shell--entering-logo' : ''} flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row`
+    : 'app-shell flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row';
 
   appRoot.innerHTML = `
     <div class="${appShellClass}">
       ${renderTabs()}
 
-      <div class="app-body">
-        <header class="app-header">
-          <div class="app-header__inner">
+      <div class="app-body flex-1 w-full min-w-0 max-w-full overflow-x-clip p-4 pb-nav [-webkit-overflow-scrolling:touch] lg:landscape:pb-4">
+        <header class="app-header mb-[18px] min-w-0 max-w-full rounded-[18px] border border-accent-yellow/20 px-4 py-3.5 pb-4">
+          <div class="flex min-w-0 items-center gap-3.5">
             <img
-              class="app-header__logo"
+              class="app-header__logo h-12 w-auto shrink-0 rounded-full border-2 border-accent-yellow/45 bg-[#0f2410] object-cover shadow-lg max-lg:h-12 lg:landscape:h-11 xl:landscape:h-14"
               src="${INTRO_ASSETS.headerLogo}"
               alt="${INTRO_COPY.logoAlt}"
               width="56"
               height="56"
               decoding="async"
             />
-            <h1 class="app-header__title">VÒNG QUAY KIẾN THỨC</h1>
+            <h1 class="app-header__title m-0 min-w-0 flex-1 truncate">VÒNG QUAY KIẾN THỨC</h1>
           </div>
         </header>
 
-        <main class="content-area" data-swipe-zone="content">
+        <main class="content-area grid w-full min-w-0 max-w-full gap-[18px]" data-swipe-zone="content">
           ${content}
         </main>
       </div>
 
-      ${runtime.toast ? `<div class="toast">${runtime.toast}</div>` : ''}
+      ${runtime.toast ? `<div class="toast fixed left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/10 bg-gray-900/95 px-5 py-3 text-ui font-semibold shadow-xl bottom-[calc(96px+env(safe-area-inset-bottom,0px))] lg:landscape:bottom-6">${runtime.toast}</div>` : ''}
       ${renderModal(appState, runtime)}
+      ${renderConfirmDialog(runtime.confirmDialog)}
       ${renderIntroReplayFab()}
     </div>
   `;
@@ -168,13 +175,43 @@ export function render(): void {
   mountWheelCanvas();
   restoreFocus(focusSnapshot);
   restoreScroll(appRoot, scrollSnapshot);
+
+  if (hasPendingLogoFlight()) {
+    const headerLogo = appRoot.querySelector<HTMLImageElement>('.app-header__logo');
+    if (headerLogo) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => runLogoFlightToHeader(headerLogo));
+      });
+    }
+  }
 }
 
 function renderIntro(): void {
   cleanupRenderLifecycle();
   cleanupWheel();
-  appRoot.innerHTML = renderIntroScreen();
+  appRoot.innerHTML = renderIntroScreen(appContext.getAppState());
   eventCleanups = [bindIntroHandlers(appRoot)];
+}
+
+function bindConfirmHandlers(): () => void {
+  const onClick = (event: Event): void => {
+    const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-action]') : null;
+    if (!target || !appRoot.contains(target)) {
+      return;
+    }
+
+    if (target.dataset.action === 'cancel-confirm') {
+      Actions.cancelConfirmDialog();
+      return;
+    }
+
+    if (target.dataset.action === 'accept-confirm') {
+      void Actions.confirmDialogAction();
+    }
+  };
+
+  appRoot.addEventListener('click', onClick);
+  return () => appRoot.removeEventListener('click', onClick);
 }
 
 function bindEvents(): Array<() => void> {
@@ -182,6 +219,7 @@ function bindEvents(): Array<() => void> {
 
   return [
     bindNavigationEvents(),
+    bindConfirmHandlers(),
     bindSwipeHandlers(swipeRoot, cleanupWheel),
     bindSpinHandlers(appRoot),
     bindBankHandlers(appRoot),

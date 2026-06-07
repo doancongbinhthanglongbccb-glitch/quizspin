@@ -120,17 +120,18 @@ export function buildLandingRotation(model: WheelModel, targetSegmentId: string,
 
   const pointerOffsetDeg = params.pointerOffsetDeg ?? model.pointerAngleDeg;
   const extraSpins = params.extraSpins ?? DEFAULTS.spinFullTurns;
-  const currentRotation = normalizeDeg(params.startRotationDeg);
 
-  // Cần đưa center của segment trùng với pointer.
-  // Công thức:
-  // landing = pointerOffset - centerAngle + k*360
-  const targetLandingDeg = normalizeDeg(pointerOffsetDeg - target.centerAngle);
+  // normalize(pointerOffset - rotation) === centerAngle
+  // => normalize(rotation) === normalize(pointerOffset - centerAngle)
+  const targetNormalizedRotation = normalizeDeg(pointerOffsetDeg - target.centerAngle);
+  const currentNormalized = normalizeDeg(params.startRotationDeg);
+  let deltaDeg = normalizeDeg(targetNormalizedRotation - currentNormalized);
+  if (deltaDeg === 0) {
+    deltaDeg = 360;
+  }
+
   const extraSpinDeg = Math.max(0, extraSpins) * 360;
-  const nextRotation = params.startRotationDeg + extraSpinDeg + targetLandingDeg;
-
-  // Giữ rotation tăng dần để animation physics dễ đọc hơn.
-  return nextRotation >= params.startRotationDeg ? nextRotation : currentRotation + extraSpinDeg + targetLandingDeg;
+  return params.startRotationDeg + extraSpinDeg + deltaDeg;
 }
 
 export function getSegmentById(model: WheelModel, segmentId: string): WheelLayoutSegment | null {

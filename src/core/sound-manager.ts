@@ -1,4 +1,9 @@
-import { DEFAULT_SOUND_FILES, SUSTAINED_SOUND_EVENTS } from '../config/sounds';
+import {
+  DEFAULT_SOUND_FILES,
+  SOUND_EVENT_CLIPS,
+  SUSTAINED_SOUND_EVENTS,
+  type SoundEventClip,
+} from '../config/sounds';
 import type { CustomSound, SoundEventKey } from '../types';
 import { appContext } from './state';
 
@@ -23,8 +28,13 @@ const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
   loseTurn: { frequency: 220, duration: 260, type: 'sawtooth' },
 };
 
+type SustainedPlayback = {
+  audio: HTMLAudioElement;
+  cleanup?: () => void;
+};
+
 export class SoundManager {
-  private sustained = new Map<SoundEventKey, HTMLAudioElement>();
+  private sustained = new Map<SoundEventKey, SustainedPlayback>();
   private pooled = new Map<SoundEventKey, HTMLAudioElement>();
   private previewAudio: HTMLAudioElement | null = null;
   private previewStopTimer: ReturnType<typeof setTimeout> | null = null;
@@ -58,14 +68,15 @@ export class SoundManager {
   }
 
   stop(event: SoundEventKey): void {
-    const audio = this.sustained.get(event);
-    if (!audio) {
+    const playback = this.sustained.get(event);
+    if (!playback) {
       return;
     }
 
-    audio.pause();
-    audio.currentTime = 0;
-    audio.loop = false;
+    playback.cleanup?.();
+    playback.audio.pause();
+    playback.audio.currentTime = 0;
+    playback.audio.loop = false;
     this.sustained.delete(event);
   }
 
@@ -177,9 +188,19 @@ export class SoundManager {
     return custom?.dataUrl ?? DEFAULT_SOUND_FILES[event];
   }
 
+  private usesDefaultSource(event: SoundEventKey, source: string): boolean {
+    return source === DEFAULT_SOUND_FILES[event];
+  }
+
   private playSustained(event: SoundEventKey, source: string | undefined, loop: boolean): void {
     if (!source) {
       this.playToneFallback(event);
+      return;
+    }
+
+    const clip = loop ? SOUND_EVENT_CLIPS[event] : undefined;
+    if (clip && this.usesDefaultSource(event, source)) {
+      this.playSustainedClip(event, source, clip);
       return;
     }
 
@@ -188,10 +209,48 @@ export class SoundManager {
     const audio = new Audio(source);
     audio.volume = 0.9;
     audio.loop = loop;
-    this.sustained.set(event, audio);
+    this.sustained.set(event, { audio });
     void audio.play().catch(() => {
       this.stop(event);
       this.playToneFallback(event);
+    });
+  }
+
+  private playSustainedClip(event: SoundEventKey, source: string, clip: SoundEventClip): void {
+    this.stop(event);
+
+    const audio = new Audio(source);
+    audio.volume = clip.volume ?? 0.9;
+    audio.loop = false;
+    audio.preload = 'auto';
+
+    const startAt = Math.max(0, clip.startSec);
+    const endAt = startAt + Math.max(0.5, clip.durationSec);
+
+    const onTimeUpdate = (): void => {
+      if (audio.currentTime >= endAt - 0.04) {
+        audio.currentTime = startAt;
+      }
+    };
+
+    const begin = (): void => {
+      audio.currentTime = startAt;
+      void audio.play().catch(() => {
+        this.stop(event);
+        this.playToneFallback(event);
+      });
+    };
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      begin();
+    } else {
+      audio.addEventListener('loadedmetadata', begin, { once: true });
+    }
+
+    this.sustained.set(event, {
+      audio,
+      cleanup: () => audio.removeEventListener('timeupdate', onTimeUpdate),
     });
   }
 

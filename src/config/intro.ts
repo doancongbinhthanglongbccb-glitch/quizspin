@@ -6,13 +6,7 @@ export const INTRO_ASSETS = {
 
 export const INTRO_COPY = {
   title: 'ĐOÀN CÔNG BINH THĂNG LONG',
-  motto: 'CHỦ ĐỘNG - SÁNG TẠO - TỰ LỰC - TỰ CƯỜNG - TRƯỞNG THÀNH - VỮNG MẠNH',
-  /** Hai dòng khẩu hiệu — đủ 12 chữ, wrap đẹp trên mobile */
-  mottoLines: [
-    'CHỦ ĐỘNG - SÁNG TẠO - TỰ LỰC - TỰ CƯỜNG',
-    'TRƯỞNG THÀNH - VỮNG MẠNH',
-  ],
-  startLabel: 'BẮT ĐẦU HUẤN LUYỆN',
+  startLabel: 'VÒNG XOAY KIẾN THỨC',
   skipLabel: 'Bỏ qua',
   replayLabel: 'Quay lại Intro',
   logoAlt: 'Đoàn Công Binh Thăng Long',

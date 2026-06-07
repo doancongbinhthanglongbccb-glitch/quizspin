@@ -48,6 +48,54 @@ export function isEssayQuestion(question: Question): boolean {
   return question.type === 'essay';
 }
 
+function stripMcqPrefix(value: string): string {
+  return value.replace(/^[A-Da-d][.):\-\s]+/, '').trim();
+}
+
+function mcqOptionLetter(value: string): string | null {
+  const match = value.trim().match(/^([A-Da-d])[.):\-\s]/);
+  return match ? match[1].toUpperCase() : null;
+}
+
+/** So khớp đáp án MCQ linh hoạt: chữ cái, nội dung, hoặc chuỗi đầy đủ */
+export function isMcqAnswerCorrect(playerAnswer: string, question: Question): boolean {
+  if (!isMcqQuestion(question)) {
+    return false;
+  }
+
+  const player = playerAnswer.trim();
+  const correct = question.answer.trim();
+  if (!player || !correct) {
+    return false;
+  }
+
+  if (player === correct) {
+    return true;
+  }
+
+  const playerCore = stripMcqPrefix(player).toLowerCase();
+  const correctCore = stripMcqPrefix(correct).toLowerCase();
+  if (playerCore && correctCore && playerCore === correctCore) {
+    return true;
+  }
+
+  const playerLetter = mcqOptionLetter(player);
+  const correctLetter = mcqOptionLetter(correct);
+  if (playerLetter && correctLetter && playerLetter === correctLetter) {
+    return true;
+  }
+
+  const options = getQuestionOptions(question);
+  const matchedOption = options.find(
+    (option) => option === player || stripMcqPrefix(option).toLowerCase() === playerCore,
+  );
+  if (matchedOption && (matchedOption === correct || stripMcqPrefix(matchedOption).toLowerCase() === correctCore)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function getQuestionOptions(question: Question): string[] {
   return question.options ?? [];
 }
@@ -238,6 +286,15 @@ export function questionToDraft(question: Question): QuestionDraft {
 
 // ─── App state ───────────────────────────────────────────────────────
 
+export const DEFAULT_INTRO_LINK_LABEL = 'Kiểm tra nhận thức';
+
+export function defaultIntroLinkSettings(): Settings['introLink'] {
+  return {
+    label: DEFAULT_INTRO_LINK_LABEL,
+    url: '',
+  };
+}
+
 export function defaultSettings(): Settings {
   return {
     timer: 30,
@@ -248,6 +305,7 @@ export function defaultSettings(): Settings {
       bindings: {},
       library: [],
     },
+    introLink: defaultIntroLinkSettings(),
   };
 }
 

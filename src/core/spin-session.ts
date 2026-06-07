@@ -101,10 +101,6 @@ export class SpinSession {
     appContext.setRuntimeState({
       spinning: false,
       rotation: normalized,
-      spinHistory: [
-        { label: segment.label, color: segment.color, ts: Date.now() },
-        ...appContext.getRuntimeState().spinHistory,
-      ].slice(0, 12),
     });
 
     callbacks.onComplete({ segment, rotationDeg: normalized });

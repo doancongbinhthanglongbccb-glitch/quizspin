@@ -1,5 +1,10 @@
-import type { AppState, ActiveModal, AnswerRecord, CustomSound, ImportStats, QuestionDraft, SettingsSection, SoundEventKey } from '../types';
-import { createSampleState, defaultQuestionDraft, migrateCategoryQuestions } from '../data';
+import type { AppState, ActiveModal, AnswerRecord, ConfirmDialog, CustomSound, ImportStats, QuestionDraft, SettingsSection, SoundEventKey } from '../types';
+import {
+  createSampleState,
+  defaultIntroLinkSettings,
+  defaultQuestionDraft,
+  migrateCategoryQuestions,
+} from '../data';
 import { DEFAULT_PALETTE, DEFAULTS } from '../config';
 import { SOUND_EVENT_KEYS } from '../config/sounds';
 
@@ -35,7 +40,7 @@ export type RuntimeState = {
     stats: ImportStats;
     diagnostics: Array<{ rowNumber: number; reason: string; rawData: string[] }>;
   } | null;
-  spinHistory: Array<{ label: string; color: string; ts: number }>;
+  confirmDialog: ConfirmDialog | null;
   settingsSection: SettingsSection;
   /** File âm thanh đang chờ xác nhận lưu (preview trước khi gán) */
   soundUploadDraft: SoundUploadDraft | null;
@@ -60,7 +65,7 @@ function createDefaultRuntimeState(): RuntimeState {
     usedGifts: new Set(),
     usedPunishments: new Set(),
     importReport: null,
-    spinHistory: [],
+    confirmDialog: null,
     settingsSection: 'timer',
     soundUploadDraft: null,
     showIntro: false,
@@ -80,7 +85,6 @@ function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
           diagnostics: runtimeState.importReport.diagnostics.map((item) => ({ ...item, rawData: [...item.rawData] })),
         }
       : null,
-    spinHistory: runtimeState.spinHistory.map((item) => ({ ...item })),
   };
 }
 
@@ -109,7 +113,9 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
     importReport: Object.prototype.hasOwnProperty.call(update, 'importReport')
       ? cloneImportReport(update.importReport ?? null)
       : cloneImportReport(current.importReport),
-    spinHistory: update.spinHistory ? update.spinHistory.map((item) => ({ ...item })) : current.spinHistory.map((item) => ({ ...item })),
+    confirmDialog: Object.prototype.hasOwnProperty.call(update, 'confirmDialog')
+      ? (update.confirmDialog ?? null)
+      : current.confirmDialog,
   };
 
   return cloneRuntimeState(merged);
@@ -217,6 +223,15 @@ function normalizeAppState(next: AppState): AppState {
 
   const soundLibrary = migrateSoundLibrary(next.settings.sounds?.library);
 
+  const introLinkRaw = next.settings.introLink;
+  const introLink = {
+    label:
+      typeof introLinkRaw?.label === 'string' && introLinkRaw.label.trim()
+        ? introLinkRaw.label.trim()
+        : defaultIntroLinkSettings().label,
+    url: typeof introLinkRaw?.url === 'string' ? introLinkRaw.url.trim() : '',
+  };
+
   return {
     settings: {
       timer: Math.min(DEFAULTS.timerMaxSec, Math.max(DEFAULTS.timerMinSec, next.settings.timer)),
@@ -227,6 +242,7 @@ function normalizeAppState(next: AppState): AppState {
         bindings: migrateSoundBindings(next.settings.sounds?.bindings, soundLibrary),
         library: soundLibrary,
       },
+      introLink,
     },
     categories,
     answerHistory: migrateAnswerHistory(next.answerHistory),
@@ -240,7 +256,8 @@ function normalizeAppState(next: AppState): AppState {
 export class AppContext {
   private appState: AppState;
   private runtimeState: RuntimeState;
-  private subscribers: (() => void)[] = [];
+  private renderSubscribers: (() => void)[] = [];
+  private persistSubscribers: (() => void)[] = [];
 
   constructor() {
     this.appState = createSampleState();
@@ -260,7 +277,8 @@ export class AppContext {
   setAppState(update: AppState | ((current: AppState) => AppState)): void {
     const nextState = typeof update === 'function' ? update(this.appState) : update;
     this.appState = normalizeAppState(nextState);
-    this.notifySubscribers();
+    this.notifyRenderSubscribers();
+    this.notifyPersistSubscribers();
   }
 
   /**
@@ -275,7 +293,7 @@ export class AppContext {
    */
   setRuntimeState(update: Partial<RuntimeState>): void {
     this.runtimeState = mergeRuntimeState(this.runtimeState, update);
-    this.notifySubscribers();
+    this.notifyRenderSubscribers();
   }
 
   /**
@@ -286,21 +304,33 @@ export class AppContext {
   }
 
   /**
-   * Đăng ký callback để được gọi khi state thay đổi
+   * Đăng ký callback re-render (AppState hoặc RuntimeState thay đổi)
    */
   subscribe(callback: () => void): () => void {
-    this.subscribers.push(callback);
-    // Return unsubscribe function
+    this.renderSubscribers.push(callback);
     return () => {
-      this.subscribers = this.subscribers.filter((cb) => cb !== callback);
+      this.renderSubscribers = this.renderSubscribers.filter((cb) => cb !== callback);
     };
   }
 
   /**
-   * Thông báo cho tất cả subscribers khi state thay đổi
+   * Đăng ký callback persist — chỉ khi AppState thay đổi
    */
-  private notifySubscribers(): void {
-    for (const callback of this.subscribers) {
+  subscribePersist(callback: () => void): () => void {
+    this.persistSubscribers.push(callback);
+    return () => {
+      this.persistSubscribers = this.persistSubscribers.filter((cb) => cb !== callback);
+    };
+  }
+
+  private notifyRenderSubscribers(): void {
+    for (const callback of this.renderSubscribers) {
+      callback();
+    }
+  }
+
+  private notifyPersistSubscribers(): void {
+    for (const callback of this.persistSubscribers) {
       callback();
     }
   }

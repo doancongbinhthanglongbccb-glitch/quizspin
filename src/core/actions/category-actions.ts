@@ -64,20 +64,4 @@ export function renameCategory(category: Category): void {
   }));
 }
 
-export function deleteCategory(category: Category): void {
-  if (!window.confirm(`Xóa toàn bộ ${category.questions.length} câu trong ${category.name}?`)) {
-    return;
-  }
-
-  appContext.setAppState((current) => {
-    const next = current.categories.filter((item) => item.id !== category.id);
-    return { ...current, categories: next.length ? next : [makeCategory('Lĩnh vực mới')] };
-  });
-
-  const runtime = appContext.getRuntimeState();
-  if (runtime.selectedCategoryId === category.id) {
-    appContext.setRuntimeState({ selectedCategoryId: appContext.getAppState().categories[0]?.id ?? null });
-  }
-
-  ensureQuestionDraft(currentCategory());
-}
+export { requestDeleteCategory as deleteCategory } from './confirm-actions';

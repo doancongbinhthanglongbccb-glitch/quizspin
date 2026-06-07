@@ -1,6 +1,6 @@
 import type { RuntimeState } from '../../core/state';
 import type { AppState } from '../../types';
-import { getQuestionOptions, isEssayQuestion, isMcqQuestion } from '../../data';
+import { getQuestionOptions, isEssayQuestion, isMcqAnswerCorrect, isMcqQuestion } from '../../data';
 import { escapeHtml } from '../../utils/html';
 
 function stripOptionLetterPrefix(option: string, letter: string): string {
@@ -36,7 +36,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
     const dashOffset = circumference * (1 - progress);
 
     const timerRing = `
-      <div class="modal-timer">
+      <div class="modal-timer flex justify-center px-0 py-2 pb-1">
         <div
           class="timer-ring timer-ring--large timer-ring--hero ${danger ? 'timer-ring--danger' : ''}"
           data-question-timer-ring
@@ -103,8 +103,8 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
             .map((option, index) => {
               const letter = String.fromCharCode(65 + index);
               const optionText = stripOptionLetterPrefix(option, letter);
-              const isCorrect = showResults && option === question.answer;
-              const isWrong = showResults && selectedAnswer === option && !isCorrect;
+              const isCorrect = showResults && isMcqAnswerCorrect(option, question);
+              const isWrong = showResults && selectedAnswer === option && !isMcqAnswerCorrect(selectedAnswer, question);
               const isSelectedOption = selectedAnswer === option;
               const classes = [
                 'option-chip',
@@ -135,7 +135,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
       : '';
 
     const essayInput = isEssayQuestion(question)
-      ? `<div class="essay-answer">
+      ? `<div class="essay-answer grid gap-2.5">
           <label class="field-label" for="essay-answer-input">Đáp án của bạn</label>
           <textarea
             id="essay-answer-input"
@@ -160,8 +160,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
       ? `<span class="badge modal-review-badge">Xem lại</span>`
       : '';
 
-    const hasAnswer =
-      !!(modal.playerAnswer && modal.playerAnswer.trim()) || !!(selectedAnswer && selectedAnswer.trim());
+    const hasEssayAnswer = !!(modal.playerAnswer && modal.playerAnswer.trim());
 
     const pauseButton =
       !readOnly && !submitted
@@ -178,28 +177,30 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
     const submitButton =
       readOnly || submitted
         ? `<button class="btn btn-primary" data-action="close-modal">Đóng</button>`
-        : isEssayQuestion(question) && hasAnswer
-          ? `<button class="btn btn-submit" data-action="submit-answer">Nộp đáp án</button>`
-          : '';
+        : isMcq
+          ? ''
+          : hasEssayAnswer
+            ? `<button class="btn btn-submit" data-action="submit-answer">Nộp đáp án</button>`
+            : '';
 
     const modalActions = readOnly
-      ? `<div class="modal-actions modal-actions--center">
+      ? `<div class="modal-actions modal-actions--center flex flex-wrap justify-center">
           <button class="btn btn-primary" data-action="close-modal">Đóng</button>
         </div>`
       : submitted
-        ? `<div class="modal-actions modal-actions--center">${submitButton}</div>`
-        : `<div class="modal-actions modal-actions--question">
-            <div class="modal-actions__slot modal-actions__slot--left">${pauseButton}</div>
-            <div class="modal-actions__slot modal-actions__slot--center">${revealButton}</div>
-            <div class="modal-actions__slot modal-actions__slot--right">${submitButton}</div>
+        ? `<div class="modal-actions modal-actions--center flex flex-wrap justify-center">${submitButton}</div>`
+        : `<div class="modal-actions modal-actions--question grid grid-cols-[auto_1fr_auto] items-center gap-2.5 pt-1 max-[479px]:grid-cols-1">
+            <div class="modal-actions__slot modal-actions__slot--left flex min-w-0 justify-start max-[479px]:justify-stretch">${pauseButton}</div>
+            <div class="modal-actions__slot modal-actions__slot--center flex min-w-0 justify-center max-[479px]:justify-stretch">${revealButton}</div>
+            <div class="modal-actions__slot modal-actions__slot--right flex min-w-0 justify-end max-[479px]:justify-stretch">${submitButton}</div>
           </div>`;
 
     return `
-      <div class="modal-backdrop">
+      <div class="modal-backdrop fixed inset-0 z-20 grid place-items-center p-4 animate-modal-backdrop-in bg-slate-950/75 backdrop-blur-sm">
         <section class="modal-card modal-card--question ${readOnly ? 'modal-card--readonly' : ''}">
           ${readOnly || submitted ? '' : timerRing}
-          <div class="modal-meta">${badge}${reviewBadge}</div>
-          <h2 class="modal-title">${escapeHtml(question.question)}</h2>
+          <div class="modal-meta flex flex-wrap justify-center gap-2">${badge}${reviewBadge}</div>
+          <h2 class="modal-title m-0 text-center text-[clamp(1.35rem,3.2vw,2rem)] leading-snug">${escapeHtml(question.question)}</h2>
           ${options}
           ${essayInput}
           ${answerBox}
@@ -211,11 +212,11 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
 
   if (modal.kind === 'gift') {
     return `
-      <div class="modal-backdrop">
-        <section class="modal-card modal-card--simple">
-          <div class="modal-eyebrow">${modal.title}</div>
-          <div class="modal-gift">${modal.text}</div>
-          <div class="modal-actions modal-actions--center">
+      <div class="modal-backdrop fixed inset-0 z-20 grid place-items-center p-4 animate-modal-backdrop-in bg-slate-950/75 backdrop-blur-sm">
+        <section class="modal-card modal-card--simple grid gap-[18px] text-center">
+          <div class="modal-eyebrow text-ui uppercase tracking-[0.18em] text-muted">${modal.title}</div>
+          <div class="modal-gift text-[clamp(1.4rem,4vw,2.7rem)] font-extrabold leading-tight text-muted">${modal.text}</div>
+          <div class="modal-actions modal-actions--center flex flex-wrap justify-center">
             <button class="btn btn-primary" data-action="close-modal">Đóng</button>
           </div>
         </section>
@@ -224,10 +225,10 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
   }
 
   return `
-    <div class="modal-backdrop">
-      <section class="modal-card modal-card--simple">
-        <div class="modal-notice">${modal.text}</div>
-        <div class="modal-actions modal-actions--center">
+    <div class="modal-backdrop fixed inset-0 z-20 grid place-items-center p-4 animate-modal-backdrop-in bg-slate-950/75 backdrop-blur-sm">
+      <section class="modal-card modal-card--simple grid gap-[18px] text-center">
+        <div class="modal-notice text-[clamp(1.4rem,4vw,2.7rem)] font-extrabold leading-tight text-muted">${modal.text}</div>
+        <div class="modal-actions modal-actions--center flex flex-wrap justify-center">
           <button class="btn btn-primary" data-action="close-modal">Đóng</button>
         </div>
       </section>

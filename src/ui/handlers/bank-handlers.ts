@@ -139,11 +139,7 @@ export function bindBankHandlers(root: ParentNode): () => void {
         return;
       }
 
-      if (!window.confirm('Xóa câu hỏi này?')) {
-        return;
-      }
-
-      Actions.deleteQuestion(category.id, id);
+      Actions.requestDeleteQuestion(category.id, id);
       return;
     }
 

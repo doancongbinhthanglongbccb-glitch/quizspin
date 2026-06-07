@@ -1,6 +1,5 @@
 import { soundManager } from './sound-manager';
 import { appContext } from './state';
-import { showToast } from './toast';
 import { updateQuestionTimerDom } from '../utils/question-timer-dom';
 
 const POLL_MS = 250;
@@ -73,10 +72,9 @@ export function startQuestionTimer(): void {
     if (remaining <= 0) {
       if (lastRemaining > 0) {
         stopQuestionTimer();
-        appContext.setRuntimeState({
-          modal: { ...latest.modal, remaining: 0, paused: true },
+        void import('./actions/modal-actions').then(({ handleQuestionTimeUp }) => {
+          handleQuestionTimeUp();
         });
-        showToast('Hết giờ');
       }
       return;
     }

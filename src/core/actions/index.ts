@@ -33,6 +33,13 @@ import {
 import { spin } from './spin-actions';
 import { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent } from './sound-actions';
 import { completeIntro, showIntro } from './intro-actions';
+import {
+  cancelConfirmDialog,
+  confirmDialogAction,
+  requestClearAllData,
+  requestDeleteCategory,
+  requestDeleteQuestion,
+} from './confirm-actions';
 
 export { appContext };
 export { clearEverything, parseExcelImport };
@@ -53,6 +60,13 @@ export { saveQuestionDraft, deleteQuestion, resetQuestionFlags, saveQuestionEdit
 export { spin };
 export { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent };
 export { completeIntro, showIntro };
+export {
+  cancelConfirmDialog,
+  confirmDialogAction,
+  requestClearAllData,
+  requestDeleteCategory,
+  requestDeleteQuestion,
+};
 
 export let renderApp: () => void = render;
 
@@ -63,13 +77,9 @@ export async function setupUI(): Promise<void> {
     renderApp();
   });
 
-  // Persist app state whenever it changes. appContext.persistAppState expects
-  // a saver with signature (key: string, value: AppState) => Promise<void>.
-  // `saveState` has signature (state: AppState) => Promise<void>, so wrap it.
-  appContext.subscribe(() => {
+  appContext.subscribePersist(() => {
     void appContext
       .persistAppState(async (_key, value) => {
-        // Delegate to saveState which writes the atomic 'appState' key.
         await saveState(value);
       })
       .catch(() => undefined);

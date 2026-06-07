@@ -1,7 +1,6 @@
-import { createSampleState, parseQuestionsFromSheet } from '../../data';
+import { parseQuestionsFromSheet } from '../../data';
 import { appContext } from '../state';
-import { clearState, saveState } from '../../storage';
-import { currentCategory, ensureQuestionDraft } from './category-actions';
+import { currentCategory } from './category-actions';
 import { showToast } from './shared';
 
 export function parseExcelImport(file: File): void {
@@ -56,31 +55,4 @@ export function parseExcelImport(file: File): void {
   reader.readAsArrayBuffer(file);
 }
 
-export async function clearEverything(): Promise<void> {
-  if (!window.confirm('Bạn chắc chắn muốn xóa toàn bộ dữ liệu?')) {
-    return;
-  }
-  if (!window.confirm('Hành động này không thể hoàn tác. Xác nhận xóa?')) {
-    return;
-  }
-
-  const sampleState = createSampleState();
-  appContext.setAppState(sampleState);
-
-  appContext.setRuntimeState({
-    selectedCategoryId: sampleState.categories[0]?.id ?? null,
-    editingQuestionId: null,
-    usedQuestionIds: new Set(),
-    usedGifts: new Set(),
-    usedPunishments: new Set(),
-    importReport: null,
-    spinHistory: [],
-  });
-
-  ensureQuestionDraft(currentCategory());
-
-  await clearState().catch(() => undefined);
-  await saveState(appContext.getAppState()).catch(() => undefined);
-
-  showToast('Đã khôi phục dữ liệu mẫu');
-}
+export { requestClearAllData as clearEverything } from './confirm-actions';
