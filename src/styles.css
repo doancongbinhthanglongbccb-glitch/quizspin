@@ -27,8 +27,8 @@
   --nav-height: calc(68px + env(safe-area-inset-bottom, 0px));
   --sidebar-width: 280px;
   --content-pad: 16px;
-  --spin-chrome-y: 280px;
-  --wheel-size: min(calc(100vw - 32px), calc(100dvh - var(--spin-chrome-y)), 520px);
+  --spin-chrome-y: 268px;
+  --wheel-size: min(calc(100vw - 12px), calc(100dvh - var(--spin-chrome-y)), 580px);
   --touch-feedback-ms: 0.12s;
   --tablet-header-est: 96px;
   --tablet-side-est: 260px;
@@ -727,42 +727,14 @@ html {
   aspect-ratio: 1;
   margin: 0 auto;
   border-radius: 50%;
-  filter:
-    drop-shadow(0 0 42px rgba(251, 191, 36, 0.34))
-    drop-shadow(0 0 24px rgba(139, 92, 246, 0.18))
-    drop-shadow(0 26px 58px rgba(0, 0, 0, 0.55));
-  transition: filter 0.2s ease;
+  filter: none;
+  box-shadow: none;
 }
 
 .wheel-frame--spinning {
-  filter:
-    drop-shadow(0 0 58px rgba(251, 191, 36, 0.55))
-    drop-shadow(0 0 36px rgba(139, 92, 246, 0.32))
-    drop-shadow(0 30px 68px rgba(0, 0, 0, 0.62));
-  animation: wheel-spin-glow 0.85s ease-in-out infinite alternate;
-}
-
-/* WebView/mobile: tắt pulse filter khi canvas đang quay — tránh khựng GPU */
-@media (hover: none) and (pointer: coarse) {
-  .wheel-frame--spinning {
-    animation: none;
-  }
-}
-
-@keyframes wheel-spin-glow {
-  from {
-    filter:
-      drop-shadow(0 0 48px rgba(251, 191, 36, 0.48))
-      drop-shadow(0 0 28px rgba(139, 92, 246, 0.26))
-      drop-shadow(0 26px 58px rgba(0, 0, 0, 0.58));
-  }
-
-  to {
-    filter:
-      drop-shadow(0 0 68px rgba(251, 191, 36, 0.62))
-      drop-shadow(0 0 42px rgba(139, 92, 246, 0.38))
-      drop-shadow(0 32px 72px rgba(0, 0, 0, 0.66));
-  }
+  filter: none;
+  box-shadow: none;
+  animation: none;
 }
 
 .wheel-canvas {
@@ -878,6 +850,74 @@ html {
 
 .timer-ring--danger .timer-ring__unit {
   color: #fca5a5;
+}
+
+.timer-ring--prepare .timer-ring__track {
+  stroke: rgba(251, 191, 36, 0.2);
+}
+
+.timer-ring--prepare .timer-ring__progress--prepare {
+  stroke-width: 10;
+  filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.55));
+  transition: stroke-dashoffset 0.28s linear;
+}
+
+.timer-ring--prepare .timer-ring__prepare-label {
+  font-size: clamp(0.72rem, 2.2vw, 0.88rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fde68a;
+  line-height: 1.2;
+}
+
+.timer-ring--prepare .timer-ring__value--prepare {
+  color: #fffbeb;
+  text-shadow: 0 0 24px rgba(251, 191, 36, 0.5);
+}
+
+.timer-ring--prepare .timer-ring__unit {
+  color: #fcd34d;
+}
+
+.modal-timer--prepare {
+  gap: 14px;
+}
+
+.modal-prepare-hint {
+  max-width: 28rem;
+  padding-inline: 8px;
+}
+
+.modal-actions--prepare {
+  padding-top: 6px;
+}
+
+.btn-skip-prepare {
+  min-height: 52px;
+  padding-inline: 28px;
+  border-radius: 14px;
+  border: 2px solid rgba(251, 191, 36, 0.55);
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.22), rgba(217, 119, 6, 0.18));
+  color: #fffbeb;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.btn-skip-prepare:hover {
+  border-color: rgba(253, 224, 71, 0.75);
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.32), rgba(217, 119, 6, 0.26));
+}
+
+.btn-skip-prepare:active {
+  transform: scale(0.98);
 }
 
 @keyframes timer-danger-blink {
@@ -1235,6 +1275,43 @@ html {
 
 .content-area:has(.panel--spin) .app-header {
   margin-bottom: 12px;
+}
+
+/* Android WebView — giảm blur/filter/animation nặng GPU */
+.perf-lite .modal-backdrop,
+.perf-lite .confirm-backdrop {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.perf-lite .nav-shell,
+.perf-lite .intro-replay-fab,
+.perf-lite .toast {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.perf-lite .timer-ring__progress {
+  transition: none;
+}
+
+.perf-lite .timer-ring--hero .timer-ring__progress {
+  filter: none;
+}
+
+.perf-lite .timer-ring--danger {
+  animation: none;
+}
+
+.perf-lite .intro-screen {
+  animation: none;
+}
+
+.perf-lite .intro-screen__logo,
+.perf-lite .intro-screen__title,
+.perf-lite .btn-intro-start,
+.perf-lite .btn-intro-link {
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

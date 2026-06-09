@@ -78,7 +78,7 @@ export function createDefaultRuntimeState(): RuntimeState {
     settingsSection: 'timer',
     settingsDraft: null,
     soundUploadDraft: null,
-    showIntro: false,
+    showIntro: true,
   };
 }
 

@@ -1,3 +1,4 @@
+import { QUESTION_MODAL_CONFIG } from '../../config/question-modal';
 import type { RuntimeState } from '../../core/state';
 import type { AppState } from '../../types';
 import { getQuestionOptions, isEssayQuestion, isMcqAnswerCorrect, isMcqQuestion } from '../../data';
@@ -22,6 +23,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
     }
 
     const readOnly = modal.readOnly === true;
+    const isPreparing = modal.isPreparing && !readOnly;
     const revealed = modal.revealed;
     const submitted = modal.submitted;
     const showResults = readOnly || revealed || submitted;
@@ -30,10 +32,65 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
     const remaining = Math.max(0, modal.remaining);
     const total = Math.max(1, modal.timer);
     const progress = remaining / total;
-    const danger = remaining > 0 && remaining <= 5;
+    const danger = !isPreparing && remaining > 0 && remaining <= 5;
     const radius = 46;
     const circumference = 2 * Math.PI * radius;
     const dashOffset = circumference * (1 - progress);
+
+    const prepareSec = QUESTION_MODAL_CONFIG.prepareSec;
+    const prepareRemaining = Math.max(0, modal.prepareRemaining);
+    const prepareProgress = prepareRemaining / prepareSec;
+    const prepareDashOffset = circumference * (1 - prepareProgress);
+
+    const prepareTimerRing = `
+      <div class="modal-timer modal-timer--prepare flex flex-col items-center gap-4 px-0 py-2 pb-1">
+        <div
+          class="timer-ring timer-ring--prepare timer-ring--large timer-ring--hero"
+          data-question-prepare-ring
+          data-timer-circumference="${circumference}"
+          aria-label="Chuẩn bị — còn ${Math.max(1, prepareRemaining)} giây"
+          style="--timer-circumference:${circumference};--timer-offset:${prepareDashOffset}"
+        >
+          <svg viewBox="0 0 100 100" class="timer-ring__svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="timer-ring-grad-prepare" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fef3c7" />
+                <stop offset="40%" stop-color="#fbbf24" />
+                <stop offset="100%" stop-color="#d97706" />
+              </linearGradient>
+            </defs>
+            <circle
+              class="timer-ring__track"
+              cx="50"
+              cy="50"
+              r="${radius}"
+              pathLength="${circumference}"
+              stroke-dasharray="${circumference}"
+              stroke-dashoffset="0"
+            />
+            <circle
+              class="timer-ring__progress timer-ring__progress--prepare"
+              data-question-prepare-progress
+              cx="50"
+              cy="50"
+              r="${radius}"
+              pathLength="${circumference}"
+              stroke="url(#timer-ring-grad-prepare)"
+              stroke-dasharray="${circumference}"
+              stroke-dashoffset="${prepareDashOffset}"
+            />
+          </svg>
+          <div class="timer-ring__center">
+            <span class="timer-ring__prepare-label">Chuẩn bị...</span>
+            <span class="timer-ring__value timer-ring__value--prepare" data-question-prepare-value>${Math.max(1, prepareRemaining)}</span>
+            <span class="timer-ring__unit">giây</span>
+          </div>
+        </div>
+        <p class="modal-prepare-hint m-0 text-center text-sm font-semibold leading-snug text-amber-200/90">
+          Đọc câu hỏi bắt đầu
+        </p>
+      </div>
+    `;
 
     const timerRing = `
       <div class="modal-timer flex justify-center px-0 py-2 pb-1">
@@ -164,7 +221,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
     const hasEssayAnswer = !!(modal.playerAnswer && modal.playerAnswer.trim());
 
     const pauseButton =
-      !readOnly && !submitted
+      !readOnly && !submitted && !isPreparing
         ? `<button class="btn btn-ghost" data-action="toggle-pause">${modal.paused ? 'Tiếp tục' : 'Tạm dừng'}</button>`
         : '';
 
@@ -184,7 +241,13 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
             ? `<button class="btn btn-submit" data-action="submit-answer">Nộp đáp án</button>`
             : '';
 
-    const modalActions = readOnly
+    const skipPrepareButton = `<button type="button" class="btn btn-skip-prepare" data-action="skip-prepare">Bắt đầu ngay</button>`;
+
+    const modalActions = isPreparing
+      ? `<div class="modal-actions modal-actions--center modal-actions--prepare flex flex-wrap justify-center">
+          ${skipPrepareButton}
+        </div>`
+      : readOnly
       ? `<div class="modal-actions modal-actions--center flex flex-wrap justify-center">
           <button class="btn btn-primary" data-action="close-modal">Đóng</button>
         </div>`
@@ -204,7 +267,7 @@ export function renderModal(appState: AppState, runtime: RuntimeState): string {
     return `
       <div class="modal-backdrop modal-backdrop--question fixed inset-0 z-20 animate-modal-backdrop-in bg-slate-950/75 backdrop-blur-sm">
         <section class="modal-card modal-card--question ${readOnly ? 'modal-card--readonly' : ''}">
-          ${readOnly || submitted ? '' : timerRing}
+          ${readOnly || submitted ? '' : isPreparing ? prepareTimerRing : timerRing}
           <div class="modal-meta flex flex-wrap justify-center gap-2">${badge}${reviewBadge}</div>
           <h2 class="modal-title">${escapeHtml(question.question)}</h2>
           ${options}

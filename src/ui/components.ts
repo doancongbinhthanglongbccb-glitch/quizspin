@@ -10,11 +10,12 @@ import { INTRO_ASSETS, INTRO_COPY } from '../config/intro';
 import { WheelRenderer } from './components/wheel';
 import * as Actions from '../core/actions';
 import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers } from './handlers';
+import { isIntroExitInProgress } from './handlers/intro-handlers';
 import { initModalDom } from './handlers/modal-handlers';
 import { syncToastDom } from '../utils/sync-toast-dom';
 import { captureScroll, restoreScroll } from '../utils/scroll-restore';
 import { consumeAppEntryAnimation } from './intro-transition';
-import { hasPendingLogoFlight, runLogoFlightToHeader } from './intro-logo-transition';
+import { clearLogoFlight, hasPendingLogoFlight, runLogoFlightToHeader } from './intro-logo-transition';
 import { getModalRenderKey } from '../utils/modal-render-key';
 import { getShellRenderKey } from '../utils/shell-render-key';
 import { syncSpinUi } from '../utils/sync-spin-ui';
@@ -323,6 +324,15 @@ function renderOnce(): void {
 }
 
 function renderIntro(): void {
+  if (isIntroExitInProgress()) {
+    return;
+  }
+
+  if (appRoot.querySelector('.intro-screen')) {
+    return;
+  }
+
+  clearLogoFlight();
   cleanupRenderLifecycle();
   cleanupWheel();
   overlayHosts = null;

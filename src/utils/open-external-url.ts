@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { suppressAndroidIntroOnResume } from './android-intro-resume';
 
 function isSafeHttpUrl(url: string): boolean {
   try {
@@ -18,6 +19,7 @@ export async function openExternalUrl(url: string): Promise<boolean> {
 
   if (Capacitor.isNativePlatform()) {
     try {
+      suppressAndroidIntroOnResume();
       const { Browser } = await import('@capacitor/browser');
       await Browser.open({ url: trimmed });
       return true;

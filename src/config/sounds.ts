@@ -1,22 +1,5 @@
 import type { SoundEventKey } from '../types';
 
-/** Đoạn nhạc intro lặp (giây) — tối ưu thời lượng, không phát full ~3.7 phút */
-const INTRO_BED_CLIP = {
-  startSec: 0,
-  durationSec: 26,
-  volume: 0.82,
-} as const;
-
-export type SoundEventClip = {
-  startSec: number;
-  durationSec: number;
-  volume?: number;
-};
-
-export const SOUND_EVENT_CLIPS: Partial<Record<SoundEventKey, SoundEventClip>> = {
-  introBed: INTRO_BED_CLIP,
-};
-
 export const SOUND_EVENT_KEYS: SoundEventKey[] = [
   'introBed',
   'spinBed',

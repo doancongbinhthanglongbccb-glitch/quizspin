@@ -3,26 +3,29 @@ import * as Actions from '../../core/actions';
 import { soundManager } from '../../core/sound-manager';
 import { markAppEntryAnimation } from '../intro-transition';
 import {
-  clearLogoFlight,
   getLogoFlightSwitchDelay,
   snapshotLogoRect,
   startLogoFlight,
 } from '../intro-logo-transition';
+import { INTRO_TIMING } from '../../config/intro';
 import { openExternalUrl } from '../../utils/open-external-url';
 import { showToast } from '../../core/toast';
 
-const INTRO_EXIT_MS = 480;
-
 let introExitPending = false;
+
+/** Đang chạy animation thoát intro — không rebuild màn intro. */
+export function isIntroExitInProgress(): boolean {
+  return introExitPending;
+}
 
 function getActionTarget(event: Event, root: ParentNode, selector: string): HTMLElement | null {
   const target = event.target instanceof Element ? event.target.closest<HTMLElement>(selector) : null;
   return target && root.contains(target) ? target : null;
 }
 
-async function finishIntroExit(): Promise<void> {
+function finishIntroExit(): void {
   try {
-    await Actions.completeIntro();
+    Actions.completeIntro();
   } finally {
     introExitPending = false;
   }
@@ -45,7 +48,7 @@ function beginIntroExit(root: ParentNode): void {
   }
 
   if (!screen) {
-    void finishIntroExit();
+    finishIntroExit();
     return;
   }
 
@@ -58,21 +61,27 @@ function beginIntroExit(root: ParentNode): void {
     }
     done = true;
     screen.removeEventListener('animationend', onAnimationEnd);
-    void finishIntroExit();
+    finishIntroExit();
   };
 
   const onAnimationEnd = (event: AnimationEvent): void => {
-    if (event.target !== screen || event.animationName !== 'intro-fade-out') {
+    if (event.target !== screen) {
       return;
     }
-    if (!logoHandoff) {
+    if (logoHandoff && event.animationName === 'intro-backdrop-fade-out') {
+      complete();
+      return;
+    }
+    if (!logoHandoff && event.animationName === 'intro-fade-out') {
       complete();
     }
   };
 
   screen.addEventListener('animationend', onAnimationEnd);
 
-  const switchDelay = logoHandoff ? getLogoFlightSwitchDelay() : INTRO_EXIT_MS + 50;
+  const switchDelay = logoHandoff
+    ? getLogoFlightSwitchDelay() + 50
+    : INTRO_TIMING.fullExitMs + 50;
   window.setTimeout(complete, switchDelay);
 }
 
@@ -112,7 +121,6 @@ export function bindIntroHandlers(root: ParentNode): () => void {
   return () => {
     root.removeEventListener('click', onClick);
     soundManager.stop('introBed');
-    clearLogoFlight();
     introExitPending = false;
   };
 }

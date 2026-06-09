@@ -1,8 +1,7 @@
-import { INTRO_COPY } from '../config/intro';
+import { INTRO_COPY, INTRO_TIMING } from '../config/intro';
 
 const LOGO_FLIGHT_MS = 640;
-const APP_SWITCH_DELAY_MS = 160;
-const LOGO_FLIGHT_ORPHAN_MS = LOGO_FLIGHT_MS + APP_SWITCH_DELAY_MS + 800;
+const LOGO_FLIGHT_ORPHAN_MS = LOGO_FLIGHT_MS + INTRO_TIMING.backdropExitMs + 800;
 
 export type LogoFlightSnapshot = {
   left: number;
@@ -30,8 +29,11 @@ export function snapshotLogoRect(element: HTMLElement): LogoFlightSnapshot {
   };
 }
 
+/** Chờ intro backdrop fade xong rồi mới mount shell game (logo bay lên header). */
 export function getLogoFlightSwitchDelay(): number {
-  return pendingFlight && !prefersReducedMotion() ? APP_SWITCH_DELAY_MS : 480;
+  return pendingFlight && !prefersReducedMotion()
+    ? INTRO_TIMING.backdropExitMs
+    : INTRO_TIMING.fullExitMs;
 }
 
 export function startLogoFlight(from: LogoFlightSnapshot, src: string): boolean {

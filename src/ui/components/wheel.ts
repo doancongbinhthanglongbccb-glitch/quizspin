@@ -1,6 +1,7 @@
 import { appContext } from '../../core/state';
 import type { WheelModel, WheelLayoutSegment } from '../../core/wheel';
 import { degreesToRadians } from '../../utils/angles';
+import { getCanvasDevicePixelRatio, prefersLiteEffects } from '../../utils/platform';
 import { getWheelDisplayRotation } from '../../utils/wheel-display-rotation';
 
 /**
@@ -18,16 +19,17 @@ function renderWheelHTML(spinning = false): string {
 // ============================================================================
 
 const WHEEL_CONFIG = {
-  padding: 20,
-  pointerHeight: 42,
-  pointerWidth: 26,
+  padding: 6,
+  pointerHeight: 40,
+  pointerWidth: 24,
   centerDotRadius: 12,
   segmentBorderWidth: 2,
   minRadius: 120,
-  labelMaxFontSize: 28,
+  labelMaxFontSize: 30,
   labelMinFontSize: 14,
-  labelFontScale: 0.108,
+  labelFontScale: 0.112,
   labelMaxLines: 3,
+  chromeInset: 3,
 };
 
 const WHEEL_CANVAS_ID = 'wheel-canvas';
@@ -39,6 +41,37 @@ type WheelMountState = {
 };
 
 let mountState: WheelMountState | null = null;
+
+type WheelGeometry = {
+  canvasWidth: number;
+  canvasHeight: number;
+  centerX: number;
+  centerY: number;
+  radius: number;
+};
+
+type SegmentsLayerCache = {
+  modelSignature: string;
+  geometryKey: string;
+  radius: number;
+  canvas: HTMLCanvasElement;
+};
+
+type FrameStaticCache = {
+  geometryKey: string;
+  underlay: HTMLCanvasElement;
+  overlay: HTMLCanvasElement;
+};
+
+let segmentsLayerCache: SegmentsLayerCache | null = null;
+let frameStaticCache: FrameStaticCache | null = null;
+const labelLayoutCache = new Map<string, { fontSize: number; lines: string[] }>();
+
+function clearWheelCaches(): void {
+  segmentsLayerCache = null;
+  frameStaticCache = null;
+  labelLayoutCache.clear();
+}
 
 function buildModelSignature(model: WheelModel): string {
   return model.segments.map((segment) => `${segment.id}:${segment.label}:${segment.color}`).join('|');
@@ -60,7 +93,7 @@ function getCachedCanvasSize(canvas: HTMLCanvasElement): CanvasSize {
     return cachedSize;
   }
 
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = getCanvasDevicePixelRatio();
   return {
     width: Math.max(1, canvas.width / dpr || 450),
     height: Math.max(1, canvas.height / dpr || 450),
@@ -69,7 +102,7 @@ function getCachedCanvasSize(canvas: HTMLCanvasElement): CanvasSize {
 }
 
 function measureCanvasSize(canvas: HTMLCanvasElement): CanvasSize {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = getCanvasDevicePixelRatio();
   const rect = canvas.getBoundingClientRect();
   const style = window.getComputedStyle(canvas);
 
@@ -166,14 +199,30 @@ function fitLabelLayout(
   label: string,
   maxWidth: number,
   radius: number,
+  segmentId?: string,
 ): { fontSize: number; lines: string[] } {
+  const cacheKey = segmentId
+    ? `${segmentId}|${Math.round(maxWidth)}|${Math.round(radius)}|${label}`
+    : '';
+
+  if (cacheKey) {
+    const cached = labelLayoutCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
   const { max: maxFontSize, min: minFontSize } = resolveLabelFontBounds(radius);
 
   for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 1) {
     ctx.font = `700 ${fontSize}px ${LABEL_FONT_STACK}`;
     const lines = wrapLabelToWidth(ctx, label, maxWidth).map((line) => trimTextToWidth(ctx, line, maxWidth));
     if (lines.length <= WHEEL_CONFIG.labelMaxLines) {
-      return { fontSize, lines };
+      const layout = { fontSize, lines };
+      if (cacheKey) {
+        labelLayoutCache.set(cacheKey, layout);
+      }
+      return layout;
     }
   }
 
@@ -182,7 +231,11 @@ function fitLabelLayout(
     .slice(0, WHEEL_CONFIG.labelMaxLines)
     .map((line) => trimTextToWidth(ctx, line, maxWidth));
 
-  return { fontSize: minFontSize, lines: fallbackLines };
+  const layout = { fontSize: minFontSize, lines: fallbackLines };
+  if (cacheKey) {
+    labelLayoutCache.set(cacheKey, layout);
+  }
+  return layout;
 }
 
 /** Lật 180° khi nhãn nằm nửa trên vòng — tránh chữ đọc ngược trên màn hình. */
@@ -254,7 +307,7 @@ function drawSegment(
   const textX = textRadius * Math.cos(centerAngleRad);
   const textY = textRadius * Math.sin(centerAngleRad);
   const segmentChordWidth = Math.max(56, 2 * textRadius * Math.sin(sliceRad / 2) * 0.92);
-  const labelLayout = fitLabelLayout(ctx, segment.label, segmentChordWidth, radius);
+  const labelLayout = fitLabelLayout(ctx, segment.label, segmentChordWidth, radius, segment.id);
   const labelRotation = shouldFlipLabel(segment.centerAngle) ? centerAngleRad + Math.PI : centerAngleRad;
 
   ctx.save();
@@ -264,11 +317,6 @@ function drawSegment(
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-  ctx.shadowBlur = Math.max(6, Math.round(labelLayout.fontSize * 0.28));
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = Math.max(2, Math.round(labelLayout.fontSize * 0.1));
 
   const lines = labelLayout.lines;
   const lineHeight = Math.round(labelLayout.fontSize * 1.1);
@@ -294,28 +342,9 @@ function drawPointer(ctx: CanvasRenderingContext2D, centerX: number, centerY: nu
 
   ctx.save();
 
-  // Halo vàng gold — glow mạnh, shadow sâu
-  ctx.shadowColor = 'rgba(251, 191, 36, 0.95)';
-  ctx.shadowBlur = 34;
-  ctx.shadowOffsetX = 3;
-  ctx.shadowOffsetY = 0;
-  ctx.fillStyle = 'rgba(251, 191, 36, 0.42)';
-  ctx.beginPath();
-  ctx.moveTo(tipX, centerY);
-  ctx.lineTo(baseX + 5, centerY - pw * 0.82);
-  ctx.lineTo(baseX + 5, centerY + pw * 0.82);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
-  ctx.shadowBlur = 18;
-  ctx.shadowOffsetX = 6;
-  ctx.shadowOffsetY = 2;
-
   const pointerGradient = ctx.createLinearGradient(tipX, centerY, baseX, centerY);
   pointerGradient.addColorStop(0, '#fffbeb');
-  pointerGradient.addColorStop(0.35, '#fbbf24');
-  pointerGradient.addColorStop(0.72, '#f59e0b');
+  pointerGradient.addColorStop(0.4, '#fbbf24');
   pointerGradient.addColorStop(1, '#b45309');
 
   ctx.fillStyle = pointerGradient;
@@ -326,65 +355,38 @@ function drawPointer(ctx: CanvasRenderingContext2D, centerX: number, centerY: nu
   ctx.closePath();
   ctx.fill();
 
-  ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.82)';
-  ctx.lineWidth = 1.75;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.lineWidth = 1.5;
   ctx.stroke();
-
-  ctx.strokeStyle = 'rgba(180, 83, 9, 0.55)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(tipX, centerY);
-  ctx.lineTo(baseX, centerY - pw / 2);
-  ctx.lineTo(baseX, centerY + pw / 2);
-  ctx.closePath();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(tipX + 3, centerY);
-  ctx.lineTo(baseX - ph * 0.2, centerY - pw * 0.24);
-  ctx.lineTo(baseX - ph * 0.2, centerY + pw * 0.24);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
-  ctx.fill();
 
   ctx.restore();
 }
 
 function drawWheelChrome(ctx: CanvasRenderingContext2D, radius: number): void {
+  const rim = radius + WHEEL_CONFIG.chromeInset;
+
   ctx.save();
 
-  ctx.shadowColor = 'rgba(139, 92, 246, 0.35)';
-  ctx.shadowBlur = 24;
-  ctx.strokeStyle = 'rgba(139, 92, 246, 0.22)';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.arc(0, 0, radius + 10, 0, Math.PI * 2);
-  ctx.stroke();
-
-  const ringGradient = ctx.createRadialGradient(0, 0, radius * 0.62, 0, 0, radius + 10);
+  const ringGradient = ctx.createRadialGradient(0, 0, radius * 0.62, 0, 0, rim);
   ringGradient.addColorStop(0, 'rgba(28, 25, 44, 0.96)');
   ringGradient.addColorStop(0.5, 'rgba(14, 12, 24, 0.99)');
   ringGradient.addColorStop(0.82, 'rgba(251, 191, 36, 0.22)');
   ringGradient.addColorStop(1, 'rgba(251, 191, 36, 0.42)');
   ctx.fillStyle = ringGradient;
   ctx.beginPath();
-  ctx.arc(0, 0, radius + 7, 0, Math.PI * 2);
+  ctx.arc(0, 0, rim, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.shadowColor = 'rgba(251, 191, 36, 0.45)';
-  ctx.shadowBlur = 14;
   ctx.strokeStyle = 'rgba(251, 191, 36, 0.58)';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.arc(0, 0, radius + 7, 0, Math.PI * 2);
+  ctx.arc(0, 0, rim, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.shadowColor = 'transparent';
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(0, 0, radius + 4, 0, Math.PI * 2);
+  ctx.arc(0, 0, radius + 1, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
@@ -402,9 +404,143 @@ function drawCenterCap(ctx: CanvasRenderingContext2D): void {
   ctx.restore();
 }
 
+function computeWheelGeometry(canvasWidth: number, canvasHeight: number): WheelGeometry {
+  const pointerPad = WHEEL_CONFIG.pointerHeight + 2;
+  const centerX = canvasWidth / 2 - pointerPad * 0.12;
+  const centerY = canvasHeight / 2;
+  const radius = Math.max(
+    WHEEL_CONFIG.minRadius,
+    Math.min(
+      centerX - WHEEL_CONFIG.padding,
+      centerY - WHEEL_CONFIG.padding,
+      canvasWidth - centerX - WHEEL_CONFIG.padding - pointerPad * 0.92,
+    ),
+  );
+
+  return { canvasWidth, canvasHeight, centerX, centerY, radius };
+}
+
+function buildGeometryKey(geometry: WheelGeometry, dpr: number): string {
+  return `${geometry.canvasWidth}x${geometry.canvasHeight}@${dpr}|r${geometry.radius}`;
+}
+
+/** Rasterize segments một lần — mỗi frame quay chỉ xoay bitmap này. */
+function ensureSegmentsLayerCache(model: WheelModel, geometry: WheelGeometry, dpr: number): SegmentsLayerCache {
+  const modelSignature = buildModelSignature(model);
+  const geometryKey = buildGeometryKey(geometry, dpr);
+
+  if (
+    segmentsLayerCache &&
+    segmentsLayerCache.modelSignature === modelSignature &&
+    segmentsLayerCache.geometryKey === geometryKey
+  ) {
+    return segmentsLayerCache;
+  }
+
+  if (!segmentsLayerCache || segmentsLayerCache.modelSignature !== modelSignature) {
+    labelLayoutCache.clear();
+  }
+
+  const diameter = geometry.radius * 2;
+  const layerCanvas = document.createElement('canvas');
+  layerCanvas.width = Math.max(1, Math.round(diameter * dpr));
+  layerCanvas.height = Math.max(1, Math.round(diameter * dpr));
+
+  const layerCtx = layerCanvas.getContext('2d');
+  if (layerCtx) {
+    layerCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    layerCtx.translate(geometry.radius, geometry.radius);
+    model.segments.forEach((segment) => {
+      drawSegment(layerCtx, segment, geometry.radius);
+    });
+  }
+
+  segmentsLayerCache = {
+    modelSignature,
+    geometryKey,
+    radius: geometry.radius,
+    canvas: layerCanvas,
+  };
+
+  return segmentsLayerCache;
+}
+
+function ensureFrameStaticCache(geometry: WheelGeometry, dpr: number): FrameStaticCache {
+  const geometryKey = buildGeometryKey(geometry, dpr);
+  if (frameStaticCache?.geometryKey === geometryKey) {
+    return frameStaticCache;
+  }
+
+  const { canvasWidth, canvasHeight, centerX, centerY, radius } = geometry;
+  const pixelWidth = Math.max(1, Math.round(canvasWidth * dpr));
+  const pixelHeight = Math.max(1, Math.round(canvasHeight * dpr));
+
+  const underlay = document.createElement('canvas');
+  underlay.width = pixelWidth;
+  underlay.height = pixelHeight;
+  const underlayCtx = underlay.getContext('2d');
+  if (underlayCtx) {
+    underlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    underlayCtx.save();
+    underlayCtx.translate(centerX, centerY);
+    drawWheelChrome(underlayCtx, radius);
+    underlayCtx.restore();
+  }
+
+  const overlay = document.createElement('canvas');
+  overlay.width = pixelWidth;
+  overlay.height = pixelHeight;
+  const overlayCtx = overlay.getContext('2d');
+  if (overlayCtx) {
+    overlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    overlayCtx.save();
+    overlayCtx.translate(centerX, centerY);
+    drawCenterCap(overlayCtx);
+    overlayCtx.strokeStyle = 'rgba(251, 191, 36, 0.48)';
+    overlayCtx.lineWidth = 2;
+    overlayCtx.stroke();
+    overlayCtx.restore();
+    drawPointer(overlayCtx, centerX, centerY, radius);
+  }
+
+  frameStaticCache = { geometryKey, underlay, overlay };
+  return frameStaticCache;
+}
+
+function drawComposedWheel(
+  ctx: CanvasRenderingContext2D,
+  geometry: WheelGeometry,
+  segmentsCache: SegmentsLayerCache,
+  rotationDeg: number,
+  dpr: number,
+): void {
+  const { canvasWidth, canvasHeight, centerX, centerY, radius } = geometry;
+  const staticCache = ensureFrameStaticCache(geometry, dpr);
+  const spinning = appContext.getRuntimeState().spinning;
+
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  ctx.drawImage(staticCache.underlay, 0, 0, canvasWidth, canvasHeight);
+
+  ctx.save();
+  if (prefersLiteEffects()) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'medium';
+  }
+  ctx.translate(centerX, centerY);
+  ctx.rotate((rotationDeg * Math.PI) / 180);
+  const diameter = radius * 2;
+  ctx.drawImage(segmentsCache.canvas, -radius, -radius, diameter, diameter);
+  ctx.restore();
+
+  ctx.drawImage(staticCache.overlay, 0, 0, canvasWidth, canvasHeight);
+
+  if (spinning && prefersLiteEffects()) {
+    ctx.imageSmoothingQuality = 'high';
+  }
+}
+
 /**
- * Vẽ toàn bộ wheel vào canvas.
- * Rotation được apply via transform trước khi vẽ segments.
+ * Vẽ wheel — dùng layer cache để tránh đo/vẽ lại nhãn mỗi frame khi quay.
  */
 function drawWheel(canvasId: string, model: WheelModel, rotationDeg: number): void {
   const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
@@ -419,59 +555,20 @@ function drawWheel(canvasId: string, model: WheelModel, rotationDeg: number): vo
     return;
   }
 
+  if (!appContext.getRuntimeState().spinning) {
+    syncCanvasSize(canvas);
+  }
+
   const canvasSize = getCachedCanvasSize(canvas);
-  const canvasWidth = canvasSize.width;
-  const canvasHeight = canvasSize.height;
-
-  // Clear canvas
-  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-  // Calculate positions — dành chỗ bên phải cho pointer
-  const pointerPad = WHEEL_CONFIG.pointerHeight + 6;
-  const centerX = canvasWidth / 2 - pointerPad * 0.25;
-  const centerY = canvasHeight / 2;
-  const radius = Math.max(
-    WHEEL_CONFIG.minRadius,
-    Math.min(
-      centerX - WHEEL_CONFIG.padding,
-      centerY - WHEEL_CONFIG.padding,
-      canvasWidth - centerX - WHEEL_CONFIG.padding - pointerPad,
-    ),
-  );
-
-  // Draw wheel background circle
-  ctx.save();
-  ctx.translate(centerX, centerY);
-  drawWheelChrome(ctx, radius);
-  ctx.restore();
-
-  // Save state and apply rotation
-  ctx.save();
-  ctx.translate(centerX, centerY);
-  ctx.rotate((rotationDeg * Math.PI) / 180);
-
-  // Draw all segments
-  model.segments.forEach((segment) => {
-    drawSegment(ctx, segment, radius);
-  });
-
-  ctx.restore();
-
-  // Draw center decorative circle
-  ctx.save();
-  ctx.translate(centerX, centerY);
-  drawCenterCap(ctx);
-  ctx.strokeStyle = 'rgba(251, 191, 36, 0.48)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.restore();
-
-  drawPointer(ctx, centerX, centerY, radius);
+  const geometry = computeWheelGeometry(canvasSize.width, canvasSize.height);
+  const segmentsCache = ensureSegmentsLayerCache(model, geometry, canvasSize.dpr);
+  drawComposedWheel(ctx, geometry, segmentsCache, rotationDeg, canvasSize.dpr);
 }
 
 function destroyWheelMount(): void {
   mountState?.cleanup();
   mountState = null;
+  clearWheelCaches();
 }
 
 /**
@@ -502,10 +599,12 @@ function ensureWheelMounted(
   }
 
   mountState?.cleanup();
+  clearWheelCaches();
 
   const canvas = document.createElement('canvas');
   canvas.id = canvasId;
   canvas.className = 'wheel-canvas';
+  canvas.getContext('2d', { alpha: true, desynchronized: true });
   host.replaceChildren(canvas);
 
   const cleanup = setupWheelCanvas(canvasId, model, rotationDeg);
@@ -531,6 +630,7 @@ function setupWheelCanvas(canvasId: string, model: WheelModel, initialRotationDe
   // Handle size changes without reading offsetWidth on every draw.
   let resizeTimeout: number | undefined;
   const refreshCanvas = (): void => {
+    clearWheelCaches();
     initializeCanvasForHighDPI(canvas);
     drawWheel(canvasId, model, getWheelDisplayRotation());
   };

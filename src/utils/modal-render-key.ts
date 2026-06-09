@@ -32,6 +32,7 @@ export function getModalRenderKey(appState: AppState, runtime: RuntimeState): st
       modal.submitted,
       modal.revealed,
       modal.readOnly ?? false,
+      modal.isPreparing,
       modal.timer,
     ].join('|');
   }

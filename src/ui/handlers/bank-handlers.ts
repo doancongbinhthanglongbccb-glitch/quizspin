@@ -1,6 +1,7 @@
 import { appContext } from '../../core/state';
 import type { QuestionDraft, QuestionFilter, QuestionType } from '../../types';
 import * as Actions from '../../core/actions';
+import { suppressAndroidIntroOnResume } from '../../utils/android-intro-resume';
 import { throttle } from '../../utils/throttle';
 
 const importExcel = throttle((file: File) => Actions.parseExcelImport(file), 800);
@@ -228,7 +229,15 @@ export function bindBankHandlers(root: ParentNode): () => void {
     }
   };
 
+  const onFilePickerOpen = (event: Event): void => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.id === 'excel-input') {
+      suppressAndroidIntroOnResume();
+    }
+  };
+
   root.addEventListener('click', onClick);
+  root.addEventListener('click', onFilePickerOpen, true);
   root.addEventListener('change', onChange);
   root.addEventListener('input', onInput);
   root.addEventListener('pointerdown', onPointerDown);
@@ -243,6 +252,7 @@ export function bindBankHandlers(root: ParentNode): () => void {
     }
     draftSnapshot = null;
     root.removeEventListener('click', onClick);
+    root.removeEventListener('click', onFilePickerOpen, true);
     root.removeEventListener('change', onChange);
     root.removeEventListener('input', onInput);
     root.removeEventListener('pointerdown', onPointerDown);

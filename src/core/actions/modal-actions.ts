@@ -1,4 +1,5 @@
 import type { ActiveModal, AnswerRecord, Category } from '../../types';
+import { QUESTION_MODAL_CONFIG } from '../../config/question-modal';
 import { availableQuestion, isEssayQuestion, isMcqAnswerCorrect, isMcqQuestion } from '../../data';
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
@@ -45,7 +46,8 @@ export function openQuestionModal(category: Category): void {
   usedQuestionIds.add(question.id);
 
   const timerSec = appContext.getAppState().settings.timer;
-  const deadlineAt = Date.now() + timerSec * 1000;
+  const prepareSec = QUESTION_MODAL_CONFIG.prepareSec;
+  const prepareDeadlineAt = Date.now() + prepareSec * 1000;
 
   appContext.setRuntimeState({
     usedQuestionIds,
@@ -54,7 +56,10 @@ export function openQuestionModal(category: Category): void {
       categoryId: category.id,
       questionId: question.id,
       timer: timerSec,
-      deadlineAt,
+      isPreparing: true,
+      prepareDeadlineAt,
+      prepareRemaining: prepareSec,
+      deadlineAt: 0,
       paused: false,
       revealed: false,
       remaining: timerSec,
@@ -65,6 +70,34 @@ export function openQuestionModal(category: Category): void {
   });
 
   startQuestionTimer();
+}
+
+/** Kết thúc giai đoạn chuẩn bị — bắt đầu timer chính */
+export function finishQuestionPrepare(): void {
+  const runtime = appContext.getRuntimeState();
+  const modal = runtime.modal;
+  if (!modal || modal.kind !== 'question' || !modal.isPreparing || modal.readOnly) {
+    return;
+  }
+
+  const deadlineAt = Date.now() + modal.timer * 1000;
+
+  appContext.setRuntimeState({
+    modal: {
+      ...modal,
+      isPreparing: false,
+      prepareRemaining: 0,
+      deadlineAt,
+      remaining: modal.timer,
+      paused: false,
+    },
+  });
+
+  startQuestionTimer();
+}
+
+export function skipQuestionPrepare(): void {
+  finishQuestionPrepare();
 }
 
 export function openGiftModal(kind: 'gift' | 'punishment'): void {
@@ -146,6 +179,10 @@ export function toggleQuestionPause(): void {
 
   const modal = runtime.modal;
 
+  if (modal.isPreparing) {
+    return;
+  }
+
   if (!modal.paused) {
     const remaining = questionRemainingSeconds(modal.deadlineAt);
     appContext.patchRuntimeState({
@@ -187,7 +224,7 @@ export function chooseQuestionAnswer(answer: string): void {
 export function handleQuestionTimeUp(): void {
   const runtime = appContext.getRuntimeState();
   const modal = runtime.modal;
-  if (!modal || modal.kind !== 'question' || modal.submitted || modal.readOnly) {
+  if (!modal || modal.kind !== 'question' || modal.submitted || modal.readOnly || modal.isPreparing) {
     return;
   }
 
@@ -212,7 +249,7 @@ export function revealAnswer(): void {
   }
 
   const modal = runtime.modal;
-  if (modal.readOnly || modal.submitted) {
+  if (modal.readOnly || modal.submitted || modal.isPreparing) {
     return;
   }
 
@@ -265,7 +302,7 @@ export function submitQuestionAnswer(): void {
   // Nộp + hiện đáp án + chấm điểm + lưu lịch sử (một thao tác)
   const runtime = appContext.getRuntimeState();
   const modal = runtime.modal;
-  if (!modal || modal.kind !== 'question' || modal.submitted || modal.readOnly) {
+  if (!modal || modal.kind !== 'question' || modal.submitted || modal.readOnly || modal.isPreparing) {
     return;
   }
 

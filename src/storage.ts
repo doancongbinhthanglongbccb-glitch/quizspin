@@ -66,11 +66,3 @@ export const saveState = (state: AppState) => writeJson('appState', state);
 export async function clearState(): Promise<void> {
   await removeValue('appState');
 }
-
-export async function readHasSeenIntro(): Promise<boolean> {
-  return readJson<boolean>('hasSeenIntro', false);
-}
-
-export async function markIntroSeen(): Promise<void> {
-  await writeJson('hasSeenIntro', true);
-}

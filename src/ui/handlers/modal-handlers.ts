@@ -1,5 +1,7 @@
+import { QUESTION_MODAL_CONFIG } from '../../config/question-modal';
 import { appContext } from '../../core/state';
 import * as Actions from '../../core/actions';
+import { updateQuestionPrepareDom } from '../../utils/question-timer-dom';
 import { throttle } from '../../utils/throttle';
 
 const submitAnswer = throttle(() => Actions.submitQuestionAnswer(), 450);
@@ -28,6 +30,12 @@ function syncMcqSelection(root: ParentNode, selectedButton: HTMLElement): void {
 }
 
 function syncEssaySubmitButton(root: ParentNode): void {
+  const runtime = appContext.getRuntimeState();
+  if (runtime.modal?.kind === 'question' && runtime.modal.isPreparing) {
+    root.querySelector<HTMLElement>('[data-action="submit-answer"]')?.remove();
+    return;
+  }
+
   const slot = root.querySelector<HTMLElement>('.modal-actions__slot--right');
   const textarea = root.querySelector<HTMLTextAreaElement>('[data-action="player-answer-input"]');
   if (!slot || !textarea) {
@@ -75,6 +83,11 @@ export function initModalDom(root: ParentNode): void {
   resizeEssayFields(root);
   syncEssaySubmitButton(root);
   syncMcqSelectionFromState(root);
+
+  const runtime = appContext.getRuntimeState();
+  if (runtime.modal?.kind === 'question' && runtime.modal.isPreparing) {
+    updateQuestionPrepareDom(runtime.modal.prepareRemaining, QUESTION_MODAL_CONFIG.prepareSec);
+  }
 }
 
 export function bindModalHandlers(root: ParentNode): () => void {
@@ -90,6 +103,11 @@ export function bindModalHandlers(root: ParentNode): () => void {
         Actions.chooseQuestionAnswer(decodeURIComponent(answer));
         syncMcqSelection(root, chooseAnswerButton);
       }
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="skip-prepare"]')) {
+      Actions.skipQuestionPrepare();
       return;
     }
 

@@ -49,6 +49,9 @@ export class SpinSession {
     const { durationMs, extraSpins } = SPIN_CONFIG;
     const landingRotationDeg = this.landingRotation(model, chosen.id, fromRotationDeg);
 
+    // Rasterize segments trước frame đầu — tránh khựng khi bắt đầu quay
+    WheelRenderer.draw(WHEEL_CANVAS_ID, model, fromRotationDeg);
+
     this.animation = startSpinAnimation({
       model,
       fromRotationDeg,

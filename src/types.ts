@@ -118,7 +118,12 @@ export type ActiveModal =
       categoryId: string;
       questionId: string;
       timer: number;
-      /** Unix ms — hết hạn; dùng để đồng bộ số giây hiển thị và tick âm thanh */
+      /** Đang trong giai đoạn "Chuẩn bị..." trước khi timer chính chạy */
+      isPreparing: boolean;
+      /** Unix ms — hết hạn giai đoạn chuẩn bị */
+      prepareDeadlineAt: number;
+      prepareRemaining: number;
+      /** Unix ms — hết hạn timer chính; 0 khi chưa bắt đầu */
       deadlineAt: number;
       paused: boolean;
       revealed: boolean;

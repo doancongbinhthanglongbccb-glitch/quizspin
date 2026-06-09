@@ -3,6 +3,7 @@ import type { SettingsSection, SoundEventKey } from '../../types';
 import { rewardItemsToText, textToRewardItems } from '../../data';
 import { formatTimerDisplay } from '../../utils/timer-format';
 import * as Actions from '../../core/actions';
+import { suppressAndroidIntroOnResume } from '../../utils/android-intro-resume';
 
 function getInputTarget<T extends HTMLInputElement | HTMLTextAreaElement>(event: Event, root: ParentNode, selector: string): T | null {
   const target = event.target instanceof Element ? event.target.closest(selector) : null;
@@ -265,8 +266,16 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
     }
   };
 
+  const onFilePickerOpen = (event: Event): void => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.dataset.action === 'pick-sound') {
+      suppressAndroidIntroOnResume();
+    }
+  };
+
   root.addEventListener('input', onInput);
   root.addEventListener('change', onChange);
+  root.addEventListener('click', onFilePickerOpen, true);
   const supportsPointerEvents = typeof window !== 'undefined' && 'PointerEvent' in window;
   if (supportsPointerEvents) {
     root.addEventListener('pointerdown', onSectionSwitch);
@@ -279,6 +288,7 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
     flushSettingsFromDom(root);
     root.removeEventListener('input', onInput);
     root.removeEventListener('change', onChange);
+    root.removeEventListener('click', onFilePickerOpen, true);
     if (supportsPointerEvents) {
       root.removeEventListener('pointerdown', onSectionSwitch);
     } else {
