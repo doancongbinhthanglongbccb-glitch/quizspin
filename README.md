@@ -11,7 +11,7 @@
 
 ### Tải APK Android
 
-**[📥 Tải Bo-tro-Giao-duc-Chinh-tri.apk](./releases/Bo-tro-Giao-duc-Chinh-tri.apk)** (~12 MB, bản debug v0.1.0)
+**[📥 Tải Bo-tro-Giao-duc-Chinh-tri.apk](./releases/Bo-tro-Giao-duc-Chinh-tri.apk)** (~10 MB, bản debug v0.1.0, build 10/06/2026)
 
 Cài trên điện thoại: tải file → mở → cho phép cài từ nguồn không xác định → **Cài đặt**.
 
@@ -273,7 +273,7 @@ npm run android            # mở Android Studio
 
 Trong Android Studio: chọn thiết bị/emulator → **Run**.
 
-**Build APK mới:** Android Studio → *Build → Build APK(s)* → output tạm:
+**Build APK mới:** Android Studio → *Build → Generate App Bundles or APKs → Generate APKs* (hoặc *Build → Build APK(s)* trên bản cũ) → output tạm:
 
 ```
 android/app/build/outputs/apk/debug/app-debug.apk
@@ -290,7 +290,7 @@ Copy-Item android/app/build/outputs/apk/debug/app-debug.apk releases/Bo-tro-Giao
 | `appId` | `com.quizspin.app` |
 | Tên launcher | `Bổ trợ Giáo dục - Chính trị` (`android/app/src/main/res/values/strings.xml`) |
 | `webDir` | `dist` |
-| APK tải về (commit) | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](./releases/Bo-tro-Giao-duc-Chinh-tri.apk) |
+| APK tải về (commit) | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](./releases/Bo-tro-Giao-duc-Chinh-tri.apk) (~10 MB, 10/06/2026) |
 
 **Không commit:** `dist/`, `android/app/build/`, `android/.gradle/`, `android/.idea/`, `android/app/src/main/assets/public/` (tạo lại bằng `cap sync`).
 
