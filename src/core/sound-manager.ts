@@ -82,6 +82,15 @@ export class SoundManager {
     this.stop('introBed');
   }
 
+  /** Dừng mọi âm khi app vào nền (Android/Capacitor). */
+  pauseAll(): void {
+    for (const event of [...this.sustained.keys()]) {
+      this.stop(event);
+    }
+    this.stopCountdown();
+    this.stopPreview();
+  }
+
   stopCountdown(): void {
     const audio = this.pooled.get('countdown');
     if (!audio) {

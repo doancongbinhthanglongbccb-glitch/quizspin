@@ -3,7 +3,13 @@ import type { AppState } from '../../types';
 import { getVisibleIntroLinks, DEFAULT_INTRO_LINK_LABEL } from '../../data';
 import { escapeHtml } from '../../utils/html';
 
-export function renderIntroScreen(appState: AppState): string {
+function introLinksKey(appState: AppState): string {
+  return getVisibleIntroLinks(appState.settings.introLinks)
+    .map((link) => `${link.label.trim()}\0${link.url.trim()}`)
+    .join('\n');
+}
+
+function renderIntroActions(appState: AppState): { html: string; className: string } {
   const activeLinks = getVisibleIntroLinks(appState.settings.introLinks);
   const linkCount = activeLinks.length;
 
@@ -31,6 +37,43 @@ export function renderIntroScreen(appState: AppState): string {
       ? `<div class="intro-screen__link-row" role="group" aria-label="Liên kết ngoài">${linkButtons}</div>`
       : linkButtons;
 
+  const html = `
+    <button type="button" class="btn btn-intro-start" data-action="complete-intro">
+      ${INTRO_COPY.startLabel}
+    </button>
+    ${linksMarkup}
+  `;
+
+  return { html, className: `intro-screen__actions ${actionsClass}` };
+}
+
+/** Cập nhật nút liên kết sau khi load storage — không rebuild cả màn intro. */
+export function syncIntroScreenView(appState: AppState, root: ParentNode = document): void {
+  const screen = root.querySelector<HTMLElement>('.intro-screen');
+  if (!screen) {
+    return;
+  }
+
+  const actions = screen.querySelector<HTMLElement>('.intro-screen__actions');
+  if (!actions) {
+    return;
+  }
+
+  const nextKey = introLinksKey(appState);
+  if (actions.dataset.introLinksKey === nextKey) {
+    return;
+  }
+
+  const { html, className } = renderIntroActions(appState);
+  actions.className = className;
+  actions.innerHTML = html;
+  actions.dataset.introLinksKey = nextKey;
+}
+
+export function renderIntroScreen(appState: AppState): string {
+  const { html: actionsHtml, className: actionsClass } = renderIntroActions(appState);
+  const linksKey = introLinksKey(appState);
+
   return `
     <section class="intro-screen" aria-label="Màn hình chào mừng">
       <div
@@ -50,11 +93,8 @@ export function renderIntroScreen(appState: AppState): string {
           decoding="async"
         />
         <h1 class="intro-screen__title">${INTRO_COPY.title}</h1>
-        <div class="intro-screen__actions ${actionsClass}">
-          <button type="button" class="btn btn-intro-start" data-action="complete-intro">
-            ${INTRO_COPY.startLabel}
-          </button>
-          ${linksMarkup}
+        <div class="${actionsClass}" data-intro-links-key="${encodeURIComponent(linksKey)}">
+          ${actionsHtml}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { App } from '@capacitor/app';
 import { appContext } from '../state';
+import { soundManager } from '../sound-manager';
 import { quizRemainingSeconds, startQuizTimer, stopQuizTimer } from '../quiz-timer';
 import { enqueuePersist, resetPersistErrorFlag } from '../persist-queue';
 import { saveState, readJson, readPools, savePools } from '../../storage';
@@ -115,6 +116,10 @@ export async function bootstrap(): Promise<void> {
     return await readJson(key, null);
   });
 
+  if (appContext.getRuntimeState().showIntro) {
+    renderApp();
+  }
+
   await appContext.loadQuestionPools(readPools);
 
   appContext.patchRuntimeStateWithoutRender({
@@ -126,6 +131,7 @@ export async function bootstrap(): Promise<void> {
 
   void App.addListener('pause', () => {
     stopQuizTimer();
+    soundManager.pauseAll();
     void KeepAwake.allowSleep().catch(() => undefined);
   });
 

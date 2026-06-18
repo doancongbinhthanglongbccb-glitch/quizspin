@@ -6,7 +6,7 @@ import { renderConfirmDialog } from './components/confirm-dialog';
 import { renderSpinTab } from './components/spin-tab';
 import { renderBankTab } from './components/bank-tab';
 import { renderSettingsTab } from './components/settings-tab';
-import { renderIntroScreen } from './components/intro-screen';
+import { renderIntroScreen, syncIntroScreenView } from './components/intro-screen';
 import { INTRO_ASSETS, INTRO_COPY } from '../config/intro';
 import { WheelRenderer } from './components/wheel';
 import * as Actions from '../core/actions';
@@ -368,6 +368,7 @@ function renderIntro(): void {
   }
 
   if (appRoot.querySelector('.intro-screen')) {
+    syncIntroScreenView(appContext.getAppState(), appRoot);
     return;
   }
 
