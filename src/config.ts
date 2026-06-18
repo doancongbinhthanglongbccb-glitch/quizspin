@@ -5,8 +5,7 @@ export const DEFAULT_PALETTE = ['#ffb703', '#4cc9f0', '#f72585', '#90be6d', '#f9
 export const DEFAULT_FIXED_SEGMENTS: WheelSegment[] = [
   { id: 'gift', label: 'Quà tặng', kind: 'gift', color: '#ff8fab' },
   { id: 'punishment', label: 'Xử phạt', kind: 'punishment', color: '#f94144' },
-  { id: 'extra-turn', label: 'Thêm lượt', kind: 'extraTurn', color: '#90be6d' },
-  { id: 'lose-turn', label: 'Mất lượt', kind: 'loseTurn', color: '#577590' },
+  { id: 'practice', label: 'Thi thử', kind: 'practice', color: '#4895ef' },
 ];
 
 import { SPIN_CONFIG } from './config/spin';
@@ -16,6 +15,24 @@ export const DEFAULTS = {
   pointerOffsetDeg: 0, // kim cố định bên phải (3h); segment 0 bắt đầu từ 3h
   toastDurationMs: 2600,
   timerMinSec: 10,
-  timerMaxSec: 300, // 5 phút
+  timerMaxSec: 3600, // 60 phút
+  /** Bước tăng/giảm nút ± (1 phút) */
+  timerStepSec: 60,
   questionPoints: 10,
 };
+
+/** Nút nhanh thời gian bộ thi */
+export const TIMER_PRESETS = [
+  { sec: 30, label: '30s' },
+  { sec: 60, label: '1p' },
+  { sec: 300, label: '5p' },
+  { sec: 600, label: '10p' },
+  { sec: 900, label: '15p' },
+  { sec: 1200, label: '20p' },
+  { sec: 1500, label: '25p' },
+  { sec: 1800, label: '30p' },
+  { sec: 2700, label: '45p' },
+  { sec: 3600, label: '60p' },
+] as const;
+
+export const DEFAULT_TIMER_SEC = 1800;

@@ -1,5 +1,7 @@
 import { Preferences } from '@capacitor/preferences';
-import type { AppState } from './types';
+import type { AppState, QuestionPools } from './types';
+
+export const POOLS_STORAGE_KEY = 'quizspin_pools';
 
 const browserPrefix = 'quizspin:';
 
@@ -65,4 +67,13 @@ export const saveState = (state: AppState) => writeJson('appState', state);
  */
 export async function clearState(): Promise<void> {
   await removeValue('appState');
+  await removeValue(POOLS_STORAGE_KEY);
 }
+
+/** Đọc pool câu đã dùng theo lĩnh vực */
+export async function readPools(): Promise<QuestionPools> {
+  return readJson<QuestionPools>(POOLS_STORAGE_KEY, {});
+}
+
+/** Ghi pool câu đã dùng */
+export const savePools = (pools: QuestionPools) => writeJson(POOLS_STORAGE_KEY, pools);

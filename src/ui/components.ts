@@ -1,6 +1,7 @@
 import { appContext, type RuntimeState } from '../core/state';
 import { buildWheelModel } from '../core/wheel';
 import { renderModal } from './components/modal';
+import { renderQuizSession, getQuizMountKey, getQuizViewKey, syncQuizSessionView } from './components/quiz-session';
 import { renderConfirmDialog } from './components/confirm-dialog';
 import { renderSpinTab } from './components/spin-tab';
 import { renderBankTab } from './components/bank-tab';
@@ -9,9 +10,11 @@ import { renderIntroScreen } from './components/intro-screen';
 import { INTRO_ASSETS, INTRO_COPY } from '../config/intro';
 import { WheelRenderer } from './components/wheel';
 import * as Actions from '../core/actions';
-import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers } from './handlers';
+import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindQuizHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers } from './handlers';
 import { isIntroExitInProgress } from './handlers/intro-handlers';
 import { initModalDom } from './handlers/modal-handlers';
+import { initQuizDom } from './handlers/quiz-handlers';
+import { updateQuizTimerDom } from '../utils/quiz-timer-dom';
 import { syncToastDom } from '../utils/sync-toast-dom';
 import { captureScroll, restoreScroll } from '../utils/scroll-restore';
 import { consumeAppEntryAnimation } from './intro-transition';
@@ -32,6 +35,8 @@ const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 let wheelCleanup: (() => void) | null = null;
 let eventCleanups: Array<() => void> = [];
 let lastModalRenderKey = '';
+let lastQuizMountKey = '';
+let lastQuizViewKey = '';
 let lastShellRenderKey = '';
 let lastConfirmKey = '';
 let lastToastMessage = '';
@@ -42,6 +47,7 @@ type OverlayHosts = {
   shell: HTMLElement;
   toast: HTMLElement;
   modal: HTMLElement;
+  quiz: HTMLElement;
   confirm: HTMLElement;
   fab: HTMLElement;
 };
@@ -58,18 +64,22 @@ function ensureOverlayHosts(): OverlayHosts {
   const shell = document.createElement('div');
   const toast = document.createElement('div');
   const modal = document.createElement('div');
+  const quiz = document.createElement('div');
   const confirm = document.createElement('div');
   const fab = document.createElement('div');
 
   shell.id = 'app-shell-root';
   toast.id = 'toast-host';
   modal.id = 'modal-host';
+  quiz.id = 'quiz-host';
   confirm.id = 'confirm-host';
   fab.id = 'intro-fab-host';
 
-  appRoot.append(shell, toast, modal, confirm, fab);
-  overlayHosts = { shell, toast, modal, confirm, fab };
+  appRoot.append(shell, toast, modal, quiz, confirm, fab);
+  overlayHosts = { shell, toast, modal, quiz, confirm, fab };
   lastModalRenderKey = '';
+  lastQuizMountKey = '';
+  lastQuizViewKey = '';
   lastShellRenderKey = '';
   lastConfirmKey = '';
   lastToastMessage = '';
@@ -82,12 +92,15 @@ type FocusSnapshot = {
   selectionEnd: number;
 } | null;
 
-const SETTINGS_FIELD_IDS = new Set([
-  'gifts-input',
-  'punishments-input',
-  'intro-link-label-input',
-  'intro-link-url-input',
-]);
+const SETTINGS_FIELD_IDS = new Set(['gifts-input', 'punishments-input']);
+
+function isSettingsFieldId(id: string): boolean {
+  return (
+    SETTINGS_FIELD_IDS.has(id) ||
+    id.startsWith('intro-link-label-input-') ||
+    id.startsWith('intro-link-url-input-')
+  );
+}
 
 let lastRenderedSettingsSection: RuntimeState['settingsSection'] | null = null;
 
@@ -113,7 +126,7 @@ function restoreFocus(snapshot: FocusSnapshot, skipSettingsFields = false): void
     return;
   }
 
-  if (skipSettingsFields && SETTINGS_FIELD_IDS.has(snapshot.id)) {
+  if (skipSettingsFields && isSettingsFieldId(snapshot.id)) {
     return;
   }
 
@@ -199,8 +212,6 @@ export function render(): void {
 }
 
 function renderOnce(): void {
-  Actions.closeModalIfQuestionMissing();
-
   const runtime = appContext.getRuntimeState();
   const settingsSectionChanged =
     runtime.tab === 'settings' &&
@@ -217,12 +228,16 @@ function renderOnce(): void {
   const hosts = ensureOverlayHosts();
   const shellKey = getShellRenderKey(appState, nextRuntime);
   const modalKey = getModalRenderKey(appState, nextRuntime);
+  const quizMountKey = getQuizMountKey(appState, nextRuntime);
+  const quizViewKey = nextRuntime.quizSession ? getQuizViewKey(appState, nextRuntime) : '';
   const confirmKey = JSON.stringify(nextRuntime.confirmDialog);
   const shouldRebuildShell = shellKey !== lastShellRenderKey;
 
   if (
     !shouldRebuildShell &&
     modalKey === lastModalRenderKey &&
+    quizMountKey === lastQuizMountKey &&
+    quizViewKey === lastQuizViewKey &&
     confirmKey === lastConfirmKey &&
     nextRuntime.toast === lastToastMessage
   ) {
@@ -245,15 +260,15 @@ function renderOnce(): void {
     const enteringFromIntro = consumeAppEntryAnimation();
     const logoHandoff = hasPendingLogoFlight();
     const appShellClass = enteringFromIntro
-      ? `app-shell app-shell--entering${logoHandoff ? ' app-shell--entering-logo' : ''} flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row`
-      : 'app-shell flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip lg:landscape:flex-row';
+      ? `app-shell app-shell--entering${logoHandoff ? ' app-shell--entering-logo' : ''} flex h-dvh max-h-dvh w-full min-w-0 flex-col overflow-hidden lg:landscape:flex-row`
+      : 'app-shell flex h-dvh max-h-dvh w-full min-w-0 flex-col overflow-hidden lg:landscape:flex-row';
 
     hosts.shell.innerHTML = `
       <div class="${appShellClass}">
         ${renderTabs()}
 
-        <div class="app-body flex-1 w-full min-w-0 max-w-full overflow-x-clip p-4 pb-nav [-webkit-overflow-scrolling:touch] lg:landscape:pb-4">
-          <header class="app-header mb-[18px] min-w-0 max-w-full rounded-[18px] border border-accent-yellow/20 px-4 py-3.5 pb-4">
+        <div class="app-body flex min-h-0 flex-1 w-full min-w-0 max-w-full flex-col overflow-hidden p-4 pb-nav lg:landscape:pb-4">
+          <header class="app-header mb-[18px] min-w-0 max-w-full shrink-0 rounded-[18px] border border-accent-yellow/20 px-4 py-3.5 pb-4">
             <div class="flex min-w-0 items-center gap-3.5">
               <img
                 class="app-header__logo h-12 w-auto shrink-0 rounded-full border-2 border-accent-yellow/45 bg-[#0f2410] object-cover shadow-lg max-lg:h-12 lg:landscape:h-11 xl:landscape:h-14"
@@ -267,7 +282,7 @@ function renderOnce(): void {
             </div>
           </header>
 
-          <main class="content-area grid w-full min-w-0 max-w-full gap-[18px]" data-swipe-zone="content">
+          <main class="content-area grid min-h-0 w-full min-w-0 max-w-full flex-1 gap-[18px] overflow-x-hidden overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]" data-scroll-restore="content" data-swipe-zone="content">
             ${content}
           </main>
         </div>
@@ -300,6 +315,30 @@ function renderOnce(): void {
     hosts.modal.innerHTML = renderModal(appState, nextRuntime);
     initModalDom(appRoot);
     syncSpinUi();
+  }
+
+  if (!nextRuntime.quizSession) {
+    if (lastQuizMountKey !== '') {
+      hosts.quiz.innerHTML = '';
+      lastQuizMountKey = '';
+      lastQuizViewKey = '';
+    }
+  } else if (quizMountKey !== lastQuizMountKey) {
+    lastQuizMountKey = quizMountKey;
+    lastQuizViewKey = quizViewKey;
+    hosts.quiz.innerHTML = renderQuizSession(appState, nextRuntime);
+    initQuizDom(appRoot);
+    const session = nextRuntime.quizSession;
+    if (session?.phase === 'active') {
+      updateQuizTimerDom(session.remaining, session.timerSec);
+    }
+  } else if (quizViewKey !== lastQuizViewKey) {
+    lastQuizViewKey = quizViewKey;
+    syncQuizSessionView(appState, nextRuntime, appRoot);
+    const session = nextRuntime.quizSession;
+    if (session?.phase === 'active') {
+      updateQuizTimerDom(session.remaining, session.timerSec);
+    }
   }
 
   if (confirmKey !== lastConfirmKey) {
@@ -337,6 +376,8 @@ function renderIntro(): void {
   cleanupWheel();
   overlayHosts = null;
   lastModalRenderKey = '';
+  lastQuizMountKey = '';
+  lastQuizViewKey = '';
   lastShellRenderKey = '';
   lastConfirmKey = '';
   lastToastMessage = '';
@@ -386,6 +427,7 @@ function bindEvents(): Array<() => void> {
     bindBankHandlers(appRoot),
     bindSettingsHandlers(appRoot),
     bindModalHandlers(appRoot),
+    bindQuizHandlers(appRoot),
   ];
 }
 
@@ -447,4 +489,13 @@ function mountWheelCanvas(): void {
   const appState = appContext.getAppState();
   const model = buildWheelModel(appState);
   wheelCleanup = WheelRenderer.ensure('[data-wheel-host]', model, runtime.rotation);
+
+  // Layout spin landscape áp sau paint — remeasure canvas một lần
+  requestAnimationFrame(() => {
+    if (appContext.getRuntimeState().tab !== 'spin') {
+      return;
+    }
+    const nextRuntime = appContext.getRuntimeState();
+    wheelCleanup = WheelRenderer.ensure('[data-wheel-host]', model, nextRuntime.rotation);
+  });
 }

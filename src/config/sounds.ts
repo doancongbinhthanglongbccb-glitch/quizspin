@@ -54,5 +54,5 @@ export const SOUND_EVENT_GROUPS: Array<{ title: string; keys: SoundEventKey[] }>
   { title: 'Màn hình chào', keys: ['introBed'] },
   { title: 'Vòng quay', keys: ['spinBed', 'spinStart', 'spinStop'] },
   { title: 'Câu hỏi', keys: ['countdown', 'correct', 'wrong', 'fanfare'] },
-  { title: 'Phần thưởng & phạt', keys: ['gift', 'punishment', 'extraTurn', 'loseTurn'] },
+  { title: 'Phần thưởng & phạt', keys: ['gift', 'punishment'] },
 ];

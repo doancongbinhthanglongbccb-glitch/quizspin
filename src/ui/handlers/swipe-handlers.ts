@@ -7,11 +7,11 @@ const SWIPE_MAX_VERTICAL_PX = 48;
 const SCROLL_INTENT_PX = 10;
 
 const BLOCK_SWIPE_SELECTOR =
-  'input, textarea, select, button, a, .modal-backdrop, .wheel-canvas, [data-scroll-restore], .question-list, .bank-categories, .category-strip, .modal-card, .spin-layout__side';
+  'input, textarea, select, button, a, .modal-backdrop, .wheel-canvas, [data-scroll-restore], .question-list, .bank-categories, .category-strip, .modal-card, .spin-layout__side, .quiz-session, .quiz-session-backdrop';
 
 function canSwipeNavigate(): boolean {
   const runtime = appContext.getRuntimeState();
-  return !runtime.spinning && !runtime.modal && !runtime.confirmDialog && !runtime.showIntro;
+  return !runtime.spinning && !runtime.modal && !runtime.quizSession && !runtime.confirmDialog && !runtime.showIntro;
 }
 
 function switchTabByDirection(direction: 1 | -1, onBeforeSwitch?: () => void): void {

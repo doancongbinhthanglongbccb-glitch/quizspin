@@ -2,17 +2,21 @@ import { appContext } from '../core/state';
 
 export function canSwitchTab(): boolean {
   const runtime = appContext.getRuntimeState();
-  return !runtime.spinning && !runtime.modal && !runtime.confirmDialog && !runtime.showIntro;
+  return !runtime.spinning && !runtime.modal && !runtime.quizSession && !runtime.confirmDialog && !runtime.showIntro;
 }
 
 export function canReplayIntro(): boolean {
-  return !appContext.getRuntimeState().spinning;
+  const runtime = appContext.getRuntimeState();
+  return !runtime.spinning && !runtime.quizSession;
 }
 
 export function getNavigationBlockReason(): string | null {
   const runtime = appContext.getRuntimeState();
   if (runtime.spinning) {
     return 'Đang quay, vui lòng chờ';
+  }
+  if (runtime.quizSession) {
+    return 'Đang làm bài thi';
   }
   if (runtime.modal) {
     return 'Đang hiển thị kết quả';

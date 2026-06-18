@@ -647,10 +647,11 @@ function setupWheelCanvas(canvasId: string, model: WheelModel, initialRotationDe
     resizeTimeout = window.setTimeout(refreshCanvas, 100);
   };
 
+  const resizeHost = canvas.parentElement ?? canvas;
   let resizeObserver: ResizeObserver | null = null;
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(scheduleRefresh);
-    resizeObserver.observe(canvas);
+    resizeObserver.observe(resizeHost);
   } else {
     window.addEventListener('resize', scheduleRefresh);
   }

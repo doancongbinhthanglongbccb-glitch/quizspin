@@ -61,6 +61,33 @@ function describeDialog(dialog: ConfirmDialog): DialogMeta {
     };
   }
 
+  if (dialog.kind === 'reset-all-pools') {
+    return {
+      title: 'Reset pool câu hỏi',
+      message: 'Xóa toàn bộ lịch sử câu đã dùng của mọi lĩnh vực? Các câu sẽ được quay lại từ đầu.',
+      confirmLabel: 'Reset tất cả',
+      danger: true,
+    };
+  }
+
+  if (dialog.kind === 'reset-category-pool') {
+    return {
+      title: 'Reset pool lĩnh vực',
+      message: `Reset pool câu đã dùng của "${dialog.categoryName}"?`,
+      confirmLabel: 'Reset',
+      danger: true,
+    };
+  }
+
+  if (dialog.kind === 'submit-quiz') {
+    return {
+      title: 'Nộp bài',
+      message: 'Bạn có chắc muốn nộp bài? Sau khi nộp sẽ chấm điểm và không sửa được.',
+      confirmLabel: 'Nộp bài',
+      danger: false,
+    };
+  }
+
   if (dialog.kind === 'clear-all-data' && dialog.step === 1) {
     return {
       title: 'Xóa toàn bộ dữ liệu',

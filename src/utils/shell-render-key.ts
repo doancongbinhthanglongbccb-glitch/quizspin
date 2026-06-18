@@ -1,4 +1,5 @@
 import type { RuntimeState } from '../core/state';
+import { appContext } from '../core/state';
 import type { AppState } from '../types';
 import { SOUND_EVENT_KEYS } from '../config/sounds';
 
@@ -39,6 +40,9 @@ export function getShellRenderKey(appState: AppState, runtime: RuntimeState): st
   if (runtime.tab === 'settings') {
     const bindings = appState.settings.sounds?.bindings ?? {};
     const bindingsSig = SOUND_EVENT_KEYS.map((key) => bindings[key] ?? '').join('|');
+    const poolsSig = Object.entries(appContext.getQuestionPools())
+      .map(([id, ids]) => `${id}:${ids.length}`)
+      .join(',');
 
     return [
       base,
@@ -50,6 +54,7 @@ export function getShellRenderKey(appState: AppState, runtime: RuntimeState): st
       appState.settings.sounds?.library.length ?? 0,
       bindingsSig,
       runtime.soundUploadDraft?.eventKey ?? '',
+      poolsSig,
     ].join('|');
   }
 

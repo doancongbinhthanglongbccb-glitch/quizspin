@@ -85,14 +85,14 @@ function beginIntroExit(root: ParentNode): void {
   window.setTimeout(complete, switchDelay);
 }
 
-async function openIntroLink(): Promise<void> {
-  const url = appContext.getAppState().settings.introLink.url.trim();
-  if (!url) {
+async function openIntroLink(url: string): Promise<void> {
+  const trimmed = url.trim();
+  if (!trimmed) {
     showToast('Chưa cấu hình liên kết');
     return;
   }
 
-  const opened = await openExternalUrl(url);
+  const opened = await openExternalUrl(trimmed);
   if (!opened) {
     showToast('Không mở được liên kết');
   }
@@ -102,8 +102,12 @@ export function bindIntroHandlers(root: ParentNode): () => void {
   soundManager.playLoop('introBed');
 
   const onClick = (event: Event): void => {
-    if (getActionTarget(event, root, '[data-action="open-intro-link"]')) {
-      void openIntroLink();
+    const linkBtn = getActionTarget(event, root, '[data-action="open-intro-link"]');
+    if (linkBtn) {
+      const encoded = linkBtn.dataset.introLinkUrl;
+      if (encoded) {
+        void openIntroLink(decodeURIComponent(encoded));
+      }
       return;
     }
 

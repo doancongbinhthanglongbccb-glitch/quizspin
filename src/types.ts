@@ -14,12 +14,17 @@ export type Question = {
 
 export type QuestionFilter = 'all' | QuestionType;
 
-export type SettingsSection = 'timer' | 'sound' | 'gifts' | 'punishments' | 'intro' | 'danger';
+export type SettingsSection = 'timer' | 'pools' | 'sound' | 'gifts' | 'punishments' | 'intro' | 'danger';
+
+/** Pool câu đã dùng theo lĩnh vực — persist key `quizspin_pools` */
+export type QuestionPools = Record<string, string[]>;
 
 export type IntroLinkSettings = {
   label: string;
   url: string;
 };
+
+export const MAX_INTRO_LINKS = 3;
 
 export type QuestionDraft = {
   type: QuestionType;
@@ -77,16 +82,44 @@ export type Settings = {
   gifts: RewardItem[];
   punishments: PunishmentItem[];
   sounds?: SoundSettings;
-  introLink: IntroLinkSettings;
+  introLinks: IntroLinkSettings[];
 };
 
 export type AppState = {
   categories: Category[];
   settings: Settings;
-  answerHistory: AnswerRecord[];
 };
 
-export type SpinKind = 'category' | 'gift' | 'punishment' | 'extraTurn' | 'loseTurn';
+export type SpinKind = 'category' | 'gift' | 'punishment' | 'practice';
+
+export type QuizSessionPhase = 'active' | 'result';
+
+export type QuizQuestionResult = {
+  questionId: string;
+  playerAnswer: string;
+  isCorrect: boolean;
+};
+
+/** Phiên thi bộ (tối đa 20 câu) */
+export type QuizSession = {
+  phase: QuizSessionPhase;
+  /** `null` = thi thử (mọi lĩnh vực) */
+  categoryId: string | null;
+  categoryName: string;
+  categoryColor: string;
+  questionIds: string[];
+  currentIndex: number;
+  answers: Record<string, string>;
+  timerSec: number;
+  deadlineAt: number;
+  paused: boolean;
+  remaining: number;
+  results?: QuizQuestionResult[];
+  correctCount?: number;
+  totalGradable?: number;
+  earnedPoints?: number;
+  maxPoints?: number;
+};
 
 export type WheelSegment = {
   id: string;
@@ -96,44 +129,18 @@ export type WheelSegment = {
   categoryId?: string;
 };
 
-export type AnswerRecord = {
-  questionId: string;
-  playerAnswer: string;
-  isCorrect: boolean;
-  timeSpentMs?: number;
-  submittedAt: string;
-};
-
 export type ConfirmDialog =
   | { kind: 'delete-question'; categoryId: string; questionId: string }
   | { kind: 'delete-category'; categoryId: string; categoryName: string; questionCount: number }
   | { kind: 'clear-all-data'; step: 1 | 2 }
+  | { kind: 'reset-all-pools' }
+  | { kind: 'reset-category-pool'; categoryId: string; categoryName: string }
+  | { kind: 'submit-quiz' }
   | { kind: 'add-category' }
   | { kind: 'rename-category'; categoryId: string; categoryName: string }
   | { kind: 'category-menu'; categoryId: string; categoryName: string };
 
 export type ActiveModal =
-  | {
-      kind: 'question';
-      categoryId: string;
-      questionId: string;
-      timer: number;
-      /** Đang trong giai đoạn "Chuẩn bị..." trước khi timer chính chạy */
-      isPreparing: boolean;
-      /** Unix ms — hết hạn giai đoạn chuẩn bị */
-      prepareDeadlineAt: number;
-      prepareRemaining: number;
-      /** Unix ms — hết hạn timer chính; 0 khi chưa bắt đầu */
-      deadlineAt: number;
-      paused: boolean;
-      revealed: boolean;
-      remaining: number;
-      selectedAnswer: string | null;
-      playerAnswer: string | null;
-      submitted: boolean;
-      /** Xem lại từ lịch sử — không timer, không chỉnh sửa */
-      readOnly?: boolean;
-    }
   | {
       kind: 'gift';
       title: string;

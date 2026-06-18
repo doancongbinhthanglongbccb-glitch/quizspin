@@ -7,6 +7,7 @@ import {
   filterQuestions,
   getQuestionOptions,
   isMcqQuestion,
+  isMultipleMcqQuestion,
   questionTypeLabel,
 } from '../../data';
 
@@ -75,7 +76,7 @@ function renderQuestionForm(runtime: RuntimeState): string {
             class="textarea textarea--compact"
             id="answer-input"
             data-draft-field="answer"
-            placeholder="${isMcq ? 'VD: C. 100' : 'Nội dung đáp án chi tiết...'}"
+            placeholder="${isMcq ? 'VD: C hoặc A, C (nhiều đáp án cách nhau bởi dấu phẩy)' : 'Nội dung đáp án chi tiết...'}"
           >${escapeHtml(draft.answer)}</textarea>
         </div>
       </div>
@@ -94,7 +95,9 @@ function renderQuestionRow(runtime: RuntimeState, question: Question): string {
   const isActive = runtime.editingQuestionId === question.id;
   const typeLabel = questionTypeLabel(question.type);
   const optionCount = getQuestionOptions(question).length;
-  const optionLabel = isMcqQuestion(question) ? `${optionCount} lựa chọn` : 'Tự luận';
+  const optionLabel = isMcqQuestion(question)
+    ? `${optionCount} lựa chọn${isMultipleMcqQuestion(question) ? ' · nhiều đáp án' : ''}`
+    : 'Tự luận';
 
   return `
     <div class="question-row flex min-w-0 max-w-full items-start justify-between gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.03] px-[18px] py-4 ${isActive ? 'question-row--active' : ''}">

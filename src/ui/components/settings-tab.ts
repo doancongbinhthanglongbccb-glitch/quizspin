@@ -1,14 +1,18 @@
-import { DEFAULTS } from '../../config';
+import { DEFAULTS, TIMER_PRESETS } from '../../config';
 import { formatTimerDisplay } from '../../utils/timer-format';
+import { timerMinutesInputValue } from '../../utils/timer-settings';
 import type { RuntimeState } from '../../core/state';
-import type { AppState } from '../../types';
+import type { AppState, IntroLinkSettings, SettingsSection, SoundEventKey } from '../../types';
 import { DEFAULT_SOUND_FILE_NAMES, SOUND_EVENT_GROUPS } from '../../config/sounds';
 import { DEFAULT_INTRO_LINK_LABEL, rewardItemsToText, SOUND_EVENT_LABELS } from '../../data';
+import { MAX_INTRO_LINKS } from '../../types';
 import { escapeHtml } from '../../utils/html';
-import type { SettingsSection, SoundEventKey } from '../../types';
+import { appContext } from '../../core/state';
+import { countUsedInCategory } from '../../core/pool-manager';
 
 const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; danger?: boolean }> = [
   { id: 'timer', label: 'Thời gian', icon: '⏱' },
+  { id: 'pools', label: 'Pool câu hỏi', icon: '📊' },
   { id: 'sound', label: 'Âm thanh', icon: '🔊' },
   { id: 'gifts', label: 'Quà tặng', icon: '🎁' },
   { id: 'punishments', label: 'Hình phạt', icon: '🔥' },
@@ -52,10 +56,11 @@ function renderSidebar(active: SettingsSection): string {
   `;
 }
 
-function renderStatBar(appState: AppState, runtime: RuntimeState): string {
+function renderStatBar(appState: AppState): string {
   const categoryCount = appState.categories.length;
   const totalQuestions = appState.categories.reduce((count, category) => count + category.questions.length, 0);
-  const usedCount = runtime.usedQuestionIds.size;
+  const pools = appContext.getQuestionPools();
+  const usedCount = Object.values(pools).reduce((sum, ids) => sum + ids.length, 0);
 
   return `
     <div class="settings-stats flex gap-2.5 max-md:flex-col max-lg:grid max-lg:grid-cols-3 lg:flex lg:flex-row">
@@ -147,20 +152,63 @@ function renderSoundEvents(appState: AppState, runtime: RuntimeState): string {
 }
 
 function renderTimerPanel(appState: AppState): string {
-  const { value, unit } = formatTimerDisplay(appState.settings.timer);
+  const timerSec = appState.settings.timer;
+  const { value, unit } = formatTimerDisplay(timerSec);
+  const minutesValue = timerMinutesInputValue(timerSec);
+
+  const presets = TIMER_PRESETS.map((preset) => {
+    const active = preset.sec === timerSec;
+    return `<button
+      type="button"
+      class="timer-preset-chip ${active ? 'timer-preset-chip--active' : ''}"
+      data-action="timer-preset"
+      data-timer-sec="${preset.sec}"
+    >${preset.label}</button>`;
+  }).join('');
 
   return `
     <div class="settings-panel-card">
-      <p class="settings-panel-card__title"><span aria-hidden="true">⏱</span>Thời gian đếm ngược mỗi câu</p>
-      <div class="settings-timer-slider flex items-center gap-3 mb-2.5">
-        <span class="settings-timer-slider__edge shrink-0 text-caption text-white/45">${DEFAULTS.timerMinSec}s</span>
-        <input id="timer-slider" class="flex-1" type="range" min="${DEFAULTS.timerMinSec}" max="${DEFAULTS.timerMaxSec}" value="${appState.settings.timer}" />
-        <span class="settings-timer-slider__edge shrink-0 text-caption text-white/45">5 phút</span>
+      <p class="settings-panel-card__title"><span aria-hidden="true">⏱</span>Thời gian đếm ngược cả bộ thi</p>
+
+      <div class="settings-timer-stepper flex items-center justify-center gap-2.5 mb-2">
+        <button
+          type="button"
+          class="timer-stepper-btn"
+          data-action="timer-step-down"
+          aria-label="Giảm 1 phút"
+          ${timerSec <= DEFAULTS.timerMinSec ? 'disabled' : ''}
+        >−</button>
+        <div class="timer-input-wrap flex items-center gap-2">
+          <input
+            id="timer-minutes-input"
+            class="timer-minutes-input input"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            max="60"
+            step="1"
+            placeholder="—"
+            value="${minutesValue}"
+            aria-label="Số phút"
+          />
+          <span class="timer-input-wrap__unit shrink-0 text-ui font-semibold text-white/70">phút</span>
+        </div>
+        <button
+          type="button"
+          class="timer-stepper-btn"
+          data-action="timer-step-up"
+          aria-label="Tăng 1 phút"
+          ${timerSec >= DEFAULTS.timerMaxSec ? 'disabled' : ''}
+        >+</button>
       </div>
-      <div class="settings-timer-value text-center">
-        <span class="settings-timer-value__number text-[clamp(1.75rem,4vw,2rem)] font-bold text-white" id="timer-slider-value">${value}</span>
+
+      <p class="settings-timer-summary m-0 mb-3 text-center" id="timer-summary">
+        <span class="settings-timer-value__number text-[clamp(1.1rem,3vw,1.35rem)] font-bold text-white" id="timer-slider-value">${value}</span>
         <span class="settings-timer-value__unit text-ui text-white/45" id="timer-slider-unit">${unit}</span>
-      </div>
+      </p>
+
+      <p class="m-0 mb-2 text-center text-caption text-white/45">Nút nhanh</p>
+      <div class="timer-preset-grid" role="group" aria-label="Thời gian có sẵn">${presets}</div>
     </div>
   `;
 }
@@ -212,35 +260,114 @@ function renderRewardsPanel(appState: AppState, runtime: RuntimeState, section: 
   `;
 }
 
-function renderIntroPanel(appState: AppState, runtime: RuntimeState): string {
-  const label = runtime.settingsDraft?.introLabel ?? appState.settings.introLink.label;
-  const url = runtime.settingsDraft?.introUrl ?? appState.settings.introLink.url;
+function renderIntroLinkBlock(link: IntroLinkSettings, index: number): string {
+  const labelPlaceholder = index === 0 ? DEFAULT_INTRO_LINK_LABEL : `Nút liên kết ${index + 1}`;
 
   return `
-    <div class="settings-panel-card">
-      <p class="settings-panel-card__title"><span aria-hidden="true">🎬</span>Nút liên kết màn Intro</p>
-      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-        Nút thứ hai trên màn Intro (bên cạnh «Vòng xoay kiến thức»). Chỉ hiện khi đã nhập đường dẫn hợp lệ (<code class="text-caption text-violet-300/95">https://...</code>).
-      </p>
-      <label class="bank-form-label" for="intro-link-label-input">Tên nút</label>
+    <div class="intro-link-block" data-intro-link-row>
+      <div class="intro-link-block__head">
+        <p class="bank-form-label m-0">Liên kết ${index + 1}</p>
+        <button
+          type="button"
+          class="btn btn-ghost btn--compact intro-link-block__remove"
+          data-action="remove-intro-link"
+          data-intro-link-index="${index}"
+        >Xóa</button>
+      </div>
+      <label class="bank-form-label" for="intro-link-label-input-${index}">Tên nút</label>
       <input
-        id="intro-link-label-input"
+        id="intro-link-label-input-${index}"
         class="input mb-3"
         type="text"
         data-settings-field="intro-link-label"
-        placeholder="${DEFAULT_INTRO_LINK_LABEL}"
-        value="${escapeHtml(label)}"
+        placeholder="${labelPlaceholder}"
+        value="${escapeHtml(link.label)}"
       />
-      <label class="bank-form-label" for="intro-link-url-input">Đường dẫn (URL)</label>
+      <label class="bank-form-label" for="intro-link-url-input-${index}">Đường dẫn (URL)</label>
       <input
-        id="intro-link-url-input"
+        id="intro-link-url-input-${index}"
         class="input"
         type="url"
         inputmode="url"
         data-settings-field="intro-link-url"
         placeholder="https://example.com/kiem-tra"
-        value="${escapeHtml(url)}"
+        value="${escapeHtml(link.url)}"
       />
+    </div>
+  `;
+}
+
+export function renderIntroLinksEditor(links: IntroLinkSettings[]): string {
+  const atMax = links.length >= MAX_INTRO_LINKS;
+  const list =
+    links.length > 0
+      ? links.map((link, index) => renderIntroLinkBlock(link, index)).join('')
+      : '<p class="intro-links-empty m-0 text-caption leading-normal text-white/45">Chưa có liên kết. Bấm «Thêm liên kết» để tạo nút trên màn Intro.</p>';
+
+  return `
+    <div id="intro-links-list" class="intro-links-list grid gap-4">${list}</div>
+    <button
+      type="button"
+      class="btn btn-ghost btn--compact intro-links-add mt-4 w-full"
+      data-action="add-intro-link"
+      ${atMax ? 'disabled' : ''}
+    >+ Thêm liên kết${atMax ? ` (tối đa ${MAX_INTRO_LINKS})` : ''}</button>
+  `;
+}
+
+function resolveIntroLinksForEditor(appState: AppState, runtime: RuntimeState): IntroLinkSettings[] {
+  return runtime.settingsDraft?.introLinks ?? appState.settings.introLinks;
+}
+
+function renderIntroPanel(appState: AppState, runtime: RuntimeState): string {
+  const links = resolveIntroLinksForEditor(appState, runtime);
+
+  return `
+    <div class="settings-panel-card">
+      <p class="settings-panel-card__title"><span aria-hidden="true">🎬</span>Nút liên kết màn Intro</p>
+      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
+        Thêm nút bên cạnh «Vòng xoay kiến thức». Chỉ hiện trên Intro khi đã nhập URL (<code class="text-caption text-violet-300/95">https://...</code>). Tối đa ${MAX_INTRO_LINKS} nút.
+      </p>
+      <div class="intro-links-editor" id="intro-links-editor">
+        ${renderIntroLinksEditor(links)}
+      </div>
+    </div>
+  `;
+}
+
+function renderPoolsPanel(appState: AppState): string {
+  const pools = appContext.getQuestionPools();
+
+  const rows = appState.categories
+    .map((category) => {
+      const total = category.questions.length;
+      const used = countUsedInCategory(pools, category.id);
+      const remaining = Math.max(0, total - used);
+      return `
+        <div class="settings-pool-row flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3">
+          <div class="min-w-0">
+            <strong class="text-subtitle" style="color:${category.color}">${escapeHtml(category.name)}</strong>
+            <p class="m-0 mt-1 text-caption text-white/50">${used} đã dùng · ${remaining} còn lại · ${total} tổng</p>
+          </div>
+          <button
+            type="button"
+            class="btn btn--small btn-ghost shrink-0"
+            data-action="reset-category-pool"
+            data-category-id="${category.id}"
+          >Reset</button>
+        </div>
+      `;
+    })
+    .join('');
+
+  return `
+    <div class="settings-panel-card">
+      <p class="settings-panel-card__title"><span aria-hidden="true">📊</span>Pool câu hỏi theo lĩnh vực</p>
+      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
+        Mỗi lĩnh vực theo dõi câu đã dùng trong các bộ thi. Hết câu sẽ tự reset khi quay trúng lĩnh vực.
+      </p>
+      <div class="grid gap-2.5">${rows || '<p class="text-caption text-white/45">Chưa có lĩnh vực.</p>'}</div>
+      <button type="button" class="btn btn-ghost mt-4 w-full" data-action="reset-all-pools">Reset toàn bộ pool</button>
     </div>
   `;
 }
@@ -250,7 +377,7 @@ function renderDangerPanel(): string {
     <div class="settings-panel-card settings-panel-card--danger">
       <p class="settings-panel-card__title"><span aria-hidden="true">🗑</span>Xóa toàn bộ dữ liệu</p>
       <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-        Xóa sạch toàn bộ lĩnh vực, câu hỏi, lịch sử trả lời và đưa app về dữ liệu mẫu. Hành động này không thể hoàn tác.
+        Xóa sạch toàn bộ lĩnh vực, câu hỏi, pool câu đã dùng và đưa app về dữ liệu mẫu. Hành động này không thể hoàn tác.
       </p>
       <button type="button" class="btn btn-danger" data-action="clear-all">Xóa sạch toàn bộ kho câu hỏi</button>
     </div>
@@ -260,6 +387,9 @@ function renderDangerPanel(): string {
 function renderContentPanel(appState: AppState, runtime: RuntimeState, section: SettingsSection): string {
   if (section === 'timer') {
     return renderTimerPanel(appState);
+  }
+  if (section === 'pools') {
+    return renderPoolsPanel(appState);
   }
   if (section === 'sound') {
     return renderSoundPanel(appState, runtime);
@@ -281,7 +411,7 @@ export function renderSettingsTab(appState: AppState, runtime: RuntimeState): st
       <div class="settings-layout flex items-stretch gap-3.5 max-lg:flex-col lg:flex-row">
         ${renderSidebar(section)}
         <div class="settings-main flex min-w-0 flex-1 flex-col gap-3">
-          ${renderStatBar(appState, runtime)}
+          ${renderStatBar(appState)}
           <div class="settings-content">${renderContentPanel(appState, runtime, section)}</div>
         </div>
       </div>

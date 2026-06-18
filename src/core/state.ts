@@ -1,9 +1,9 @@
-import type { AppState, ActiveModal, AnswerRecord, ConfirmDialog, CustomSound, ImportStats, QuestionDraft, SettingsSection, SoundEventKey } from '../types';
+import type { AppState, ActiveModal, ConfirmDialog, CustomSound, ImportStats, IntroLinkSettings, QuestionDraft, QuestionPools, QuizSession, SettingsSection, SoundEventKey } from '../types';
 import {
   createSampleState,
-  defaultIntroLinkSettings,
   defaultQuestionDraft,
   migrateCategoryQuestions,
+  normalizeIntroLinks,
 } from '../data';
 import { DEFAULT_PALETTE, DEFAULTS } from '../config';
 import { SOUND_EVENT_KEYS } from '../config/sounds';
@@ -23,8 +23,7 @@ export type SoundUploadDraft = {
 export type SettingsDraft = {
   gifts?: string;
   punishments?: string;
-  introLabel?: string;
-  introUrl?: string;
+  introLinks?: IntroLinkSettings[];
 };
 
 export type RuntimeState = {
@@ -39,9 +38,10 @@ export type RuntimeState = {
   bankFormOpen: boolean;
   questionDraft: QuestionDraft;
   questionFilter: 'all' | 'mcq' | 'essay';
-  usedQuestionIds: Set<string>;
   usedGifts: Set<string>;
   usedPunishments: Set<string>;
+  /** Phiên thi bộ đang diễn ra */
+  quizSession: QuizSession | null;
   importReport: {
     imported: number;
     skipped: number;
@@ -70,9 +70,9 @@ export function createDefaultRuntimeState(): RuntimeState {
     bankFormOpen: false,
     questionDraft: defaultQuestionDraft('mcq'),
     questionFilter: 'all',
-    usedQuestionIds: new Set(),
     usedGifts: new Set(),
     usedPunishments: new Set(),
+    quizSession: null,
     importReport: null,
     confirmDialog: null,
     settingsSection: 'timer',
@@ -83,7 +83,13 @@ export function createDefaultRuntimeState(): RuntimeState {
 }
 
 function cloneSettingsDraft(draft: SettingsDraft | null): SettingsDraft | null {
-  return draft ? { ...draft } : null;
+  if (!draft) {
+    return null;
+  }
+  return {
+    ...draft,
+    introLinks: draft.introLinks?.map((item) => ({ ...item })),
+  };
 }
 
 function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
@@ -91,9 +97,9 @@ function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
     ...runtimeState,
     settingsDraft: cloneSettingsDraft(runtimeState.settingsDraft),
     questionDraft: { ...runtimeState.questionDraft },
-    usedQuestionIds: new Set(runtimeState.usedQuestionIds),
     usedGifts: new Set(runtimeState.usedGifts),
     usedPunishments: new Set(runtimeState.usedPunishments),
+    quizSession: runtimeState.quizSession ? { ...runtimeState.quizSession, answers: { ...runtimeState.quizSession.answers } } : null,
     importReport: runtimeState.importReport
       ? {
           ...runtimeState.importReport,
@@ -122,9 +128,15 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
     ...current,
     ...update,
     questionDraft: update.questionDraft ? { ...update.questionDraft } : { ...current.questionDraft },
-    usedQuestionIds: update.usedQuestionIds ? new Set(update.usedQuestionIds) : new Set(current.usedQuestionIds),
     usedGifts: update.usedGifts ? new Set(update.usedGifts) : new Set(current.usedGifts),
     usedPunishments: update.usedPunishments ? new Set(update.usedPunishments) : new Set(current.usedPunishments),
+    quizSession: Object.prototype.hasOwnProperty.call(update, 'quizSession')
+      ? update.quizSession
+        ? { ...update.quizSession, answers: { ...update.quizSession.answers } }
+        : null
+      : current.quizSession
+        ? { ...current.quizSession, answers: { ...current.quizSession.answers } }
+        : null,
     importReport: Object.prototype.hasOwnProperty.call(update, 'importReport')
       ? cloneImportReport(update.importReport ?? null)
       : cloneImportReport(current.importReport),
@@ -195,41 +207,22 @@ function migrateSoundBindings(
   return next;
 }
 
-function migrateAnswerHistory(items: unknown): AnswerRecord[] {
-  if (!Array.isArray(items)) {
-    return [];
+function migrateQuestionPools(raw: unknown): QuestionPools {
+  if (!raw || typeof raw !== 'object') {
+    return {};
   }
 
-  const records: AnswerRecord[] = [];
-
-  for (const item of items) {
-    if (!item || typeof item !== 'object') {
+  const next: QuestionPools = {};
+  for (const [categoryId, ids] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(ids)) {
       continue;
     }
-
-    const record = item as Partial<AnswerRecord>;
-    const questionId = typeof record.questionId === 'string' ? record.questionId.trim() : '';
-    const playerAnswer = typeof record.playerAnswer === 'string' ? record.playerAnswer : '';
-    const submittedAt = typeof record.submittedAt === 'string' ? record.submittedAt : '';
-    if (!questionId || !submittedAt) {
-      continue;
+    const cleaned = ids.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    if (cleaned.length > 0) {
+      next[categoryId] = cleaned;
     }
-
-    const next: AnswerRecord = {
-      questionId,
-      playerAnswer,
-      isCorrect: Boolean(record.isCorrect),
-      submittedAt,
-    };
-
-    if (typeof record.timeSpentMs === 'number') {
-      next.timeSpentMs = record.timeSpentMs;
-    }
-
-    records.push(next);
   }
-
-  return records;
+  return next;
 }
 
 function normalizeAppState(next: AppState): AppState {
@@ -241,14 +234,11 @@ function normalizeAppState(next: AppState): AppState {
 
   const soundLibrary = migrateSoundLibrary(next.settings.sounds?.library);
 
-  const introLinkRaw = next.settings.introLink;
-  const introLink = {
-    label:
-      typeof introLinkRaw?.label === 'string' && introLinkRaw.label.trim()
-        ? introLinkRaw.label.trim()
-        : defaultIntroLinkSettings().label,
-    url: typeof introLinkRaw?.url === 'string' ? introLinkRaw.url.trim() : '',
-  };
+  const settingsWithLegacy = next.settings as typeof next.settings & { introLink?: IntroLinkSettings };
+  const introLinks = normalizeIntroLinks(
+    settingsWithLegacy.introLinks,
+    settingsWithLegacy.introLink,
+  );
 
   return {
     settings: {
@@ -260,10 +250,9 @@ function normalizeAppState(next: AppState): AppState {
         bindings: migrateSoundBindings(next.settings.sounds?.bindings, soundLibrary),
         library: soundLibrary,
       },
-      introLink,
+      introLinks,
     },
     categories,
-    answerHistory: migrateAnswerHistory(next.answerHistory),
   };
 }
 
@@ -274,8 +263,10 @@ function normalizeAppState(next: AppState): AppState {
 export class AppContext {
   private appState: AppState;
   private runtimeState: RuntimeState;
+  private questionPools: QuestionPools = {};
   private renderSubscribers: (() => void)[] = [];
   private persistSubscribers: (() => void)[] = [];
+  private poolsPersistSubscribers: (() => void)[] = [];
 
   constructor() {
     this.appState = createSampleState();
@@ -287,6 +278,29 @@ export class AppContext {
    */
   getAppState(): AppState {
     return this.appState;
+  }
+
+  getQuestionPools(): QuestionPools {
+    return { ...this.questionPools };
+  }
+
+  setQuestionPools(update: QuestionPools | ((current: QuestionPools) => QuestionPools)): void {
+    const nextState = typeof update === 'function' ? update({ ...this.questionPools }) : update;
+    this.questionPools = migrateQuestionPools(nextState);
+    this.notifyPoolsPersistSubscribers();
+  }
+
+  subscribePoolsPersist(callback: () => void): () => void {
+    this.poolsPersistSubscribers.push(callback);
+    return () => {
+      this.poolsPersistSubscribers = this.poolsPersistSubscribers.filter((cb) => cb !== callback);
+    };
+  }
+
+  private notifyPoolsPersistSubscribers(): void {
+    for (const callback of this.poolsPersistSubscribers) {
+      callback();
+    }
   }
 
   /**
@@ -374,6 +388,14 @@ export class AppContext {
       this.appState = normalizeAppState(loaded);
     }
     this.runtimeState.selectedCategoryId = this.appState.categories[0]?.id ?? null;
+  }
+
+  async loadQuestionPools(loader: () => Promise<QuestionPools>): Promise<void> {
+    this.questionPools = migrateQuestionPools(await loader());
+  }
+
+  async persistQuestionPools(saver: (pools: QuestionPools) => Promise<void>): Promise<void> {
+    await saver(this.questionPools);
   }
 
   /**

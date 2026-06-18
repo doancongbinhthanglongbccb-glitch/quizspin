@@ -1,12 +1,14 @@
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
-import { stopQuestionTimer } from '../question-timer';
+import { stopQuizTimer } from '../quiz-timer';
 import { closeModal } from './modal-actions';
+import { closeQuizSession } from './quiz-actions';
 
 /** Mở lại màn Intro — render intro + nhạc nền (trong bindIntroHandlers) */
 export function showIntro(): void {
-  stopQuestionTimer();
+  stopQuizTimer();
   closeModal();
+  closeQuizSession();
   appContext.setRuntimeState({ showIntro: true });
 }
 

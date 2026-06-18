@@ -1,4 +1,2 @@
-import { showToast } from '../toast';
-
-export { startQuestionTimer, stopQuestionTimer as stopTimer } from '../question-timer';
-export { showToast };
+export { stopQuizTimer as stopTimer, startQuizTimer } from '../quiz-timer';
+export { showToast } from '../toast';

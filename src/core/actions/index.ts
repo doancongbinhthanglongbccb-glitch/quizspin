@@ -1,38 +1,32 @@
 import { App } from '@capacitor/app';
 import { appContext } from '../state';
-import { questionRemainingSeconds, startQuestionTimer, stopQuestionTimer } from '../question-timer';
+import { quizRemainingSeconds, startQuizTimer, stopQuizTimer } from '../quiz-timer';
 import { enqueuePersist, resetPersistErrorFlag } from '../persist-queue';
-import { saveState, readJson } from '../../storage';
+import { saveState, readJson, readPools, savePools } from '../../storage';
 import { defaultQuestionDraft } from '../../data';
-// Import explicit file to avoid TS module resolution ambiguity between
-// `src/ui/components.ts` (file) and `src/ui/components/` (directory).
-// Using the explicit extension helps the editor/tsserver resolve correctly on Windows.
 import { render } from '../../ui';
 import { clearEverything, parseExcelImport } from './import-actions';
-import {
-  openGiftModal,
-  openNoticeModal,
-  openQuestionModal,
-  closeModal,
-  closeModalIfQuestionMissing,
-  toggleQuestionPause,
-  chooseQuestionAnswer,
-  submitQuestionAnswer,
-  revealAnswer,
-  updatePlayerAnswer,
-  finishQuestionPrepare,
-  skipQuestionPrepare,
-} from './modal-actions';
+import { openGiftModal, closeModal } from './modal-actions';
 import { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory } from './category-actions';
 import {
   saveQuestionDraft,
   deleteQuestion,
-  resetQuestionFlags,
   saveQuestionEdit,
   setQuestionFilter,
   setQuestionDraftType,
   updateQuestionDraft,
 } from './question-actions';
+import {
+  startCategoryQuiz,
+  startPracticeQuiz,
+  goToQuizQuestion,
+  chooseQuizAnswer,
+  updateQuizEssayAnswer,
+  requestSubmitQuiz,
+  submitQuiz,
+  closeQuizSession,
+  goToQuizReviewQuestion,
+} from './quiz-actions';
 import { spin } from './spin-actions';
 import { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent } from './sound-actions';
 import { completeIntro, showIntro } from './intro-actions';
@@ -47,25 +41,26 @@ import {
   requestClearAllData,
   requestDeleteCategory,
   requestDeleteQuestion,
+  requestResetAllPools,
+  requestResetCategoryPool,
 } from './confirm-actions';
 
 export { clearEverything, parseExcelImport };
 export {
   openGiftModal,
-  openNoticeModal,
-  openQuestionModal,
   closeModal,
-  closeModalIfQuestionMissing,
-  toggleQuestionPause,
-  chooseQuestionAnswer,
-  submitQuestionAnswer,
-  revealAnswer,
-  updatePlayerAnswer,
-  finishQuestionPrepare,
-  skipQuestionPrepare,
+  startCategoryQuiz,
+  startPracticeQuiz,
+  goToQuizQuestion,
+  chooseQuizAnswer,
+  updateQuizEssayAnswer,
+  requestSubmitQuiz,
+  submitQuiz,
+  closeQuizSession,
+  goToQuizReviewQuestion,
 };
 export { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory };
-export { saveQuestionDraft, deleteQuestion, resetQuestionFlags, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };
+export { saveQuestionDraft, deleteQuestion, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };
 export { spin };
 export { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent };
 export { completeIntro, showIntro };
@@ -78,6 +73,8 @@ export {
   requestClearAllData,
   requestDeleteCategory,
   requestDeleteQuestion,
+  requestResetAllPools,
+  requestResetCategoryPool,
 };
 
 export let renderApp: () => void = render;
@@ -96,6 +93,14 @@ export async function setupUI(): Promise<void> {
       }),
     );
   });
+
+  appContext.subscribePoolsPersist(() => {
+    enqueuePersist(() =>
+      appContext.persistQuestionPools(async (pools) => {
+        await savePools(pools);
+      }),
+    );
+  });
 }
 
 export async function bootstrap(): Promise<void> {
@@ -107,8 +112,10 @@ export async function bootstrap(): Promise<void> {
   renderApp();
 
   await appContext.loadFromStorage(async (key) => {
-    return await readJson<AppState | null>(key, null);
+    return await readJson(key, null);
   });
+
+  await appContext.loadQuestionPools(readPools);
 
   appContext.patchRuntimeStateWithoutRender({
     questionDraft: defaultQuestionDraft(appContext.getRuntimeState().questionDraft.type),
@@ -118,7 +125,7 @@ export async function bootstrap(): Promise<void> {
   await KeepAwake.keepAwake().catch(() => undefined);
 
   void App.addListener('pause', () => {
-    stopQuestionTimer();
+    stopQuizTimer();
     void KeepAwake.allowSleep().catch(() => undefined);
   });
 
@@ -126,21 +133,14 @@ export async function bootstrap(): Promise<void> {
     void KeepAwake.keepAwake().catch(() => undefined);
     const runtime = appContext.getRuntimeState();
 
-    // Android: thoát app rồi mở lại → intro + nhạc (bỏ qua sau file picker / browser)
     if (isAndroidApp() && !runtime.showIntro && !consumeAndroidIntroResumeSuppression()) {
       requestAnimationFrame(() => showIntro());
       return;
     }
 
-    const modal = runtime.modal;
-    if (
-      modal?.kind === 'question' &&
-      !modal.paused &&
-      !modal.revealed &&
-      !modal.isPreparing &&
-      questionRemainingSeconds(modal.deadlineAt) > 0
-    ) {
-      startQuestionTimer();
+    const session = runtime.quizSession;
+    if (session?.phase === 'active' && !session.paused && quizRemainingSeconds(session.deadlineAt) > 0) {
+      startQuizTimer();
     }
   });
 }

@@ -1,10 +1,12 @@
 import type { Category } from '../../types';
 import { createSampleState, makeCategory } from '../../data';
 import { appContext, createDefaultRuntimeState } from '../state';
-import { clearState, saveState } from '../../storage';
+import { resetAllPools, resetCategoryPool, removeCategoryFromPools } from '../pool-manager';
+import { clearState, saveState, savePools } from '../../storage';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
 import { deleteQuestion } from './question-actions';
 import { closeModal } from './modal-actions';
+import { closeQuizSession, submitQuiz } from './quiz-actions';
 import { showToast, stopTimer } from './shared';
 
 function readConfirmNameInput(): string | null {
@@ -63,6 +65,20 @@ export function requestClearAllData(): void {
   });
 }
 
+export function requestResetAllPools(): void {
+  appContext.setRuntimeState({ confirmDialog: { kind: 'reset-all-pools' } });
+}
+
+export function requestResetCategoryPool(category: Category): void {
+  appContext.setRuntimeState({
+    confirmDialog: {
+      kind: 'reset-category-pool',
+      categoryId: category.id,
+      categoryName: category.name,
+    },
+  });
+}
+
 export function cancelConfirmDialog(): void {
   appContext.setRuntimeState({ confirmDialog: null });
 }
@@ -83,8 +99,8 @@ function performRenameCategory(categoryId: string, name: string): void {
 
 function performDeleteCategory(categoryId: string): void {
   const runtime = appContext.getRuntimeState();
-  if (runtime.modal?.kind === 'question' && runtime.modal.categoryId === categoryId) {
-    closeModal();
+  if (runtime.quizSession?.categoryId === categoryId) {
+    closeQuizSession();
   }
 
   appContext.setAppState((current) => {
@@ -101,6 +117,7 @@ function performDeleteCategory(categoryId: string): void {
   }
 
   ensureQuestionDraft(currentCategory());
+  appContext.setQuestionPools((current) => removeCategoryFromPools(current, categoryId));
 }
 
 async function performClearAllData(): Promise<void> {
@@ -108,8 +125,10 @@ async function performClearAllData(): Promise<void> {
   const tab = appContext.getRuntimeState().tab;
 
   stopTimer();
+  closeQuizSession();
 
   appContext.setAppStateWithoutRender(sampleState);
+  appContext.setQuestionPools(resetAllPools());
   appContext.setRuntimeState({
     ...createDefaultRuntimeState(),
     tab,
@@ -120,6 +139,7 @@ async function performClearAllData(): Promise<void> {
 
   await clearState().catch(() => undefined);
   await saveState(appContext.getAppState()).catch(() => undefined);
+  await savePools(appContext.getQuestionPools()).catch(() => undefined);
 
   showToast('Đã khôi phục dữ liệu mẫu');
 }
@@ -200,5 +220,26 @@ export async function confirmDialogAction(): Promise<void> {
     }
 
     await performClearAllData();
+    appContext.setRuntimeState({ confirmDialog: null });
+    return;
+  }
+
+  if (dialog.kind === 'reset-all-pools') {
+    appContext.setQuestionPools(resetAllPools());
+    appContext.setRuntimeState({ confirmDialog: null });
+    showToast('Đã reset toàn bộ pool câu hỏi');
+    return;
+  }
+
+  if (dialog.kind === 'reset-category-pool') {
+    appContext.setQuestionPools((current) => resetCategoryPool(current, dialog.categoryId));
+    appContext.setRuntimeState({ confirmDialog: null });
+    showToast(`Đã reset pool lĩnh vực ${dialog.categoryName}`);
+    return;
+  }
+
+  if (dialog.kind === 'submit-quiz') {
+    appContext.setRuntimeState({ confirmDialog: null });
+    submitQuiz();
   }
 }

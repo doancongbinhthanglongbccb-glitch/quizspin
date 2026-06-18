@@ -10,20 +10,23 @@ export function syncSpinUi(): void {
   const runtime = appContext.getRuntimeState();
   const spinning = runtime.spinning;
   const modalOpen = Boolean(runtime.modal);
+  const quizOpen = Boolean(runtime.quizSession);
   const canSpin = rewardReady();
 
   const spinButton = document.querySelector<HTMLButtonElement>('[data-action="spin"]');
   if (spinButton) {
-    spinButton.disabled = spinning || modalOpen || !canSpin;
+    spinButton.disabled = spinning || modalOpen || quizOpen || !canSpin;
   }
 
   const statusEl = document.querySelector<HTMLElement>('.spin-stat__value.status-pill--live');
   if (statusEl) {
     statusEl.textContent = spinning
       ? 'Đang quay'
-      : modalOpen
-        ? 'Đang hiển thị kết quả'
-        : 'Sẵn sàng';
+      : quizOpen
+        ? 'Đang thi bộ'
+        : modalOpen
+          ? 'Đang hiển thị kết quả'
+          : 'Sẵn sàng';
   }
 
   const wheelHost = document.querySelector<HTMLElement>('[data-wheel-host]');

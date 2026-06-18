@@ -1,18 +1,35 @@
 import { INTRO_ASSETS, INTRO_COPY } from '../../config/intro';
 import type { AppState } from '../../types';
+import { getVisibleIntroLinks, DEFAULT_INTRO_LINK_LABEL } from '../../data';
 import { escapeHtml } from '../../utils/html';
 
 export function renderIntroScreen(appState: AppState): string {
-  const { label, url } = appState.settings.introLink;
-  const hasExternalLink = Boolean(url.trim());
+  const activeLinks = getVisibleIntroLinks(appState.settings.introLinks);
+  const linkCount = activeLinks.length;
 
-  const externalButton = hasExternalLink
-    ? `
-      <button type="button" class="btn btn-intro-link" data-action="open-intro-link">
-        ${escapeHtml(label.trim() || 'Kiểm tra nhận thức')}
-      </button>
-    `
-    : '';
+  const linkButtons = activeLinks
+    .map((link) => {
+      const label = link.label.trim() || DEFAULT_INTRO_LINK_LABEL;
+      return `
+        <button
+          type="button"
+          class="btn btn-intro-link"
+          data-action="open-intro-link"
+          data-intro-link-url="${encodeURIComponent(link.url.trim())}"
+        >
+          ${escapeHtml(label)}
+        </button>
+      `;
+    })
+    .join('');
+
+  const actionsClass =
+    linkCount === 0 ? 'intro-screen__actions--solo' : linkCount === 1 ? 'intro-screen__actions--dual' : 'intro-screen__actions--multi';
+
+  const linksMarkup =
+    linkCount > 1
+      ? `<div class="intro-screen__link-row" role="group" aria-label="Liên kết ngoài">${linkButtons}</div>`
+      : linkButtons;
 
   return `
     <section class="intro-screen" aria-label="Màn hình chào mừng">
@@ -33,11 +50,11 @@ export function renderIntroScreen(appState: AppState): string {
           decoding="async"
         />
         <h1 class="intro-screen__title">${INTRO_COPY.title}</h1>
-        <div class="intro-screen__actions ${hasExternalLink ? 'intro-screen__actions--dual' : 'intro-screen__actions--solo'}">
+        <div class="intro-screen__actions ${actionsClass}">
           <button type="button" class="btn btn-intro-start" data-action="complete-intro">
             ${INTRO_COPY.startLabel}
           </button>
-          ${externalButton}
+          ${linksMarkup}
         </div>
       </div>
 

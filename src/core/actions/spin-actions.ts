@@ -1,7 +1,8 @@
 import { buildWheelModel } from '../wheel';
 import { appContext } from '../state';
 import { spinSession } from '../spin-session';
-import { openGiftModal, openNoticeModal, openQuestionModal } from './modal-actions';
+import { openGiftModal } from './modal-actions';
+import { startCategoryQuiz, startPracticeQuiz } from './quiz-actions';
 import { syncSpinUi } from '../../utils/sync-spin-ui';
 import { showToast } from './shared';
 import type { WheelSegment } from '../../types';
@@ -15,8 +16,13 @@ function resolveSegmentAction(segment: WheelSegment): void {
   if (segment.kind === 'category' && segment.categoryId) {
     const category = appContext.getAppState().categories.find((item) => item.id === segment.categoryId);
     if (category) {
-      openQuestionModal(category);
+      startCategoryQuiz(category);
     }
+    return;
+  }
+
+  if (segment.kind === 'practice') {
+    startPracticeQuiz();
     return;
   }
 
@@ -29,20 +35,13 @@ function resolveSegmentAction(segment: WheelSegment): void {
     openGiftModal('punishment');
     return;
   }
-
-  if (segment.kind === 'extraTurn') {
-    openNoticeModal('Bạn được thêm 1 lượt!', 'extraTurn');
-    return;
-  }
-
-  openNoticeModal('Mất lượt!', 'loseTurn');
 }
 
 export function spin(): void {
   const runtime = appContext.getRuntimeState();
   const appState = appContext.getAppState();
 
-  if (runtime.spinning || runtime.modal) {
+  if (runtime.spinning || runtime.modal || runtime.quizSession) {
     return;
   }
 

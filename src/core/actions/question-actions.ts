@@ -1,8 +1,10 @@
-import { normalizeQuestion, parseMcqOptions, resetUsedFlags } from '../../data';
+import { normalizeQuestion, parseMcqOptions } from '../../data';
 import type { Category, QuestionDraft, QuestionFilter, QuestionType } from '../../types';
 import { appContext } from '../state';
-import { showToast, stopTimer } from './shared';
+import { removeQuestionFromPools } from '../pool-manager';
+import { showToast } from './shared';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
+import { closeQuizSession } from './quiz-actions';
 
 export function setQuestionFilter(filter: QuestionFilter): void {
   appContext.setRuntimeState({ questionFilter: filter });
@@ -80,17 +82,13 @@ export function saveQuestionDraft(): void {
 
 export function deleteQuestion(categoryId: string, questionId: string): void {
   const runtime = appContext.getRuntimeState();
-  const shouldCloseModal =
-    runtime.modal?.kind === 'question' &&
-    runtime.modal.categoryId === categoryId &&
-    runtime.modal.questionId === questionId;
+  const session = runtime.quizSession;
+  const shouldCloseQuiz =
+    session && session.phase === 'active' && session.questionIds.includes(questionId);
 
-  if (shouldCloseModal) {
-    stopTimer();
+  if (shouldCloseQuiz) {
+    closeQuizSession();
   }
-
-  const nextUsedQuestionIds = new Set(runtime.usedQuestionIds);
-  nextUsedQuestionIds.delete(questionId);
 
   const editingCleared = runtime.editingQuestionId === questionId;
 
@@ -101,30 +99,15 @@ export function deleteQuestion(categoryId: string, questionId: string): void {
     ),
   }));
 
+  appContext.setQuestionPools((current) => removeQuestionFromPools(current, questionId));
+
   appContext.setRuntimeState({
-    ...(shouldCloseModal ? { modal: null } : {}),
-    usedQuestionIds: nextUsedQuestionIds,
     ...(editingCleared ? { editingQuestionId: null, bankFormOpen: false } : {}),
   });
 
   if (editingCleared) {
     ensureQuestionDraft(currentCategory());
   }
-}
-
-export function resetQuestionFlags(category: Category): void {
-  const runtime = appContext.getRuntimeState();
-  const nextUsedQuestionIds = new Set(runtime.usedQuestionIds);
-
-  for (const question of category.questions) {
-    nextUsedQuestionIds.delete(question.id);
-  }
-
-  appContext.setAppState((current) => ({
-    ...current,
-    categories: current.categories.map((item) => (item.id === category.id ? { ...item, questions: resetUsedFlags(item.questions) } : item)),
-  }));
-  appContext.setRuntimeState({ usedQuestionIds: nextUsedQuestionIds });
 }
 
 export function saveQuestionEdit(

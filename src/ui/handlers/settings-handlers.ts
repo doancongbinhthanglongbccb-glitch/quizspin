@@ -1,7 +1,15 @@
 import { appContext, type SettingsDraft } from '../../core/state';
-import type { SettingsSection, SoundEventKey } from '../../types';
-import { rewardItemsToText, textToRewardItems } from '../../data';
+import type { IntroLinkSettings, SettingsSection, SoundEventKey } from '../../types';
+import { rewardItemsToText, textToRewardItems, normalizeIntroLinks, compactIntroLinks, DEFAULT_INTRO_LINK_LABEL } from '../../data';
+import { MAX_INTRO_LINKS } from '../../types';
+import { renderIntroLinksEditor } from '../components/settings-tab';
 import { formatTimerDisplay } from '../../utils/timer-format';
+import {
+  clampTimerSeconds,
+  secondsFromMinutesInput,
+  timerMinutesInputValue,
+} from '../../utils/timer-settings';
+import { DEFAULTS } from '../../config';
 import * as Actions from '../../core/actions';
 import { suppressAndroidIntroOnResume } from '../../utils/android-intro-resume';
 
@@ -23,22 +31,59 @@ function readSoundEvent(target: HTMLElement): SoundEventKey | null {
   return value as SoundEventKey;
 }
 
-function updateTimerSliderPreview(root: ParentNode, seconds: number): void {
+function updateTimerDisplayPreview(root: ParentNode, seconds: number): void {
   const { value, unit } = formatTimerDisplay(seconds);
   const valueEl = root.querySelector('#timer-slider-value');
   const unitEl = root.querySelector('#timer-slider-unit');
+  const minutesInput = root.querySelector<HTMLInputElement>('#timer-minutes-input');
+
   if (valueEl) {
     valueEl.textContent = value;
   }
   if (unitEl) {
     unitEl.textContent = unit;
   }
+  if (minutesInput) {
+    minutesInput.value = timerMinutesInputValue(seconds);
+  }
+
+  root.querySelectorAll<HTMLElement>('[data-action="timer-preset"]').forEach((button) => {
+    const sec = Number(button.dataset.timerSec);
+    button.classList.toggle('timer-preset-chip--active', sec === seconds);
+  });
+
+  const downBtn = root.querySelector<HTMLButtonElement>('[data-action="timer-step-down"]');
+  const upBtn = root.querySelector<HTMLButtonElement>('[data-action="timer-step-up"]');
+  if (downBtn) {
+    downBtn.disabled = seconds <= DEFAULTS.timerMinSec;
+  }
+  if (upBtn) {
+    upBtn.disabled = seconds >= DEFAULTS.timerMaxSec;
+  }
+}
+
+function commitTimerMinutesInput(root: ParentNode): void {
+  const input = root.querySelector<HTMLInputElement>('#timer-minutes-input');
+  if (!input) {
+    return;
+  }
+
+  const seconds = secondsFromMinutesInput(input.value);
+  if (seconds === null) {
+    input.value = timerMinutesInputValue(appContext.getAppState().settings.timer);
+    return;
+  }
+
+  const next = clampTimerSeconds(seconds);
+  commitTimerValue(next);
+  updateTimerDisplayPreview(root, next);
 }
 
 function commitTimerValue(seconds: number): void {
+  const next = clampTimerSeconds(seconds);
   appContext.setAppState((current) => ({
     ...current,
-    settings: { ...current.settings, timer: seconds },
+    settings: { ...current.settings, timer: next },
   }));
 }
 
@@ -49,12 +94,60 @@ function patchSettingsDraft(patch: SettingsDraft): void {
   });
 }
 
+function readIntroLinksFromDom(root: ParentNode): IntroLinkSettings[] {
+  const rows = root.querySelectorAll<HTMLElement>('[data-intro-link-row]');
+  return Array.from(rows).map((row) => {
+    const label = row.querySelector<HTMLInputElement>('[data-settings-field="intro-link-label"]')?.value ?? '';
+    const url = row.querySelector<HTMLInputElement>('[data-settings-field="intro-link-url"]')?.value ?? '';
+    return { label: label.trim(), url: url.trim() };
+  });
+}
+
+function syncIntroLinksEditor(root: ParentNode, links: IntroLinkSettings[]): void {
+  const editor = root.querySelector<HTMLElement>('#intro-links-editor');
+  if (!editor) {
+    return;
+  }
+  editor.innerHTML = renderIntroLinksEditor(links);
+}
+
+function addIntroLink(root: ParentNode): void {
+  const links = readIntroLinksFromDom(root);
+  if (links.length >= MAX_INTRO_LINKS) {
+    return;
+  }
+
+  const next = [
+    ...links,
+    {
+      label: links.length === 0 ? DEFAULT_INTRO_LINK_LABEL : '',
+      url: '',
+    },
+  ];
+  patchSettingsDraft({ introLinks: next });
+  syncIntroLinksEditor(root, next);
+  root.querySelector<HTMLInputElement>(`#intro-link-url-input-${next.length - 1}`)?.focus();
+}
+
+function removeIntroLink(root: ParentNode, index: number): void {
+  const links = readIntroLinksFromDom(root);
+  if (index < 0 || index >= links.length) {
+    return;
+  }
+
+  const next = links.filter((_, itemIndex) => itemIndex !== index);
+  patchSettingsDraft({ introLinks: next });
+  syncIntroLinksEditor(root, next);
+}
+
+function hasIntroLinkInputs(root: ParentNode): boolean {
+  return Boolean(root.querySelector('[data-settings-field="intro-link-label"], [data-settings-field="intro-link-url"]'));
+}
+
 function readSettingsDraftFromDom(root: ParentNode): SettingsDraft {
   const draft: SettingsDraft = { ...(appContext.getRuntimeState().settingsDraft ?? {}) };
   const giftsInput = root.querySelector<HTMLTextAreaElement>('#gifts-input');
   const punishmentsInput = root.querySelector<HTMLTextAreaElement>('#punishments-input');
-  const introLabelInput = root.querySelector<HTMLInputElement>('#intro-link-label-input');
-  const introUrlInput = root.querySelector<HTMLInputElement>('#intro-link-url-input');
 
   if (giftsInput) {
     draft.gifts = giftsInput.value;
@@ -62,11 +155,8 @@ function readSettingsDraftFromDom(root: ParentNode): SettingsDraft {
   if (punishmentsInput) {
     draft.punishments = punishmentsInput.value;
   }
-  if (introLabelInput) {
-    draft.introLabel = introLabelInput.value;
-  }
-  if (introUrlInput) {
-    draft.introUrl = introUrlInput.value;
+  if (hasIntroLinkInputs(root)) {
+    draft.introLinks = readIntroLinksFromDom(root);
   }
 
   return draft;
@@ -75,7 +165,7 @@ function readSettingsDraftFromDom(root: ParentNode): SettingsDraft {
 function persistSettingsDraft(draft: SettingsDraft): void {
   const hasGifts = draft.gifts !== undefined;
   const hasPunishments = draft.punishments !== undefined;
-  const hasIntro = draft.introLabel !== undefined || draft.introUrl !== undefined;
+  const hasIntro = draft.introLinks !== undefined;
 
   if (!hasGifts && !hasPunishments && !hasIntro) {
     return;
@@ -104,10 +194,9 @@ function persistSettingsDraft(draft: SettingsDraft): void {
     }
 
     if (hasIntro) {
-      settings.introLink = {
-        label: (draft.introLabel ?? state.settings.introLink.label).trim(),
-        url: (draft.introUrl ?? state.settings.introLink.url).trim(),
-      };
+      settings.introLinks = compactIntroLinks(
+        normalizeIntroLinks(draft.introLinks ?? state.settings.introLinks, state.settings.introLinks[0]),
+      );
     }
 
     return { ...state, settings };
@@ -128,10 +217,8 @@ function persistSettingsDraft(draft: SettingsDraft): void {
 export function flushSettingsFromDom(root: ParentNode): void {
   const giftsInput = root.querySelector('#gifts-input');
   const punishmentsInput = root.querySelector('#punishments-input');
-  const introLabelInput = root.querySelector('#intro-link-label-input');
-  const introUrlInput = root.querySelector('#intro-link-url-input');
 
-  if (!giftsInput && !punishmentsInput && !introLabelInput && !introUrlInput) {
+  if (!giftsInput && !punishmentsInput && !hasIntroLinkInputs(root)) {
     const draft = appContext.getRuntimeState().settingsDraft;
     if (draft) {
       persistSettingsDraft(draft);
@@ -153,9 +240,12 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
   let sectionHandledByPointer = false;
 
   const onInput = (event: Event): void => {
-    const timerSlider = getInputTarget<HTMLInputElement>(event, root, '#timer-slider');
-    if (timerSlider) {
-      updateTimerSliderPreview(root, Number(timerSlider.value));
+    const timerMinutesInput = getInputTarget<HTMLInputElement>(event, root, '#timer-minutes-input');
+    if (timerMinutesInput) {
+      const seconds = secondsFromMinutesInput(timerMinutesInput.value);
+      if (seconds !== null) {
+        updateTimerDisplayPreview(root, clampTimerSeconds(seconds));
+      }
       return;
     }
 
@@ -171,22 +261,16 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       return;
     }
 
-    const introLabelInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-label-input');
-    const introUrlInput = getInputTarget<HTMLInputElement>(event, root, '#intro-link-url-input');
-    if (introLabelInput || introUrlInput) {
-      const labelEl = root.querySelector<HTMLInputElement>('#intro-link-label-input');
-      const urlEl = root.querySelector<HTMLInputElement>('#intro-link-url-input');
-      patchSettingsDraft({
-        introLabel: labelEl?.value,
-        introUrl: urlEl?.value,
-      });
+    const introField = getInputTarget<HTMLInputElement>(event, root, '[data-settings-field="intro-link-label"], [data-settings-field="intro-link-url"]');
+    if (introField) {
+      patchSettingsDraft({ introLinks: readIntroLinksFromDom(root) });
     }
   };
 
   const onChange = (event: Event): void => {
-    const timerSlider = getInputTarget<HTMLInputElement>(event, root, '#timer-slider');
-    if (timerSlider) {
-      commitTimerValue(Number(timerSlider.value));
+    const timerMinutesInput = getInputTarget<HTMLInputElement>(event, root, '#timer-minutes-input');
+    if (timerMinutesInput) {
+      commitTimerMinutesInput(root);
       return;
     }
 
@@ -262,6 +346,65 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       const eventKey = readSoundEvent(clearButton);
       if (eventKey) {
         Actions.clearSoundBinding(eventKey);
+      }
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="clear-all"]')) {
+      Actions.requestClearAllData();
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="reset-all-pools"]')) {
+      Actions.requestResetAllPools();
+      return;
+    }
+
+    const presetBtn = getActionTarget(event, root, '[data-action="timer-preset"]');
+    if (presetBtn?.dataset.timerSec) {
+      const seconds = Number(presetBtn.dataset.timerSec);
+      if (!Number.isNaN(seconds)) {
+        commitTimerValue(seconds);
+        updateTimerDisplayPreview(root, clampTimerSeconds(seconds));
+      }
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="timer-step-down"]')) {
+      const current = appContext.getAppState().settings.timer;
+      const next = clampTimerSeconds(current - DEFAULTS.timerStepSec);
+      commitTimerValue(next);
+      updateTimerDisplayPreview(root, next);
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="timer-step-up"]')) {
+      const current = appContext.getAppState().settings.timer;
+      const next = clampTimerSeconds(current + DEFAULTS.timerStepSec);
+      commitTimerValue(next);
+      updateTimerDisplayPreview(root, next);
+      return;
+    }
+
+    const resetPoolBtn = getActionTarget(event, root, '[data-action="reset-category-pool"]');
+    if (resetPoolBtn?.dataset.categoryId) {
+      const category = appContext.getAppState().categories.find((item) => item.id === resetPoolBtn.dataset.categoryId);
+      if (category) {
+        Actions.requestResetCategoryPool(category);
+      }
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="add-intro-link"]')) {
+      addIntroLink(root);
+      return;
+    }
+
+    const removeIntroBtn = getActionTarget(event, root, '[data-action="remove-intro-link"]');
+    if (removeIntroBtn?.dataset.introLinkIndex !== undefined) {
+      const index = Number(removeIntroBtn.dataset.introLinkIndex);
+      if (!Number.isNaN(index)) {
+        removeIntroLink(root, index);
       }
     }
   };

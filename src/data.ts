@@ -5,6 +5,7 @@ import type {
   ImportResult,
   ImportStats,
   ImportedQuestionRow,
+  IntroLinkSettings,
   PunishmentItem,
   Question,
   QuestionDraft,
@@ -15,7 +16,8 @@ import type {
   SoundEventKey,
   WheelSegment,
 } from './types';
-import { DEFAULT_PALETTE, DEFAULT_FIXED_SEGMENTS, DEFAULTS } from './config';
+import { MAX_INTRO_LINKS } from './types';
+import { DEFAULT_PALETTE, DEFAULT_FIXED_SEGMENTS, DEFAULTS, DEFAULT_TIMER_SEC } from './config';
 
 function uid(): string {
   return crypto.randomUUID();
@@ -52,8 +54,136 @@ function stripMcqPrefix(value: string): string {
 }
 
 function mcqOptionLetter(value: string): string | null {
-  const match = value.trim().match(/^([A-Da-d])[.):\-\s]/);
-  return match ? match[1].toUpperCase() : null;
+  const trimmed = value.trim();
+  const match = trimmed.match(/^([A-Da-d])[.):\-\s]/);
+  if (match) {
+    return match[1].toUpperCase();
+  }
+  // Lựa chọn đã lưu dạng chữ cái thuần (MCQ nhiều đáp án: "A, C")
+  if (/^[A-Da-d]$/.test(trimmed)) {
+    return trimmed.toUpperCase();
+  }
+  return null;
+}
+
+/** MCQ nhiều đáp án đúng — answer chứa dấu phẩy/chấm phẩy */
+export function isMultipleMcqQuestion(question: Question): boolean {
+  if (!isMcqQuestion(question)) {
+    return false;
+  }
+  const parts = question.answer
+    .split(/[,;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return parts.length > 1;
+}
+
+function canonicalizeMcqSelection(raw: string, question: Question): string {
+  const parts = raw
+    .split(/[,;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!parts.length) {
+    return '';
+  }
+
+  const letters = parts.map((part) => {
+    const letter = mcqOptionLetter(part);
+    if (letter) {
+      return letter;
+    }
+    const options = getQuestionOptions(question);
+    const idx = options.findIndex(
+      (option) =>
+        option === part || stripMcqPrefix(option).toLowerCase() === stripMcqPrefix(part).toLowerCase(),
+    );
+    if (idx >= 0) {
+      return String.fromCharCode(65 + idx);
+    }
+    return stripMcqPrefix(part).toUpperCase();
+  });
+
+  return [...new Set(letters)].sort().join(',');
+}
+
+function resolveOptionLetter(option: string, question: Question): string | null {
+  const trimmed = option.trim();
+  const letter = mcqOptionLetter(trimmed);
+  if (letter) {
+    return letter;
+  }
+
+  const idx = getQuestionOptions(question).findIndex(
+    (entry) =>
+      entry === trimmed || stripMcqPrefix(entry).toLowerCase() === stripMcqPrefix(trimmed).toLowerCase(),
+  );
+  return idx >= 0 ? String.fromCharCode(65 + idx) : null;
+}
+
+function parseMcqSelectionParts(raw: string): string[] {
+  return raw
+    .split(/[,;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function selectionToLetters(raw: string, question: Question): string[] {
+  return [
+    ...new Set(
+      parseMcqSelectionParts(raw)
+        .map((part) => resolveOptionLetter(part, question))
+        .filter((letter): letter is string => Boolean(letter)),
+    ),
+  ];
+}
+
+/** Kiểm tra phương án đang được chọn (hỗ trợ MCQ nhiều đáp án) */
+export function isMcqOptionSelected(playerAnswer: string, option: string, question: Question): boolean {
+  const player = playerAnswer.trim();
+  const opt = option.trim();
+  if (!player || !opt) {
+    return false;
+  }
+
+  if (isMultipleMcqQuestion(question)) {
+    const letter = resolveOptionLetter(opt, question);
+    return letter ? selectionToLetters(player, question).includes(letter) : false;
+  }
+
+  if (player === opt) {
+    return true;
+  }
+
+  const playerCore = stripMcqPrefix(player).toLowerCase();
+  const optCore = stripMcqPrefix(opt).toLowerCase();
+  if (playerCore && optCore && playerCore === optCore) {
+    return true;
+  }
+
+  const playerLetter = mcqOptionLetter(player);
+  const optLetter = resolveOptionLetter(opt, question);
+  return Boolean(playerLetter && optLetter && playerLetter === optLetter);
+}
+
+/** Bật/tắt phương án — MCQ nhiều đáp án lưu dạng A, B, C */
+export function toggleMcqPlayerSelection(playerAnswer: string, option: string, question: Question): string {
+  const opt = option.trim();
+  if (!opt) {
+    return playerAnswer;
+  }
+
+  if (!isMultipleMcqQuestion(question)) {
+    return opt;
+  }
+
+  const letter = resolveOptionLetter(opt, question);
+  if (!letter) {
+    return playerAnswer;
+  }
+
+  const letters = selectionToLetters(playerAnswer, question);
+  const next = letters.includes(letter) ? letters.filter((item) => item !== letter) : [...letters, letter];
+  return [...new Set(next)].sort().join(', ');
 }
 
 /** So khớp đáp án MCQ linh hoạt: chữ cái, nội dung, hoặc chuỗi đầy đủ */
@@ -66,6 +196,10 @@ export function isMcqAnswerCorrect(playerAnswer: string, question: Question): bo
   const correct = question.answer.trim();
   if (!player || !correct) {
     return false;
+  }
+
+  if (isMultipleMcqQuestion(question)) {
+    return canonicalizeMcqSelection(player, question) === canonicalizeMcqSelection(correct, question);
   }
 
   if (player === correct) {
@@ -93,6 +227,20 @@ export function isMcqAnswerCorrect(playerAnswer: string, question: Question): bo
   }
 
   return false;
+}
+
+/** Một phương án có thuộc đáp án đúng không (review / tô màu từng option) */
+export function isMcqCorrectOption(option: string, question: Question): boolean {
+  if (!isMcqQuestion(question)) {
+    return false;
+  }
+
+  if (isMultipleMcqQuestion(question)) {
+    const letter = resolveOptionLetter(option, question);
+    return letter ? selectionToLetters(question.answer, question).includes(letter) : false;
+  }
+
+  return isMcqAnswerCorrect(option, question);
 }
 
 export function getQuestionOptions(question: Question): string[] {
@@ -283,16 +431,54 @@ export function questionToDraft(question: Question): QuestionDraft {
 
 export const DEFAULT_INTRO_LINK_LABEL = 'Kiểm tra nhận thức';
 
-export function defaultIntroLinkSettings(): Settings['introLink'] {
+function normalizeIntroLinkEntry(raw: unknown, index: number): IntroLinkSettings {
+  const item = raw as Partial<IntroLinkSettings> | undefined;
+  const label = typeof item?.label === 'string' ? item.label.trim() : '';
+  const url = typeof item?.url === 'string' ? item.url.trim() : '';
   return {
-    label: DEFAULT_INTRO_LINK_LABEL,
-    url: '',
+    label: label || (index === 0 ? DEFAULT_INTRO_LINK_LABEL : ''),
+    url,
   };
+}
+
+export function defaultIntroLinks(): IntroLinkSettings[] {
+  return [];
+}
+
+/** @deprecated Dùng defaultIntroLinks */
+export function defaultIntroLinkSettings(): IntroLinkSettings {
+  return { label: DEFAULT_INTRO_LINK_LABEL, url: '' };
+}
+
+export function compactIntroLinks(links: IntroLinkSettings[]): IntroLinkSettings[] {
+  return links
+    .map((item, index) => normalizeIntroLinkEntry(item, index))
+    .filter((item) => item.label || item.url)
+    .slice(0, MAX_INTRO_LINKS);
+}
+
+export function normalizeIntroLinks(
+  raw: unknown,
+  legacySingle?: IntroLinkSettings,
+): IntroLinkSettings[] {
+  let links: IntroLinkSettings[] = [];
+
+  if (Array.isArray(raw)) {
+    links = raw.map((item, index) => normalizeIntroLinkEntry(item, index));
+  } else if (legacySingle) {
+    links = [normalizeIntroLinkEntry(legacySingle, 0)];
+  }
+
+  return compactIntroLinks(links);
+}
+
+export function getVisibleIntroLinks(links: IntroLinkSettings[]): IntroLinkSettings[] {
+  return links.filter((item) => item.url.trim());
 }
 
 export function defaultSettings(): Settings {
   return {
-    timer: 30,
+    timer: DEFAULT_TIMER_SEC,
     sound: true,
     gifts: ['Được cộng thêm 10 điểm', 'Nghỉ 1 lượt miễn phí'].map(createRewardItem),
     punishments: ['Chống đẩy 10 cái', 'Hát 1 bài'].map(createPunishmentItem),
@@ -300,7 +486,7 @@ export function defaultSettings(): Settings {
       bindings: {},
       library: [],
     },
-    introLink: defaultIntroLinkSettings(),
+    introLinks: defaultIntroLinks(),
   };
 }
 
@@ -310,7 +496,6 @@ export function createSampleState(): AppState {
 
   return {
     settings: defaultSettings(),
-    answerHistory: [],
     categories: [
       {
         id: historyId,
@@ -374,17 +559,92 @@ export const SOUND_EVENT_LABELS: Record<SoundEventKey, string> = {
   loseTurn: 'Mất lượt',
 };
 
-export function availableQuestion(questionList: Question[], usedQuestionIds: Set<string>): Question | null {
-  const unused = questionList.filter((item) => !usedQuestionIds.has(item.id));
-  const source = unused.length > 0 ? unused : questionList;
-  if (source.length === 0) {
-    return null;
+export function shuffleArray<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return source[Math.floor(Math.random() * source.length)];
+  return arr;
 }
 
-export function resetUsedFlags(questionList: Question[]): Question[] {
-  return questionList.map((question) => ({ ...question }));
+/** Bốc ngẫu nhiên tối đa `maxCount` câu chưa dùng; tự reset khi hết */
+export function pickQuestionsFromCategory(
+  category: Category,
+  usedIds: string[],
+  maxCount: number,
+): { questions: Question[]; usedIds: string[] } {
+  let used = [...usedIds];
+  let unused = category.questions.filter((item) => !used.includes(item.id));
+
+  if (unused.length === 0 && category.questions.length > 0) {
+    used = [];
+    unused = [...category.questions];
+  }
+
+  const picked = shuffleArray(unused).slice(0, Math.min(maxCount, unused.length));
+  const newUsed = [...used, ...picked.map((item) => item.id)];
+  return { questions: picked, usedIds: newUsed };
+}
+
+/** Thi thử: random từ mọi lĩnh vực */
+export function pickPracticeQuestions(categories: Category[], maxCount: number): Question[] {
+  const all = categories.flatMap((item) => item.questions);
+  return shuffleArray(all).slice(0, Math.min(maxCount, all.length));
+}
+
+export function findQuestionById(categories: Category[], questionId: string): Question | null {
+  for (const category of categories) {
+    const found = category.questions.find((item) => item.id === questionId);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
+export function gradeQuizAnswers(
+  categories: Category[],
+  questionIds: string[],
+  answers: Record<string, string>,
+): {
+  results: Array<{ questionId: string; playerAnswer: string; isCorrect: boolean }>;
+  correctCount: number;
+  totalGradable: number;
+  earnedPoints: number;
+  maxPoints: number;
+} {
+  const results: Array<{ questionId: string; playerAnswer: string; isCorrect: boolean }> = [];
+  let correctCount = 0;
+  let totalGradable = 0;
+  let earnedPoints = 0;
+  let maxPoints = 0;
+
+  for (const questionId of questionIds) {
+    const question = findQuestionById(categories, questionId);
+    if (!question) {
+      continue;
+    }
+
+    const playerAnswer = (answers[questionId] ?? '').trim();
+    const points = question.points ?? DEFAULTS.questionPoints;
+
+    if (isEssayQuestion(question)) {
+      results.push({ questionId, playerAnswer, isCorrect: false });
+      continue;
+    }
+
+    totalGradable += 1;
+    maxPoints += points;
+    const isCorrect = isMcqAnswerCorrect(playerAnswer, question);
+    if (isCorrect) {
+      correctCount += 1;
+      earnedPoints += points;
+    }
+    results.push({ questionId, playerAnswer, isCorrect });
+  }
+
+  return { results, correctCount, totalGradable, earnedPoints, maxPoints };
 }
 
 export function buildWheelSegments(categories: Category[]): WheelSegment[] {
@@ -576,6 +836,7 @@ function parseLegacyTwoColRow(cells: string[]): { question: Question; categoryNa
  * Parse Excel — hỗ trợ:
  * 1. Chuẩn (4 cột): Lĩnh vực | Câu hỏi | Options | Đáp án đúng
  *    - Options có dữ liệu → MCQ; Options trống → Essay (đáp án ở cột 4)
+ *    - MCQ nhiều đáp án: cùng format MCQ, cột đáp án ghi 2+ đáp án (VD: A, C hoặc A; C)
  * 2. Legacy hybrid (3 cột): Câu hỏi | Phương án | Đáp án đúng
  * 3. Legacy 2 cột: Câu hỏi | Đáp án
  * 4. Legacy typed (có cột Loại): file Excel cũ vẫn import được
