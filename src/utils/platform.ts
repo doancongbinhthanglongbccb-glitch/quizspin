@@ -28,3 +28,5 @@ export function initPlatformFlags(): void {
     document.documentElement.classList.add('platform-android', 'perf-lite');
   }
 }
+
+export { initAndroidKeyboardInset } from './android-viewport';
