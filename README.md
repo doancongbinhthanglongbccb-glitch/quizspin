@@ -11,7 +11,7 @@
 
 ### Tải APK Android
 
-**[Tải APK v0.1.0](releases/Bo-tro-Giao-duc-Chinh-tri.apk)** — release **đã ký**, build `2026-06-19` (`com.quizspin.app`)
+**[Tải APK v0.1.0](releases/Bo-tro-Giao-duc-Chinh-tri.apk)** — release **đã ký**, build `2026-06-19` (~8.2 MB, `com.quizspin.app`)
 
 Cài trên điện thoại: tải file `.apk` → mở → cho phép cài từ nguồn không xác định → **Cài đặt**. Bản release đã ký có thể cài đè bản debug cùng package; nếu vẫn báo lỗi chữ ký, gỡ app cũ rồi cài lại.
 
@@ -289,6 +289,7 @@ Copy vào `releases/` để cập nhật bản tải trên repo:
 
 ```powershell
 Copy-Item android/app/build/outputs/apk/release/app-release.apk releases/Bo-tro-Giao-duc-Chinh-tri.apk
+# (tùy chọn giữ tên gốc: releases/app-release.apk)
 ```
 
 Debug nhanh (Android Studio hoặc `.\gradlew assembleDebug`):

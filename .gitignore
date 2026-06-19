@@ -22,3 +22,8 @@ Thumbs.db
 
 # Android Studio project metadata (under android/)
 android/.idea/
+
+# Android signing & local release output (never commit)
+*.jks
+*.keystore
+android/app/release/
