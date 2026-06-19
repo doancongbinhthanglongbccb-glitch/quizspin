@@ -1,5 +1,6 @@
-import { DEFAULT_SOUND_FILES, SUSTAINED_SOUND_EVENTS } from '../config/sounds';
+import { DEFAULT_SOUND_FILES, SOUND_EVENT_KEYS, SUSTAINED_SOUND_EVENTS } from '../config/sounds';
 import type { CustomSound, SoundEventKey } from '../types';
+import { isNativeApp } from '../utils/platform';
 import { appContext } from './state';
 
 type SoundSpec = {
@@ -23,33 +24,65 @@ const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
   loseTurn: { frequency: 220, duration: 260, type: 'sawtooth' },
 };
 
-type SustainedPlayback = {
-  audio: HTMLAudioElement;
+/** Số bản sao Audio one-shot — cho phép chồng tiếng nhanh trên tablet. */
+const ONE_SHOT_POOL_SIZE = 2;
+
+type OneShotPool = {
+  elements: HTMLAudioElement[];
+  sourceKey: string;
+  cursor: number;
 };
 
+type SustainedPlayback = {
+  audio: HTMLAudioElement;
+  sourceKey: string;
+};
+
+/**
+ * SoundManager — singleton quản lý toàn bộ âm thanh.
+ * Tái sử dụng HTMLAudioElement + AudioContext dùng chung (tối ưu WebView/Capacitor).
+ */
 export class SoundManager {
+  private static instance: SoundManager | null = null;
+
+  static getInstance(): SoundManager {
+    if (!SoundManager.instance) {
+      SoundManager.instance = new SoundManager();
+    }
+    return SoundManager.instance;
+  }
+
+  private audioContext: AudioContext | null = null;
+  private unlocked = false;
+  private oneShotPools = new Map<SoundEventKey, OneShotPool>();
   private sustained = new Map<SoundEventKey, SustainedPlayback>();
-  private pooled = new Map<SoundEventKey, HTMLAudioElement>();
   private previewAudio: HTMLAudioElement | null = null;
   private previewStopTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private constructor() {
+    if (typeof window !== 'undefined') {
+      this.installUnlockListeners();
+    }
+  }
 
   play(event: SoundEventKey): void {
     if (!this.isEnabled()) {
       return;
     }
 
-    const source = this.resolveSource(event);
+    void this.ensureUnlocked();
+
     if (SUSTAINED_SOUND_EVENTS.has(event)) {
-      this.playSustained(event, source, false);
+      this.playSustained(event, this.resolveSource(event), false);
       return;
     }
 
     if (event === 'countdown') {
-      this.playCountdownTick(source);
+      this.playCountdownTick(this.resolveSource(event));
       return;
     }
 
-    this.playFresh(source, () => this.playToneFallback(event));
+    this.playOneShot(event, () => this.playToneFallback(event));
   }
 
   /** Phát nền lặp (nhạc nền quay, beep 5s cuối) */
@@ -58,6 +91,7 @@ export class SoundManager {
       return;
     }
 
+    void this.ensureUnlocked();
     this.playSustained(event, this.resolveSource(event), true);
   }
 
@@ -92,13 +126,15 @@ export class SoundManager {
   }
 
   stopCountdown(): void {
-    const audio = this.pooled.get('countdown');
-    if (!audio) {
+    const pool = this.oneShotPools.get('countdown');
+    if (!pool) {
       return;
     }
 
-    audio.pause();
-    audio.currentTime = 0;
+    for (const audio of pool.elements) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
   }
 
   /** Nghe thử nguồn tùy ý (upload chưa lưu hoặc preview trong Cài đặt) */
@@ -108,10 +144,10 @@ export class SoundManager {
       return;
     }
 
+    void this.ensureUnlocked();
+
     const loop = options?.loop ?? false;
-    const audio = new Audio(source);
-    audio.volume = 0.9;
-    audio.loop = loop;
+    const audio = this.createAudioElement(source, { loop, volume: 0.9 });
     this.previewAudio = audio;
 
     void audio.play().catch(() => this.stopPreview());
@@ -124,6 +160,8 @@ export class SoundManager {
 
   /** Nghe thử âm thanh đang gán cho event (bỏ qua toggle tắt tiếng toàn app) */
   previewEvent(event: SoundEventKey): void {
+    void this.ensureUnlocked();
+
     const source = this.resolveSource(event);
     if (SUSTAINED_SOUND_EVENTS.has(event)) {
       this.previewSource(source ?? '', { loop: true, maxDurationMs: 5000 });
@@ -176,6 +214,89 @@ export class SoundManager {
     return library.find((item) => item.id === soundId) ?? null;
   }
 
+  /**
+   * Mở khóa audio sau tương tác người dùng — bắt buộc trên iOS/Android WebView.
+   * Gọi tự động lần chạm đầu; có thể gọi thủ công từ intro/spin.
+   */
+  unlock(): void {
+    if (this.unlocked) {
+      return;
+    }
+
+    this.unlocked = true;
+    void this.resumeAudioContext();
+    this.warmUpDefaultSounds();
+  }
+
+  /** Preload clip mặc định — giảm độ trễ lần phát đầu trên tablet. */
+  warmUpDefaultSounds(): void {
+    for (const key of SOUND_EVENT_KEYS) {
+      const source = this.resolveSource(key);
+      if (!source) {
+        continue;
+      }
+
+      if (SUSTAINED_SOUND_EVENTS.has(key)) {
+        continue;
+      }
+
+      this.ensureOneShotPool(key, source);
+    }
+  }
+
+  /** Xóa pool khi đổi binding âm thanh trong Cài đặt */
+  invalidatePools(): void {
+    this.oneShotPools.clear();
+    for (const event of [...this.sustained.keys()]) {
+      this.stop(event);
+    }
+  }
+
+  private installUnlockListeners(): void {
+    const unlockOnce = (): void => {
+      this.unlock();
+    };
+
+    window.addEventListener('pointerdown', unlockOnce, { once: true, passive: true });
+    window.addEventListener('touchstart', unlockOnce, { once: true, passive: true });
+    window.addEventListener('keydown', unlockOnce, { once: true });
+  }
+
+  private async ensureUnlocked(): Promise<void> {
+    if (!this.unlocked) {
+      this.unlock();
+    }
+    await this.resumeAudioContext();
+  }
+
+  private getAudioContext(): AudioContext | null {
+    if (this.audioContext) {
+      return this.audioContext;
+    }
+
+    const AudioContextClass =
+      window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) {
+      return null;
+    }
+
+    this.audioContext = new AudioContextClass();
+    return this.audioContext;
+  }
+
+  private async resumeAudioContext(): Promise<void> {
+    const context = this.getAudioContext();
+    if (!context || context.state !== 'suspended') {
+      return;
+    }
+
+    try {
+      await context.resume();
+    } catch {
+      // WebView có thể từ chối resume nếu chưa có gesture — bỏ qua.
+    }
+  }
+
   private isEnabled(): boolean {
     return appContext.getAppState().settings.sound;
   }
@@ -187,7 +308,70 @@ export class SoundManager {
       appState.settings.sounds?.library ?? [],
       appState.settings.sounds?.bindings,
     );
-    return custom?.dataUrl ?? DEFAULT_SOUND_FILES[event];
+    const raw = custom?.dataUrl ?? DEFAULT_SOUND_FILES[event];
+    return raw ? this.normalizeAssetUrl(raw) : undefined;
+  }
+
+  /** Chuẩn hóa đường dẫn asset cho Capacitor WebView. */
+  private normalizeAssetUrl(source: string): string {
+    if (source.startsWith('data:') || source.startsWith('blob:') || /^https?:\/\//i.test(source)) {
+      return source;
+    }
+
+    if (isNativeApp() && source.startsWith('/')) {
+      const origin = window.location.origin;
+      if (origin && origin !== 'null') {
+        return `${origin}${source}`;
+      }
+    }
+
+    return source;
+  }
+
+  private createAudioElement(source: string, options?: { loop?: boolean; volume?: number }): HTMLAudioElement {
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.src = source;
+    audio.volume = options?.volume ?? 0.9;
+    audio.loop = options?.loop ?? false;
+    if (isNativeApp()) {
+      audio.setAttribute('playsinline', 'true');
+    }
+    return audio;
+  }
+
+  private ensureOneShotPool(event: SoundEventKey, sourceKey: string): OneShotPool {
+    const existing = this.oneShotPools.get(event);
+    if (existing && existing.sourceKey === sourceKey) {
+      return existing;
+    }
+
+    const elements = Array.from({ length: ONE_SHOT_POOL_SIZE }, () =>
+      this.createAudioElement(sourceKey, { volume: 0.9 }),
+    );
+    const pool: OneShotPool = { elements, sourceKey, cursor: 0 };
+    this.oneShotPools.set(event, pool);
+    return pool;
+  }
+
+  private borrowOneShotAudio(event: SoundEventKey, source: string): HTMLAudioElement {
+    const pool = this.ensureOneShotPool(event, source);
+    const audio = pool.elements[pool.cursor % pool.elements.length];
+    pool.cursor += 1;
+    return audio;
+  }
+
+  private playOneShot(event: SoundEventKey, onFail: () => void): void {
+    const source = this.resolveSource(event);
+    if (!source) {
+      onFail();
+      return;
+    }
+
+    const audio = this.borrowOneShotAudio(event, source);
+    audio.pause();
+    audio.currentTime = 0;
+    void audio.play().catch(onFail);
   }
 
   private playSustained(event: SoundEventKey, source: string | undefined, loop: boolean): void {
@@ -196,12 +380,25 @@ export class SoundManager {
       return;
     }
 
+    const volume = event === 'introBed' ? 0.82 : 0.9;
+    const existing = this.sustained.get(event);
+
+    if (existing && existing.sourceKey === source) {
+      existing.audio.loop = loop;
+      existing.audio.volume = volume;
+      if (existing.audio.paused) {
+        void existing.audio.play().catch(() => {
+          this.stop(event);
+          this.playToneFallback(event);
+        });
+      }
+      return;
+    }
+
     this.stop(event);
 
-    const audio = new Audio(source);
-    audio.volume = event === 'introBed' ? 0.82 : 0.9;
-    audio.loop = loop;
-    this.sustained.set(event, { audio });
+    const audio = this.createAudioElement(source, { loop, volume });
+    this.sustained.set(event, { audio, sourceKey: source });
     void audio.play().catch(() => {
       this.stop(event);
       this.playToneFallback(event);
@@ -215,44 +412,26 @@ export class SoundManager {
       return;
     }
 
-    let audio = this.pooled.get('countdown');
-    if (!audio) {
-      audio = new Audio(source);
-      audio.volume = 0.9;
-      this.pooled.set('countdown', audio);
-    }
-
+    const audio = this.borrowOneShotAudio('countdown', source);
     audio.pause();
     audio.currentTime = 0;
     void audio.play().catch(() => this.playToneFallback('countdown'));
   }
 
-  private playFresh(source: string | undefined, onFail: () => void): void {
-    if (!source) {
-      onFail();
-      return;
-    }
-
-    const audio = new Audio(source);
-    audio.volume = 0.9;
-    void audio.play().catch(onFail);
-  }
-
   private playToneFallback(event: SoundEventKey): void {
     const fallback = TONE_FALLBACK[event];
     if (fallback) {
-      this.playTone(fallback.frequency, fallback.duration, fallback.type);
+      void this.playTone(fallback.frequency, fallback.duration, fallback.type);
     }
   }
 
-  private playTone(frequency: number, duration: number, type: OscillatorType = 'sine'): void {
-    const AudioContextClass =
-      window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) {
+  private async playTone(frequency: number, duration: number, type: OscillatorType = 'sine'): Promise<void> {
+    await this.ensureUnlocked();
+    const context = this.getAudioContext();
+    if (!context) {
       return;
     }
 
-    const context = new AudioContextClass();
     const oscillator = context.createOscillator();
     const gain = context.createGain();
     oscillator.type = type;
@@ -264,10 +443,13 @@ export class SoundManager {
     const now = context.currentTime;
     gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + duration / 1000);
-    oscillator.start();
+    oscillator.start(now);
     oscillator.stop(now + duration / 1000);
-    oscillator.onended = () => context.close().catch(() => undefined);
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      gain.disconnect();
+    };
   }
 }
 
-export const soundManager = new SoundManager();
+export const soundManager = SoundManager.getInstance();

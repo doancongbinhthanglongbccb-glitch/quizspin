@@ -2,7 +2,7 @@ import type { RuntimeState } from '../../core/state';
 import type { AppState } from '../../types';
 import { findQuestionById, getQuestionOptions, isEssayQuestion, isMcqCorrectOption, isMcqQuestion, isMcqOptionSelected, isMultipleMcqQuestion } from '../../data';
 import { DEFAULTS } from '../../config';
-import { QUIZ_CONFIG } from '../../config/quiz';
+import { QUIZ_CONFIG, isUnlimitedQuizTimer } from '../../config/quiz';
 import { escapeHtml } from '../../utils/html';
 import { syncQuizProgressDom, syncQuizQuestionGrid } from '../../utils/quiz-timer-dom';
 
@@ -118,9 +118,11 @@ function renderSidebar(
       ${renderScoreBlock(appState, session)}
 
       ${
-        session.phase === 'active'
+        session.phase === 'active' && !isUnlimitedQuizTimer(session.timerSec)
           ? `<div class="quiz-session__timer-wrap">${renderTimerRing(session.remaining, session.timerSec)}</div>`
-          : '<p class="quiz-session__submitted m-0 text-center text-caption text-white/50">Đã nộp bài</p>'
+          : session.phase === 'active'
+            ? '<p class="quiz-session__submitted m-0 text-center text-caption text-white/50">Không giới hạn thời gian</p>'
+            : '<p class="quiz-session__submitted m-0 text-center text-caption text-white/50">Đã nộp bài</p>'
       }
 
       <div class="quiz-session__progress-label">
@@ -171,7 +173,10 @@ function renderQuestionBody(
   const result = session.results?.find((item) => item.questionId === questionId);
   const showReview = isResult && result;
 
-  const badge = `<span class="quiz-session__badge" style="--badge-color:${session.categoryColor}">${escapeHtml(session.categoryName)}</span>`;
+  const badgeLabel = session.examTitle
+    ? `${session.categoryName} · ${session.examTitle}`
+    : session.categoryName;
+  const badge = `<span class="quiz-session__badge" style="--badge-color:${session.categoryColor}">${escapeHtml(badgeLabel)}</span>`;
 
   if (isMcqQuestion(question)) {
     const isMultiple = isMultipleMcqQuestion(question);
@@ -335,7 +340,9 @@ export function getQuizMountKey(appState: AppState, runtime: RuntimeState): stri
 
   return [
     session.phase,
+    session.kind,
     session.categoryId ?? 'practice',
+    session.examId ?? '',
     session.questionIds.join(','),
     session.timerSec,
     session.phase === 'result' ? String(session.correctCount) : 'active',

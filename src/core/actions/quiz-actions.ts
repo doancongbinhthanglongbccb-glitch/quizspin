@@ -1,36 +1,100 @@
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { gradeQuizAnswers, findQuestionById, isMcqQuestion, toggleMcqPlayerSelection } from '../../data';
-import { pickCategorySession, pickPracticeSession, resetCategoryPool } from '../pool-manager';
-import type { Category, QuizSession } from '../../types';
+import { pickCategorySession, resetCategoryPool } from '../pool-manager';
+import { pickPracticeExamQuestions } from '../exam-generator';
+import { isUnlimitedQuizTimer } from '../../config/quiz';
+import type { Category, CategoryExam, PracticeConfig, QuizSession } from '../../types';
 import { showToast } from './shared';
 import { startQuizTimer, stopQuizTimer, quizRemainingSeconds } from '../quiz-timer';
 import { syncQuizProgressDom } from '../../utils/quiz-timer-dom';
 import { syncSpinUi } from '../../utils/sync-spin-ui';
 
 function createSessionBase(
-  categoryId: string | null,
-  categoryName: string,
-  categoryColor: string,
-  questionIds: string[],
-  timerSec: number,
+  params: {
+    kind: QuizSession['kind'];
+    categoryId: string | null;
+    categoryName: string;
+    categoryColor: string;
+    questionIds: string[];
+    timerSec: number;
+    examId?: string;
+    examTitle?: string;
+  },
 ): QuizSession {
-  const deadlineAt = Date.now() + timerSec * 1000;
+  const unlimited = isUnlimitedQuizTimer(params.timerSec);
+  const deadlineAt = unlimited ? 0 : Date.now() + params.timerSec * 1000;
+
   return {
     phase: 'active',
-    categoryId,
-    categoryName,
-    categoryColor,
-    questionIds,
+    kind: params.kind,
+    categoryId: params.categoryId,
+    categoryName: params.categoryName,
+    categoryColor: params.categoryColor,
+    examId: params.examId,
+    examTitle: params.examTitle,
+    questionIds: params.questionIds,
     currentIndex: 0,
     answers: {},
-    timerSec,
+    timerSec: params.timerSec,
     deadlineAt,
     paused: false,
-    remaining: timerSec,
+    remaining: unlimited ? 0 : params.timerSec,
   };
 }
 
+/** Thi theo đề cố định của lĩnh vực. */
+export function startCategoryExamSession(category: Category, exam: CategoryExam): void {
+  if (exam.questionIds.length === 0) {
+    showToast(`Đề ${exam.index} đang trống`);
+    return;
+  }
+
+  const timerSec = appContext.getAppState().settings.timer;
+
+  appContext.setRuntimeState({
+    quizSession: createSessionBase({
+      kind: 'category-exam',
+      categoryId: category.id,
+      categoryName: category.name,
+      categoryColor: category.color,
+      questionIds: [...exam.questionIds],
+      timerSec,
+      examId: exam.id,
+      examTitle: exam.title,
+    }),
+  });
+
+  startQuizTimer();
+}
+
+/** Thi thử theo cấu hình người dùng chọn. */
+export function startPracticeExamSession(config: PracticeConfig): void {
+  const appState = appContext.getAppState();
+  const questions = pickPracticeExamQuestions(appState.categories, config);
+
+  if (!questions.length) {
+    showToast('Chưa có câu hỏi để thi thử');
+    return;
+  }
+
+  const timerSec = config.timerSec ?? 0;
+
+  appContext.setRuntimeState({
+    quizSession: createSessionBase({
+      kind: 'practice',
+      categoryId: null,
+      categoryName: 'Thi thử',
+      categoryColor: '#4895ef',
+      questionIds: questions.map((q) => q.id),
+      timerSec,
+    }),
+  });
+
+  startQuizTimer();
+}
+
+/** @deprecated Luồng vòng quay cũ — random pool. Giữ để tương thích nội bộ nếu cần. */
 export function startCategoryQuiz(category: Category): void {
   const pools = appContext.getQuestionPools();
   const { questions, poolReset } = pickCategorySession(category, pools);
@@ -47,28 +111,22 @@ export function startCategoryQuiz(category: Category): void {
   const timerSec = appContext.getAppState().settings.timer;
 
   appContext.setRuntimeState({
-    quizSession: createSessionBase(category.id, category.name, category.color, questions.map((q) => q.id), timerSec),
+    quizSession: createSessionBase({
+      kind: 'wheel-random',
+      categoryId: category.id,
+      categoryName: category.name,
+      categoryColor: category.color,
+      questionIds: questions.map((q) => q.id),
+      timerSec,
+    }),
   });
 
   startQuizTimer();
 }
 
+/** @deprecated Dùng openPracticeSetupFlow + startPracticeFromSetup */
 export function startPracticeQuiz(): void {
-  const appState = appContext.getAppState();
-  const questions = pickPracticeSession(appState.categories);
-
-  if (!questions.length) {
-    showToast('Chưa có câu hỏi để thi thử');
-    return;
-  }
-
-  const timerSec = appState.settings.timer;
-
-  appContext.setRuntimeState({
-    quizSession: createSessionBase(null, 'Thi thử', '#4895ef', questions.map((q) => q.id), timerSec),
-  });
-
-  startQuizTimer();
+  startPracticeExamSession({ questionCount: 20, timerSec: appContext.getAppState().settings.timer });
 }
 
 export function goToQuizQuestion(index: number): void {
@@ -142,7 +200,7 @@ export function updateQuizEssayAnswer(text: string): void {
     const wasAnswered = !!(session.answers[questionId] ?? '').trim();
     const isAnswered = !!text.trim();
     if (wasAnswered !== isAnswered) {
-      document.querySelectorAll<HTMLElement>('[data-quiz-grid-item]').forEach((button, index) => {
+      document.querySelectorAll<HTMLElement>('[data-action="quiz-grid-item"]').forEach((button, index) => {
         if (index === gridItem) {
           button.classList.toggle('quiz-grid__item--answered', isAnswered);
         }
@@ -175,8 +233,8 @@ export function submitQuiz(): void {
   const appState = appContext.getAppState();
   const graded = gradeQuizAnswers(appState.categories, session.questionIds, session.answers);
 
-  // Sau khi nộp bài mới đánh dấu câu đã dùng vào pool (chỉ lĩnh vực)
-  if (session.categoryId) {
+  // Pool chỉ áp dụng cho luồng random cũ (wheel-random)
+  if (session.kind === 'wheel-random' && session.categoryId) {
     appContext.setQuestionPools((current) => {
       const used = [...(current[session.categoryId!] ?? [])];
       for (const id of session.questionIds) {
@@ -188,11 +246,12 @@ export function submitQuiz(): void {
     });
   }
 
+  const unlimited = isUnlimitedQuizTimer(session.timerSec);
   const nextSession: QuizSession = {
     ...session,
     phase: 'result',
     paused: true,
-    remaining: quizRemainingSeconds(session.deadlineAt),
+    remaining: unlimited ? 0 : quizRemainingSeconds(session.deadlineAt),
     results: graded.results,
     correctCount: graded.correctCount,
     totalGradable: graded.totalGradable,
@@ -215,7 +274,7 @@ export function submitQuiz(): void {
 
 export function handleQuizTimeUp(): void {
   const session = appContext.getRuntimeState().quizSession;
-  if (!session || session.phase !== 'active') {
+  if (!session || session.phase !== 'active' || isUnlimitedQuizTimer(session.timerSec)) {
     return;
   }
 

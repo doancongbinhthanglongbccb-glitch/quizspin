@@ -11,7 +11,7 @@
 
 ### Tải APK Android
 
-**[Tải APK v0.1.0](releases/Bo-tro-Giao-duc-Chinh-tri.apk)** — release **đã ký**, build `2026-06-19` (~8.2 MB, `com.quizspin.app`)
+**[Tải APK v0.1.0](releases/Bo-tro-Giao-duc-Chinh-tri.apk)** — release **đã ký**, build `2026-06-19 19:51` (~8.2 MB, `com.quizspin.app`)
 
 Cài trên điện thoại: tải file `.apk` → mở → cho phép cài từ nguồn không xác định → **Cài đặt**. Bản release đã ký có thể cài đè bản debug cùng package; nếu vẫn báo lỗi chữ ký, gỡ app cũ rồi cài lại.
 
@@ -23,7 +23,7 @@ Cài trên điện thoại: tải file `.apk` → mở → cho phép cài từ n
 |---------|----------|
 | **Màn Intro** | Logo, nhạc nền, nút vào game + **tối đa 3 nút link ngoài** (thêm động trong Cài đặt), animation logo bay lên header |
 | **Vòng quay** | Canvas wheel, kim cố định đồng bộ kết quả, animation 5s, modal quà/phạt/thông báo |
-| **Bộ thi (Quiz)** | Màn full-screen: timer, sidebar tiến độ, MCQ (1 hoặc nhiều đáp án), tự luận, nộp bài + xem lại |
+| **Bộ thi (Quiz)** | Chọn đề theo lĩnh vực (20 câu/đề), thi thử tùy chỉnh; full-screen timer, MCQ (1/nhiều đáp án), tự luận, nộp bài + xem lại |
 | **Ngân hàng** | CRUD lĩnh vực & câu hỏi, MCQ/Essay, filter, import Excel đa format |
 | **Cài đặt** | Timer, âm thanh, quà/phạt, pool câu theo lĩnh vực, link intro, xóa dữ liệu (confirm 2 bước) |
 | **UX / ổn định** | Chặn đổi tab khi đang quay/modal/quiz; shell cố định + scroll vùng nội dung; tối ưu Android WebView |
@@ -277,19 +277,22 @@ cd android
 .\gradlew assembleRelease   # hoặc Android Studio → Build → Generate Signed App Bundle or APK
 ```
 
-Output release đã ký (Android Studio / signing config):
+Output release **đã ký** (Android Studio → *Generate Signed App Bundle or APK*):
 
 ```
-android/app/build/outputs/apk/release/app-release.apk
+android/app/release/app-release.apk
 ```
 
-Bản `assembleRelease` không cấu hình ký → `app-release-unsigned.apk` (chỉ dùng nội bộ).
+Bản `gradlew assembleRelease` không cấu hình ký:
+
+```
+android/app/build/outputs/apk/release/app-release-unsigned.apk
+```
 
 Copy vào `releases/` để cập nhật bản tải trên repo:
 
 ```powershell
-Copy-Item android/app/build/outputs/apk/release/app-release.apk releases/Bo-tro-Giao-duc-Chinh-tri.apk
-# (tùy chọn giữ tên gốc: releases/app-release.apk)
+Copy-Item android/app/release/app-release.apk releases/Bo-tro-Giao-duc-Chinh-tri.apk
 ```
 
 Debug nhanh (Android Studio hoặc `.\gradlew assembleDebug`):
@@ -303,7 +306,7 @@ android/app/build/outputs/apk/debug/app-debug.apk
 | `appId` | `com.quizspin.app` |
 | Tên launcher | `Bổ trợ Giáo dục - Chính trị` (`android/app/src/main/res/values/strings.xml`) |
 | `webDir` | `dist` |
-| APK tải về | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](releases/Bo-tro-Giao-duc-Chinh-tri.apk) — release đã ký, `2026-06-19` |
+| APK tải về | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](releases/Bo-tro-Giao-duc-Chinh-tri.apk) — release đã ký, `2026-06-19 19:51` |
 
 **Không commit:** `dist/`, `android/app/build/`, `android/.gradle/`, `android/.idea/`, `android/app/src/main/assets/public/` (tạo lại bằng `cap sync`).
 
@@ -346,7 +349,7 @@ android/app/build/outputs/apk/debug/app-debug.apk
 - [ ] Tên đội / người chơi trên màn quay
 - [ ] Tính điểm có trọng số (`question.points`) trong UI bộ thi
 - [ ] Test tự động (wheel landing, quiz flow)
-- [x] Build APK release (đã ký) & cập nhật file trong `releases/` (`2026-06-19`)
+- [x] Build APK release (đã ký) & cập nhật file trong `releases/` (`2026-06-19 19:51`)
 
 ---
 

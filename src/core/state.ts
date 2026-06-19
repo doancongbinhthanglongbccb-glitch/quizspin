@@ -1,4 +1,4 @@
-import type { AppState, ActiveModal, ConfirmDialog, CustomSound, ImportStats, IntroLinkSettings, QuestionDraft, QuestionPools, QuizSession, SettingsSection, SoundEventKey } from '../types';
+import type { AppState, ActiveModal, ConfirmDialog, CustomSound, ExamPicker, ImportStats, IntroLinkSettings, PracticeSetupDraft, QuestionDraft, QuestionPools, QuizSession, SettingsSection, SoundEventKey } from '../types';
 import {
   createSampleState,
   defaultQuestionDraft,
@@ -7,6 +7,7 @@ import {
 } from '../data';
 import { DEFAULT_PALETTE, DEFAULTS } from '../config';
 import { SOUND_EVENT_KEYS } from '../config/sounds';
+import { createDefaultPracticeSetupDraft } from './exam-generator';
 
 /**
  * RuntimeState: Trạng thái UI runtime (không persist)
@@ -42,6 +43,9 @@ export type RuntimeState = {
   usedPunishments: Set<string>;
   /** Phiên thi bộ đang diễn ra */
   quizSession: QuizSession | null;
+  /** Overlay chọn đề / cấu hình thi thử */
+  examPicker: ExamPicker;
+  practiceSetupDraft: PracticeSetupDraft | null;
   importReport: {
     imported: number;
     skipped: number;
@@ -73,6 +77,8 @@ export function createDefaultRuntimeState(): RuntimeState {
     usedGifts: new Set(),
     usedPunishments: new Set(),
     quizSession: null,
+    examPicker: null,
+    practiceSetupDraft: createDefaultPracticeSetupDraft(),
     importReport: null,
     confirmDialog: null,
     settingsSection: 'timer',
@@ -100,6 +106,7 @@ function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
     usedGifts: new Set(runtimeState.usedGifts),
     usedPunishments: new Set(runtimeState.usedPunishments),
     quizSession: runtimeState.quizSession ? { ...runtimeState.quizSession, answers: { ...runtimeState.quizSession.answers } } : null,
+    practiceSetupDraft: runtimeState.practiceSetupDraft ? { ...runtimeState.practiceSetupDraft } : null,
     importReport: runtimeState.importReport
       ? {
           ...runtimeState.importReport,
@@ -143,6 +150,14 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
     confirmDialog: Object.prototype.hasOwnProperty.call(update, 'confirmDialog')
       ? (update.confirmDialog ?? null)
       : current.confirmDialog,
+    examPicker: Object.prototype.hasOwnProperty.call(update, 'examPicker') ? (update.examPicker ?? null) : current.examPicker,
+    practiceSetupDraft: Object.prototype.hasOwnProperty.call(update, 'practiceSetupDraft')
+      ? update.practiceSetupDraft
+        ? { ...update.practiceSetupDraft }
+        : null
+      : current.practiceSetupDraft
+        ? { ...current.practiceSetupDraft }
+        : null,
     settingsDraft: Object.prototype.hasOwnProperty.call(update, 'settingsDraft')
       ? cloneSettingsDraft(update.settingsDraft ?? null)
       : cloneSettingsDraft(current.settingsDraft),

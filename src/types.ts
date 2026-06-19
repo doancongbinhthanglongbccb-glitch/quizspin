@@ -94,22 +94,30 @@ export type SpinKind = 'category' | 'gift' | 'punishment' | 'practice';
 
 export type QuizSessionPhase = 'active' | 'result';
 
+export type QuizSessionKind = 'category-exam' | 'practice' | 'wheel-random';
+
 export type QuizQuestionResult = {
   questionId: string;
   playerAnswer: string;
   isCorrect: boolean;
 };
 
-/** Phiên thi bộ (tối đa 20 câu) */
+/** Phiên thi bộ */
 export type QuizSession = {
   phase: QuizSessionPhase;
+  /** Loại phiên thi */
+  kind: QuizSessionKind;
   /** `null` = thi thử (mọi lĩnh vực) */
   categoryId: string | null;
   categoryName: string;
   categoryColor: string;
+  /** Tên đề (vd. "Đề 2") — chỉ category-exam */
+  examTitle?: string;
+  examId?: string;
   questionIds: string[];
   currentIndex: number;
   answers: Record<string, string>;
+  /** 0 = không giới hạn thời gian */
   timerSec: number;
   deadlineAt: number;
   paused: boolean;
@@ -120,6 +128,43 @@ export type QuizSession = {
   earnedPoints?: number;
   maxPoints?: number;
 };
+
+/** Một đề thi cố định trong lĩnh vực */
+export type CategoryExam = {
+  id: string;
+  categoryId: string;
+  /** Số thứ tự hiển thị (1-based) */
+  index: number;
+  title: string;
+  questionIds: string[];
+  questionCount: number;
+};
+
+/** Cấu hình thi thử do người dùng chọn */
+export type PracticeConfig = {
+  questionCount: number;
+  /** `null` = không giới hạn */
+  timerSec: number | null;
+};
+
+/** Bản nháp form thi thử trong overlay chọn đề */
+export type PracticeSetupDraft = {
+  questionPreset: number | 'custom';
+  customQuestionCount: string;
+  timerPreset: '15' | '30' | '45' | '60' | 'unlimited' | 'custom';
+  customTimerMin: string;
+};
+
+export type ExamPicker =
+  | {
+      kind: 'category';
+      categoryId: string;
+      categoryName: string;
+      categoryColor: string;
+      exams: CategoryExam[];
+    }
+  | { kind: 'practice' }
+  | null;
 
 export type WheelSegment = {
   id: string;

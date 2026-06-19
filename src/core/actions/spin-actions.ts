@@ -2,7 +2,7 @@ import { buildWheelModel } from '../wheel';
 import { appContext } from '../state';
 import { spinSession } from '../spin-session';
 import { openGiftModal } from './modal-actions';
-import { startCategoryQuiz, startPracticeQuiz } from './quiz-actions';
+import { openCategoryExamFlow, openPracticeSetupFlow } from './exam-actions';
 import { syncSpinUi } from '../../utils/sync-spin-ui';
 import { showToast } from './shared';
 import type { WheelSegment } from '../../types';
@@ -16,13 +16,13 @@ function resolveSegmentAction(segment: WheelSegment): void {
   if (segment.kind === 'category' && segment.categoryId) {
     const category = appContext.getAppState().categories.find((item) => item.id === segment.categoryId);
     if (category) {
-      startCategoryQuiz(category);
+      openCategoryExamFlow(category);
     }
     return;
   }
 
   if (segment.kind === 'practice') {
-    startPracticeQuiz();
+    openPracticeSetupFlow();
     return;
   }
 
@@ -41,7 +41,7 @@ export function spin(): void {
   const runtime = appContext.getRuntimeState();
   const appState = appContext.getAppState();
 
-  if (runtime.spinning || runtime.modal || runtime.quizSession) {
+  if (runtime.spinning || runtime.modal || runtime.quizSession || runtime.examPicker) {
     return;
   }
 

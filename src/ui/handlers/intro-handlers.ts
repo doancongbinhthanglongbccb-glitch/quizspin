@@ -99,6 +99,7 @@ async function openIntroLink(url: string): Promise<void> {
 }
 
 export function bindIntroHandlers(root: ParentNode): () => void {
+  soundManager.unlock();
   soundManager.playLoop('introBed');
 
   const onClick = (event: Event): void => {

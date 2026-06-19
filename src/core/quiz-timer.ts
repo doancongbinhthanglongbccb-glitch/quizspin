@@ -1,4 +1,4 @@
-import { QUIZ_CONFIG } from '../config/quiz';
+import { QUIZ_CONFIG, isUnlimitedQuizTimer } from '../config/quiz';
 import { isAndroidApp } from '../utils/platform';
 import { soundManager } from './sound-manager';
 import { appContext } from './state';
@@ -26,7 +26,7 @@ export function stopQuizTimer(): void {
 
 function ensureQuizDeadline(): number | null {
   const session = appContext.getRuntimeState().quizSession;
-  if (!session || session.phase !== 'active') {
+  if (!session || session.phase !== 'active' || isUnlimitedQuizTimer(session.timerSec)) {
     return null;
   }
 
@@ -46,7 +46,7 @@ export function startQuizTimer(): void {
   timerCancelled = false;
 
   const session = appContext.getRuntimeState().quizSession;
-  if (!session || session.phase !== 'active' || session.paused) {
+  if (!session || session.phase !== 'active' || session.paused || isUnlimitedQuizTimer(session.timerSec)) {
     return;
   }
 

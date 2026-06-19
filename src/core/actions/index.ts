@@ -18,7 +18,18 @@ import {
   updateQuestionDraft,
 } from './question-actions';
 import {
+  openCategoryExamFlow,
+  openPracticeSetupFlow,
+  selectCategoryExam,
+  closeExamPicker,
+  updatePracticeSetupDraft,
+  patchPracticeSetupDraft,
+  startPracticeFromSetup,
+} from './exam-actions';
+import {
   startCategoryQuiz,
+  startCategoryExamSession,
+  startPracticeExamSession,
   startPracticeQuiz,
   goToQuizQuestion,
   chooseQuizAnswer,
@@ -48,9 +59,20 @@ import {
 
 export { clearEverything, parseExcelImport };
 export {
+  openCategoryExamFlow,
+  openPracticeSetupFlow,
+  selectCategoryExam,
+  closeExamPicker,
+  updatePracticeSetupDraft,
+  patchPracticeSetupDraft,
+  startPracticeFromSetup,
+};
+export {
   openGiftModal,
   closeModal,
   startCategoryQuiz,
+  startCategoryExamSession,
+  startPracticeExamSession,
   startPracticeQuiz,
   goToQuizQuestion,
   chooseQuizAnswer,

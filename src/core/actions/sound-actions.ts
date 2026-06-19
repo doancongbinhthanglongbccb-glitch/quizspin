@@ -105,6 +105,7 @@ export function confirmSoundUpload(eventKey: SoundEventKey): void {
 
   persistSoundBinding(eventKey, sound);
   appContext.setRuntimeState({ soundUploadDraft: null });
+  soundManager.invalidatePools();
   soundManager.stopPreview();
   showToast(`Đã gán âm thanh: ${SOUND_EVENT_LABELS[eventKey]}`);
 }
@@ -132,6 +133,8 @@ export function clearSoundBinding(eventKey: SoundEventKey): void {
       },
     };
   });
+
+  soundManager.invalidatePools();
 
   const draft = appContext.getRuntimeState().soundUploadDraft;
   if (draft?.eventKey === eventKey) {

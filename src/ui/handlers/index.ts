@@ -5,3 +5,4 @@ export { bindSettingsHandlers } from './settings-handlers';
 export { bindSwipeHandlers } from './swipe-handlers';
 export { bindIntroHandlers } from './intro-handlers';
 export { bindQuizHandlers } from './quiz-handlers';
+export { bindExamHandlers } from './exam-handlers';

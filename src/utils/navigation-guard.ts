@@ -2,7 +2,7 @@ import { appContext } from '../core/state';
 
 export function canSwitchTab(): boolean {
   const runtime = appContext.getRuntimeState();
-  return !runtime.spinning && !runtime.modal && !runtime.quizSession && !runtime.confirmDialog && !runtime.showIntro;
+  return !runtime.spinning && !runtime.modal && !runtime.quizSession && !runtime.confirmDialog && !runtime.examPicker && !runtime.showIntro;
 }
 
 export function canReplayIntro(): boolean {
@@ -20,6 +20,9 @@ export function getNavigationBlockReason(): string | null {
   }
   if (runtime.modal) {
     return 'Đang hiển thị kết quả';
+  }
+  if (runtime.examPicker) {
+    return 'Đang chọn đề thi';
   }
   if (runtime.confirmDialog) {
     return 'Hoàn tất thao tác xác nhận trước';
