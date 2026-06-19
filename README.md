@@ -11,9 +11,9 @@
 
 ### Tải APK Android
 
-**[📥 Tải Bo-tro-Giao-duc-Chinh-tri.apk](./releases/Bo-tro-Giao-duc-Chinh-tri.apk)** (~10 MB, bản debug v0.1.0, build 10/06/2026)
+**[Tải APK v0.1.0](releases/Bo-tro-Giao-duc-Chinh-tri.apk)** — build release `2026-06-19` (~8.1 MB, `com.quizspin.app`)
 
-Cài trên điện thoại: tải file → mở → cho phép cài từ nguồn không xác định → **Cài đặt**.
+Cài trên điện thoại: tải file `.apk` → mở → cho phép cài từ nguồn không xác định → **Cài đặt**. Nếu đã cài bản cũ ký khác chữ ký, gỡ app trước rồi cài lại.
 
 ---
 
@@ -21,44 +21,40 @@ Cài trên điện thoại: tải file → mở → cho phép cài từ nguồn 
 
 | Khu vực | Nội dung |
 |---------|----------|
-| **Màn Intro** | Logo, nhạc nền (clip ~26s), nút vào game + nút link ngoài (tùy cấu hình), animation logo bay lên header |
+| **Màn Intro** | Logo, nhạc nền, nút vào game + **tối đa 3 nút link ngoài** (thêm động trong Cài đặt), animation logo bay lên header |
 | **Vòng quay** | Canvas wheel, kim cố định đồng bộ kết quả, animation 5s, modal quà/phạt/thông báo |
+| **Bộ thi (Quiz)** | Màn full-screen: timer, sidebar tiến độ, MCQ (1 hoặc nhiều đáp án), tự luận, nộp bài + xem lại |
 | **Ngân hàng** | CRUD lĩnh vực & câu hỏi, MCQ/Essay, filter, import Excel đa format |
-| **Modal câu hỏi** | Timer SVG, chọn đáp án, chấm khi hiện đáp án/hết giờ, âm thanh đúng/sai |
-| **Cài đặt** | Timer, âm thanh, quà/phạt, màn intro, xóa dữ liệu (confirm 2 bước) |
-| **UX / ổn định** | Chặn đổi tab khi đang quay/modal/confirm; render chọn lọc tránh giật UI; lưu storage xếp hàng |
+| **Cài đặt** | Timer, âm thanh, quà/phạt, pool câu theo lĩnh vực, link intro, xóa dữ liệu (confirm 2 bước) |
+| **UX / ổn định** | Chặn đổi tab khi đang quay/modal/quiz; shell cố định + scroll vùng nội dung; tối ưu Android WebView |
 
 ### Màn Intro
 
 - Hiển thị lần đầu (hoặc bấm nút **INTRO** góc màn hình để xem lại)
 - Nút chính: **VÒNG XOAY KIẾN THỨC** — vào app, logo bay lên header
-- Nút phụ (nếu có URL trong Cài đặt → Màn Intro): mở link ngoài, ví dụ «Kiểm tra nhận thức»
-  - Trình duyệt: tab mới
-  - Android: `@capacitor/browser` (in-app browser)
-- Nhạc `introBed` — clip ngắn lặp, không phát full file gốc
+- **Nút link ngoài** (Cài đặt → Màn Intro → **+ Thêm liên kết**, tối đa 3):
+  - Chỉ hiện khi đã nhập URL (`https://...`)
+  - Web: tab mới · Android: `@capacitor/browser`
+- Nhạc `introBed` — tự dừng khi vào game hoặc app vào nền (Android `pause`)
 
 ### Tab Vòng Quay
 
 - Nút **BẮT ĐẦU QUAY** — random segment (lĩnh vực / quà / phạt / thêm lượt / mất lượt)
-- Kết quả quay được chọn **trước** animation (`Math.random` đồng đều trên các segment); vòng chỉ quay tới góc tương ứng
-- Sidebar: trạng thái, tổng số câu, số lĩnh vực
-- Cần ít nhất **1 quà** và **1 hình phạt** trong Cài đặt mới quay được
-- Âm thanh quay 5s: `spinBed` + `spinStart` → `spinStop` khi dừng
-- Không đổi tab / swipe / replay intro khi đang quay hoặc modal kết quả đang mở
+- Kết quả quay được chọn **trước** animation; vòng chỉ quay tới góc tương ứng
+- Trúng **lĩnh vực** hoặc **ô luyện tập** → mở **màn bộ thi** (không còn modal câu hỏi)
+- Trúng quà/phạt → modal đơn giản (Đóng)
+- Layout tablet ngang: wheel căn giữa; header + nav cố định, nội dung scroll độc lập
+- Cần ít nhất **1 quà** và **1 hình phạt** mới quay được
+- Không đổi tab / swipe khi đang quay, modal hoặc đang thi
 
-### Modal câu hỏi
+### Màn bộ thi (Quiz Session)
 
-- Timer tròn SVG, đỏ khi ≤ 5 giây
-- **MCQ (trắc nghiệm)**
-  - Chọn đáp án → chỉ highlight, **không chấm ngay**
-  - **Hiện đáp án** — nếu đã chọn: chấm + hiện đúng/sai + lưu lịch sử; nếu chưa chọn: chỉ xem đáp án
-  - **Hết giờ** — tự chấm nếu đã chọn; chưa chọn thì hiện đáp án + toast «Hết giờ»
-- **Essay (tự luận)**
-  - Gõ trong textarea (auto-resize)
-  - **Nộp đáp án** khi đã có nội dung → lưu + fanfare (không chấm tự động)
-  - **Hiện đáp án** — xem đáp án mẫu (không chấm)
-- **Tạm dừng / Tiếp tục** — đóng băng thời gian hiển thị khi chấm
-- `answerHistory` được **lưu vào storage** nhưng **chưa có màn xem lại** trên UI
+- Full-screen: **sidebar** (điểm, timer, lưới câu) · **nội dung câu** · **footer** (Trước / Nộp / Sau)
+- **MCQ một đáp án** — chọn một phương án
+- **MCQ nhiều đáp án** — cột đáp án đúng có 2+ phần (`A, C` hoặc `A; C`); chọn nhiều ô
+- **Tự luận** — textarea; chấm thủ công sau khi nộp (so với đáp án mẫu)
+- **Nộp bài** → chấm MCQ tự động, xem lại từng câu (đúng/sai, đáp án đúng)
+- Pool câu theo lĩnh vực: ưu tiên câu chưa dùng; hết pool tự reset
 
 ### Tab Ngân hàng
 
@@ -73,10 +69,11 @@ Cài trên điện thoại: tải file → mở → cho phép cài từ nguồn 
 
 | Mục | Nội dung |
 |-----|----------|
-| Thời gian | Slider 10s–5 phút |
+| Thời gian | Slider 10s–5 phút (dùng cho bộ thi) |
+| Pool câu hỏi | Theo dõi câu đã dùng / reset từng lĩnh vực hoặc toàn bộ |
 | Âm thanh | Bật/tắt + upload/preview cho 12 event |
 | Quà / Phạt | Mỗi dòng một mục, random không trùng trong phiên |
-| Màn Intro | Tên nút link + URL (để trống URL = ẩn nút) |
+| Màn Intro | Thêm/xóa tối đa **3** nút link (tên + URL); để trống URL = không hiện nút |
 | Nguy hiểm | Xóa toàn bộ dữ liệu (confirm 2 bước) |
 
 **12 sound event:** `introBed`, `spinBed`, `spinStart`, `spinStop`, `countdown`, `correct`, `wrong`, `fanfare`, `gift`, `punishment`, `extraTurn`, `loseTurn`
@@ -95,9 +92,9 @@ Cài trên điện thoại: tải file → mở → cho phép cài từ nguồn 
 
 1. Bỏ qua / hoàn thành **Intro** → tab **Vòng Quay**
 2. **BẮT ĐẦU QUAY**
-3. Trúng **lĩnh vực** → câu hỏi random (ưu tiên câu chưa dùng trong lĩnh vực đó)
-4. **MCQ:** chọn đáp án → **Hiện đáp án** hoặc chờ hết giờ
-5. **Essay:** gõ → **Nộp đáp án** hoặc **Hiện đáp án**
+3. Trúng **lĩnh vực** → **màn bộ thi** (bộ câu của lĩnh vực đó)
+4. Làm bài: MCQ (chọn đáp án; nhiều đáp án nếu câu có `A, C` trong đáp án đúng) hoặc tự luận
+5. **Nộp bài** → xem điểm / review từng câu → **Về vòng quay**
 6. Trúng quà/phạt/lượt → modal tương ứng → **Đóng**
 
 ### Chống trùng trong phiên
@@ -131,6 +128,8 @@ App tự nhận header (dòng 1) và loại câu từ cột **Phương án**:
 | Việt Nam tuyên bố độc lập vào ngày nào? | A. 2/9/1945<br>B. 30/4/1975<br>C. 19/5/1890<br>D. 7/5/1954 | A. 2/9/1945 |
 
 Phương án có thể xuống dòng (khuyến nghị), hoặc ngăn bằng `;` / `,`.
+
+**MCQ nhiều đáp án:** cùng format 3 cột; cột **Đáp án đúng** ghi 2+ đáp án, ví dụ `A, C` hoặc `A; C`. App tự nhận và cho chọn nhiều ô khi thi.
 
 ### Tự luận — 2 cột (khuyến nghị)
 
@@ -171,38 +170,36 @@ src/
 ├── config.ts
 ├── config/
 │   ├── spin.ts               # SPIN_CONFIG (5s, extraSpins)
-│   ├── sounds.ts             # DEFAULT_SOUND_FILES, INTRO_BED_CLIP
+│   ├── sounds.ts             # DEFAULT_SOUND_FILES
+│   ├── quiz.ts               # Ngưỡng timer quiz (warning/danger)
 │   └── intro.ts              # INTRO_ASSETS, INTRO_COPY
 ├── data.ts
 ├── storage.ts
-├── styles.css                # Wheel, timer SVG, intro, responsive hooks
+├── styles.css                # Wheel, quiz session, intro, responsive
 │
 ├── core/
 │   ├── state.ts              # AppContext: AppState + RuntimeState
 │   ├── wheel.ts              # Segment layout & landing math
 │   ├── spin-session.ts       # Animation + audio khi quay
-│   ├── question-timer.ts
+│   ├── quiz-timer.ts         # Timer bộ thi
+│   ├── pool-manager.ts       # Pool câu đã dùng theo lĩnh vực
 │   ├── sound-manager.ts
-│   ├── persist-queue.ts      # Xếp hàng ghi storage, toast lỗi persist
+│   ├── persist-queue.ts
 │   └── actions/
+│       ├── quiz-actions.ts   # Bộ thi: start, chọn đáp án, nộp bài
+│       └── …
 │
 ├── ui/
-│   ├── components.ts         # Shell render, overlay hosts, render queue
-│   ├── components/           # spin, bank, settings, modal, wheel, intro…
+│   ├── components.ts         # Shell render, overlay hosts
+│   ├── components/           # spin, bank, settings, quiz-session, wheel, intro…
 │   ├── handlers/
-│   ├── intro-transition.ts
-│   └── intro-logo-transition.ts
+│   └── …
 │
 └── utils/
-    ├── animate.ts            # Timed spin animation
-    ├── angles.ts
-    ├── shell-render-key.ts   # Khi nào rebuild shell (tab, settings, bank…)
-    ├── modal-render-key.ts  # Khi nào rebuild modal
-    ├── modal-dom-sync.ts     # Cập nhật MCQ options không rebuild modal
-    ├── sync-spin-ui.ts       # Nút quay / trạng thái khi spinning
-    ├── sync-toast-dom.ts     # Toast không rebuild shell
-    ├── navigation-guard.ts   # canSwitchTab, canReplayIntro
-    ├── open-external-url.ts  # Browser / Capacitor Browser
+    ├── platform.ts           # Android: perf-lite, DPR canvas
+    ├── android-viewport.ts   # Inset bàn phím WebView
+    ├── quiz-timer-dom.ts
+    ├── open-external-url.ts
     └── …
 ```
 
@@ -225,15 +222,13 @@ Mọi trường state **ảnh hưởng UI** phải nằm trong render key **ho�
 // Persist (key: appState)
 AppState {
   categories: Category[]
-  settings: Settings   // timer, sound, gifts, punishments, sounds, introLink
-  answerHistory: AnswerRecord[]
+  settings: Settings   // timer, sound, gifts, punishments, sounds, introLinks[]
 }
 
 // Runtime (không persist)
 RuntimeState {
-  tab, rotation, spinning, modal, toast, showIntro,
-  questionDraft, usedQuestionIds, usedGifts, usedPunishments,
-  confirmDialog, importReport, …
+  tab, rotation, spinning, modal, quizSession, toast, showIntro,
+  questionDraft, usedGifts, usedPunishments, confirmDialog, …
 }
 ```
 
@@ -273,16 +268,31 @@ npm run android            # mở Android Studio
 
 Trong Android Studio: chọn thiết bị/emulator → **Run**.
 
-**Build APK mới:** Android Studio → *Build → Generate App Bundles or APKs → Generate APKs* (hoặc *Build → Build APK(s)* trên bản cũ) → output tạm:
+**Build APK mới:** từ thư mục gốc project:
+
+```powershell
+npm run build
+npx cap sync android
+cd android
+.\gradlew assembleRelease
+```
+
+Output release (chưa ký):
 
 ```
-android/app/build/outputs/apk/debug/app-debug.apk
+android/app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
 Copy vào `releases/` để cập nhật bản tải trên repo:
 
 ```powershell
-Copy-Item android/app/build/outputs/apk/debug/app-debug.apk releases/Bo-tro-Giao-duc-Chinh-tri.apk
+Copy-Item android/app/build/outputs/apk/release/app-release-unsigned.apk releases/Bo-tro-Giao-duc-Chinh-tri.apk
+```
+
+Debug nhanh (Android Studio hoặc `.\gradlew assembleDebug`):
+
+```
+android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 | Mục | Giá trị |
@@ -290,7 +300,7 @@ Copy-Item android/app/build/outputs/apk/debug/app-debug.apk releases/Bo-tro-Giao
 | `appId` | `com.quizspin.app` |
 | Tên launcher | `Bổ trợ Giáo dục - Chính trị` (`android/app/src/main/res/values/strings.xml`) |
 | `webDir` | `dist` |
-| APK tải về (commit) | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](./releases/Bo-tro-Giao-duc-Chinh-tri.apk) (~10 MB, 10/06/2026) |
+| APK tải về | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](releases/Bo-tro-Giao-duc-Chinh-tri.apk) — cập nhật `2026-06-19` |
 
 **Không commit:** `dist/`, `android/app/build/`, `android/.gradle/`, `android/.idea/`, `android/app/src/main/assets/public/` (tạo lại bằng `cap sync`).
 
@@ -305,6 +315,7 @@ Copy-Item android/app/build/outputs/apk/debug/app-debug.apk releases/Bo-tro-Giao
 | Mobile | Capacitor 7 (`@capacitor/android`, `@capacitor/app`) |
 | Storage | `@capacitor/preferences` (+ localStorage fallback) |
 | Native UX | `@capacitor/browser`, `@capacitor-community/keep-awake` |
+| Android | `perf-lite` (tắt blur/animation nặng), `adjustResize` bàn phím, dừng nhạc khi `pause` |
 | Excel | SheetJS (`xlsx`) |
 | Wheel | Canvas API |
 | Âm thanh | Web Audio + HTMLAudioElement (custom upload) |
@@ -315,26 +326,24 @@ Copy-Item android/app/build/outputs/apk/debug/app-debug.apk releases/Bo-tro-Giao
 
 **Đã có**
 
-- [x] Intro + logo transition
+- [x] Intro + logo transition + **nhiều nút link** (tối đa 3)
+- [x] **Màn bộ thi** full-screen (timer, sidebar, nộp bài, review)
+- [x] **MCQ nhiều đáp án** (import & khi thi)
+- [x] Pool câu theo lĩnh vực + reset
 - [x] Kim vòng quay đồng bộ kết quả
-- [x] MCQ: chọn → chấm khi Hiện đáp án / hết giờ
 - [x] Timer pause/resume + app background (Capacitor)
-- [x] Confirm dialog thay `window.confirm` (xóa dữ liệu, CRUD lĩnh vực)
-- [x] Tailwind cho layout chính
-- [x] Render pipeline chọn lọc (giảm giật khi quay)
-- [x] Navigation guard khi quay / modal / confirm
-- [x] Persist queue + toast lỗi lưu
-- [x] Link intro mở được trên Android (`@capacitor/browser`)
-- [x] Dự án Android Capacitor + launcher/splash
-- [x] File Excel mẫu trắc nghiệm & tự luận (`test-data/`)
+- [x] Confirm dialog thay `window.confirm`
+- [x] Layout shell cố định (header/nav) + scroll nội dung
+- [x] Tối ưu Android WebView (`perf-lite`, keyboard inset)
+- [x] Link intro + nhạc intro trên Android
+- [x] Dự án Android Capacitor + file Excel mẫu (`test-data/`)
 
 **Còn lại**
 
-- [ ] UI xem lại `answerHistory`
 - [ ] Tên đội / người chơi trên màn quay
-- [ ] Tính điểm (`question.points`)
-- [ ] Test tự động (wheel landing, MCQ flow)
-- [ ] Build APK release & smoke test thiết bị Android
+- [ ] Tính điểm có trọng số (`question.points`) trong UI bộ thi
+- [ ] Test tự động (wheel landing, quiz flow)
+- [x] Build APK release & cập nhật file trong `releases/` (`2026-06-19`)
 
 ---
 
