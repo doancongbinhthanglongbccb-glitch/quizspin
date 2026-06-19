@@ -11,9 +11,9 @@
 
 ### Tải APK Android
 
-**[Tải APK v0.1.0](releases/Bo-tro-Giao-duc-Chinh-tri.apk)** — build release `2026-06-19` (~8.1 MB, `com.quizspin.app`)
+**[Tải APK v0.1.0](releases/Bo-tro-Giao-duc-Chinh-tri.apk)** — release **đã ký**, build `2026-06-19` (`com.quizspin.app`)
 
-Cài trên điện thoại: tải file `.apk` → mở → cho phép cài từ nguồn không xác định → **Cài đặt**. Nếu đã cài bản cũ ký khác chữ ký, gỡ app trước rồi cài lại.
+Cài trên điện thoại: tải file `.apk` → mở → cho phép cài từ nguồn không xác định → **Cài đặt**. Bản release đã ký có thể cài đè bản debug cùng package; nếu vẫn báo lỗi chữ ký, gỡ app cũ rồi cài lại.
 
 ---
 
@@ -268,25 +268,27 @@ npm run android            # mở Android Studio
 
 Trong Android Studio: chọn thiết bị/emulator → **Run**.
 
-**Build APK mới:** từ thư mục gốc project:
+**Build APK release (đã ký):** từ thư mục gốc project:
 
 ```powershell
 npm run build
 npx cap sync android
 cd android
-.\gradlew assembleRelease
+.\gradlew assembleRelease   # hoặc Android Studio → Build → Generate Signed App Bundle or APK
 ```
 
-Output release (chưa ký):
+Output release đã ký (Android Studio / signing config):
 
 ```
-android/app/build/outputs/apk/release/app-release-unsigned.apk
+android/app/build/outputs/apk/release/app-release.apk
 ```
+
+Bản `assembleRelease` không cấu hình ký → `app-release-unsigned.apk` (chỉ dùng nội bộ).
 
 Copy vào `releases/` để cập nhật bản tải trên repo:
 
 ```powershell
-Copy-Item android/app/build/outputs/apk/release/app-release-unsigned.apk releases/Bo-tro-Giao-duc-Chinh-tri.apk
+Copy-Item android/app/build/outputs/apk/release/app-release.apk releases/Bo-tro-Giao-duc-Chinh-tri.apk
 ```
 
 Debug nhanh (Android Studio hoặc `.\gradlew assembleDebug`):
@@ -300,7 +302,7 @@ android/app/build/outputs/apk/debug/app-debug.apk
 | `appId` | `com.quizspin.app` |
 | Tên launcher | `Bổ trợ Giáo dục - Chính trị` (`android/app/src/main/res/values/strings.xml`) |
 | `webDir` | `dist` |
-| APK tải về | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](releases/Bo-tro-Giao-duc-Chinh-tri.apk) — cập nhật `2026-06-19` |
+| APK tải về | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](releases/Bo-tro-Giao-duc-Chinh-tri.apk) — release đã ký, `2026-06-19` |
 
 **Không commit:** `dist/`, `android/app/build/`, `android/.gradle/`, `android/.idea/`, `android/app/src/main/assets/public/` (tạo lại bằng `cap sync`).
 
@@ -343,7 +345,7 @@ android/app/build/outputs/apk/debug/app-debug.apk
 - [ ] Tên đội / người chơi trên màn quay
 - [ ] Tính điểm có trọng số (`question.points`) trong UI bộ thi
 - [ ] Test tự động (wheel landing, quiz flow)
-- [x] Build APK release & cập nhật file trong `releases/` (`2026-06-19`)
+- [x] Build APK release (đã ký) & cập nhật file trong `releases/` (`2026-06-19`)
 
 ---
 
