@@ -15,6 +15,8 @@
 
 Cài trên điện thoại: tải file `.apk` → mở → cho phép cài từ nguồn không xác định → **Cài đặt**. Bản release đã ký có thể cài đè bản debug cùng package; nếu vẫn báo lỗi chữ ký, gỡ app cũ rồi cài lại.
 
+**Các bản đã phát hành:** [Lịch sử phiên bản](releases/LICH-SU-PHIEN-BAN.md) — xem từng bản đã thử nghiệm và tải bản cũ nếu cần.
+
 ---
 
 ## Tính năng hiện có

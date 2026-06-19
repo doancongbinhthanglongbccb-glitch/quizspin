@@ -27,3 +27,6 @@ android/.idea/
 *.jks
 *.keystore
 android/app/release/
+
+# Duplicate APK copies (use Bo-tro-Giao-duc-Chinh-tri.apk or archive/)
+releases/app-release.apk
