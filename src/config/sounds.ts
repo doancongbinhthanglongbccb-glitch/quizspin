@@ -11,8 +11,6 @@ export const SOUND_EVENT_KEYS: SoundEventKey[] = [
   'fanfare',
   'gift',
   'punishment',
-  'extraTurn',
-  'loseTurn',
 ];
 
 /** Âm thanh mặc định ship trong `public/sounds/` */
@@ -27,8 +25,6 @@ export const DEFAULT_SOUND_FILES: Record<SoundEventKey, string> = {
   fanfare: '/sounds/tada-qua.mp3',
   gift: '/sounds/tada-qua.mp3',
   punishment: '/sounds/punch-sound-effect.mp3',
-  extraTurn: '/sounds/tieng-vo-tay.mp3',
-  loseTurn: '/sounds/wrong-answer-buzzer.mp3',
 };
 
 export const DEFAULT_SOUND_FILE_NAMES: Record<SoundEventKey, string> = {
@@ -42,8 +38,6 @@ export const DEFAULT_SOUND_FILE_NAMES: Record<SoundEventKey, string> = {
   fanfare: 'tada-qua.mp3',
   gift: 'tada-qua.mp3',
   punishment: 'punch-sound-effect.mp3',
-  extraTurn: 'tieng-vo-tay.mp3',
-  loseTurn: 'wrong-answer-buzzer.mp3',
 };
 
 /** Phát nền — cần `soundManager.stop()` để dừng */

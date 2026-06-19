@@ -79,14 +79,6 @@ export function closeExamPicker(): void {
   appContext.setRuntimeState({ examPicker: null });
 }
 
-/** Cập nhật bản nháp form thi thử (không re-render toàn app khi gõ custom). */
-export function updatePracticeSetupDraft(update: Partial<PracticeSetupDraft>): void {
-  const current = appContext.getRuntimeState().practiceSetupDraft ?? createDefaultPracticeSetupDraft();
-  appContext.setRuntimeState({
-    practiceSetupDraft: { ...current, ...update },
-  });
-}
-
 export function patchPracticeSetupDraft(update: Partial<PracticeSetupDraft>): void {
   const current = appContext.getRuntimeState().practiceSetupDraft ?? createDefaultPracticeSetupDraft();
   appContext.patchRuntimeState({

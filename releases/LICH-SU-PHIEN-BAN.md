@@ -8,7 +8,17 @@
 
 ## Danh sách các bản
 
-### Bản 5 — 19/06/2026 *(mới nhất)*
+### Bản 6 — 19/06/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-06-19_practice-lite_4a178fc-dirty.apk` (~7.9 MB, **đã ký**)
+
+**Có gì mới:**
+- **Thi thử:** form nhập số câu + phút (bỏ chip gợi ý), hết nháy khi chọn
+- Gỡ âm thanh không dùng — app nhẹ hơn (~280 KB)
+
+---
+
+### Bản 5 — 19/06/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-06-19_exam-sound_7de819f.apk` (~8 MB)
 

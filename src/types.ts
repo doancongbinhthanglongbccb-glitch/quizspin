@@ -60,9 +60,7 @@ export type SoundEventKey =
   | 'wrong'
   | 'fanfare'
   | 'gift'
-  | 'punishment'
-  | 'extraTurn'
-  | 'loseTurn';
+  | 'punishment';
 
 export type CustomSound = {
   id: string;
@@ -149,10 +147,9 @@ export type PracticeConfig = {
 
 /** Bản nháp form thi thử trong overlay chọn đề */
 export type PracticeSetupDraft = {
-  questionPreset: number | 'custom';
-  customQuestionCount: string;
-  timerPreset: '15' | '30' | '45' | '60' | 'unlimited' | 'custom';
-  customTimerMin: string;
+  questionCount: string;
+  timerMin: string;
+  timerUnlimited: boolean;
 };
 
 export type ExamPicker =

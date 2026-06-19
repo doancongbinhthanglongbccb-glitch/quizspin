@@ -1,7 +1,6 @@
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { gradeQuizAnswers, findQuestionById, isMcqQuestion, toggleMcqPlayerSelection } from '../../data';
-import { pickCategorySession, resetCategoryPool } from '../pool-manager';
 import { pickPracticeExamQuestions } from '../exam-generator';
 import { isUnlimitedQuizTimer } from '../../config/quiz';
 import type { Category, CategoryExam, PracticeConfig, QuizSession } from '../../types';
@@ -92,41 +91,6 @@ export function startPracticeExamSession(config: PracticeConfig): void {
   });
 
   startQuizTimer();
-}
-
-/** @deprecated Luồng vòng quay cũ — random pool. Giữ để tương thích nội bộ nếu cần. */
-export function startCategoryQuiz(category: Category): void {
-  const pools = appContext.getQuestionPools();
-  const { questions, poolReset } = pickCategorySession(category, pools);
-
-  if (!questions.length) {
-    showToast(`Lĩnh vực ${category.name} đang trống`);
-    return;
-  }
-
-  if (poolReset) {
-    appContext.setQuestionPools((current) => resetCategoryPool(current, category.id));
-  }
-
-  const timerSec = appContext.getAppState().settings.timer;
-
-  appContext.setRuntimeState({
-    quizSession: createSessionBase({
-      kind: 'wheel-random',
-      categoryId: category.id,
-      categoryName: category.name,
-      categoryColor: category.color,
-      questionIds: questions.map((q) => q.id),
-      timerSec,
-    }),
-  });
-
-  startQuizTimer();
-}
-
-/** @deprecated Dùng openPracticeSetupFlow + startPracticeFromSetup */
-export function startPracticeQuiz(): void {
-  startPracticeExamSession({ questionCount: 20, timerSec: appContext.getAppState().settings.timer });
 }
 
 export function goToQuizQuestion(index: number): void {

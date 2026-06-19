@@ -20,8 +20,6 @@ const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
   fanfare: { frequency: 1040, duration: 320, type: 'sine' },
   gift: { frequency: 880, duration: 280, type: 'sine' },
   punishment: { frequency: 180, duration: 220, type: 'sawtooth' },
-  extraTurn: { frequency: 720, duration: 240, type: 'triangle' },
-  loseTurn: { frequency: 220, duration: 260, type: 'sawtooth' },
 };
 
 /** Số bản sao Audio one-shot — cho phép chồng tiếng nhanh trên tablet. */

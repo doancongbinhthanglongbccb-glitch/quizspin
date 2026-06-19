@@ -6,6 +6,10 @@ function getActionTarget(event: Event, root: ParentNode): HTMLElement | null {
   return target && root.contains(target) ? target : null;
 }
 
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
 export function bindExamHandlers(root: ParentNode = document): () => void {
   const onClick = (event: Event): void => {
     const target = getActionTarget(event, root);
@@ -36,25 +40,12 @@ export function bindExamHandlers(root: ParentNode = document): () => void {
       return;
     }
 
-    if (action === 'practice-question-preset') {
-      const value = target.dataset.value;
-      if (!value) {
-        return;
+    if (action === 'practice-timer-unlimited' && target instanceof HTMLInputElement) {
+      Actions.patchPracticeSetupDraft({ timerUnlimited: target.checked });
+      const timerInput = root.querySelector<HTMLInputElement>('[data-action="practice-timer-min"]');
+      if (timerInput) {
+        timerInput.disabled = target.checked;
       }
-      Actions.updatePracticeSetupDraft({
-        questionPreset: value === 'custom' ? 'custom' : Number.parseInt(value, 10),
-      });
-      return;
-    }
-
-    if (action === 'practice-timer-preset') {
-      const value = target.dataset.value;
-      if (!value) {
-        return;
-      }
-      Actions.updatePracticeSetupDraft({
-        timerPreset: value as '15' | '30' | '45' | '60' | 'unlimited' | 'custom',
-      });
     }
   };
 
@@ -64,13 +55,21 @@ export function bindExamHandlers(root: ParentNode = document): () => void {
       return;
     }
 
-    if (target.dataset.action === 'practice-custom-count') {
-      Actions.patchPracticeSetupDraft({ customQuestionCount: target.value });
+    if (target.dataset.action === 'practice-question-count') {
+      const value = digitsOnly(target.value);
+      if (value !== target.value) {
+        target.value = value;
+      }
+      Actions.patchPracticeSetupDraft({ questionCount: value });
       return;
     }
 
-    if (target.dataset.action === 'practice-custom-timer') {
-      Actions.patchPracticeSetupDraft({ customTimerMin: target.value });
+    if (target.dataset.action === 'practice-timer-min') {
+      const value = digitsOnly(target.value);
+      if (value !== target.value) {
+        target.value = value;
+      }
+      Actions.patchPracticeSetupDraft({ timerMin: value });
     }
   };
 
@@ -83,7 +82,6 @@ export function bindExamHandlers(root: ParentNode = document): () => void {
 }
 
 export function initExamPickerDom(): void {
-  // Giữ focus trong dialog khi mở
   const card = document.querySelector<HTMLElement>('.exam-picker-card');
   card?.focus();
 }

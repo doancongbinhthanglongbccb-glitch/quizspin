@@ -22,15 +22,12 @@ import {
   openPracticeSetupFlow,
   selectCategoryExam,
   closeExamPicker,
-  updatePracticeSetupDraft,
   patchPracticeSetupDraft,
   startPracticeFromSetup,
 } from './exam-actions';
 import {
-  startCategoryQuiz,
   startCategoryExamSession,
   startPracticeExamSession,
-  startPracticeQuiz,
   goToQuizQuestion,
   chooseQuizAnswer,
   updateQuizEssayAnswer,
@@ -63,17 +60,14 @@ export {
   openPracticeSetupFlow,
   selectCategoryExam,
   closeExamPicker,
-  updatePracticeSetupDraft,
   patchPracticeSetupDraft,
   startPracticeFromSetup,
 };
 export {
   openGiftModal,
   closeModal,
-  startCategoryQuiz,
   startCategoryExamSession,
   startPracticeExamSession,
-  startPracticeQuiz,
   goToQuizQuestion,
   chooseQuizAnswer,
   updateQuizEssayAnswer,

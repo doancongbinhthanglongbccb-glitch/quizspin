@@ -2790,10 +2790,6 @@ html {
   color: var(--text-primary, #f8fafc);
 }
 
-.exam-picker__message {
-  line-height: 1.5;
-}
-
 .exam-picker__exam-list {
   display: grid;
   gap: 0.625rem;
@@ -2833,6 +2829,7 @@ html {
 }
 
 .exam-picker__section-label {
+  display: block;
   margin: 0 0 0.5rem;
   font-size: 0.75rem;
   font-weight: 700;
@@ -2841,25 +2838,9 @@ html {
   color: rgba(248, 250, 252, 0.55);
 }
 
-.exam-picker__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.exam-picker__chip {
-  padding: 0.5rem 0.875rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
+.exam-picker__check {
   font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.exam-picker__chip--active {
-  border-color: rgba(109, 40, 217, 0.6);
-  background: rgba(109, 40, 217, 0.2);
+  color: rgba(248, 250, 252, 0.85);
 }
 
 .perf-lite .exam-picker-backdrop {

@@ -555,8 +555,6 @@ export const SOUND_EVENT_LABELS: Record<SoundEventKey, string> = {
   fanfare: 'Fanfare',
   gift: 'Trúng quà tặng',
   punishment: 'Trúng xử phạt',
-  extraTurn: 'Thêm lượt',
-  loseTurn: 'Mất lượt',
 };
 
 export function shuffleArray<T>(items: T[]): T[] {
@@ -585,12 +583,6 @@ export function pickQuestionsFromCategory(
   const picked = shuffleArray(unused).slice(0, Math.min(maxCount, unused.length));
   const newUsed = [...used, ...picked.map((item) => item.id)];
   return { questions: picked, usedIds: newUsed };
-}
-
-/** Thi thử: random từ mọi lĩnh vực */
-export function pickPracticeQuestions(categories: Category[], maxCount: number): Question[] {
-  const all = categories.flatMap((item) => item.questions);
-  return shuffleArray(all).slice(0, Math.min(maxCount, all.length));
 }
 
 export function findQuestionById(categories: Category[], questionId: string): Question | null {

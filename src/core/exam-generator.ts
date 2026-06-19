@@ -88,47 +88,40 @@ export function pickPracticeExamQuestions(categories: Category[], config: Practi
   return shuffleArray(all).slice(0, count);
 }
 
-/** Chuyển preset phút → giây; `null` = không giới hạn. */
-export function practiceTimerPresetToSec(preset: PracticeSetupDraft['timerPreset'], customMin: string): number | null {
-  if (preset === 'unlimited') {
-    return null;
+export function resolvePracticeQuestionCount(draft: PracticeSetupDraft): number {
+  const parsed = Number.parseInt(draft.questionCount, 10);
+  if (!Number.isFinite(parsed)) {
+    return QUIZ_CONFIG.practiceQuestionPresets[1];
   }
-  if (preset === 'custom') {
-    const parsed = Number.parseInt(customMin, 10);
-    if (!Number.isFinite(parsed) || parsed < QUIZ_CONFIG.practiceTimerMinMin) {
-      return QUIZ_CONFIG.practiceTimerPresetsMin[0] * 60;
-    }
-    return Math.min(parsed, QUIZ_CONFIG.practiceTimerMaxMin) * 60;
-  }
-  return Number.parseInt(preset, 10) * 60;
+  return Math.min(
+    QUIZ_CONFIG.practiceQuestionMax,
+    Math.max(QUIZ_CONFIG.practiceQuestionMin, parsed),
+  );
 }
 
-export function resolvePracticeQuestionCount(draft: PracticeSetupDraft): number {
-  if (draft.questionPreset === 'custom') {
-    const parsed = Number.parseInt(draft.customQuestionCount, 10);
-    if (!Number.isFinite(parsed)) {
-      return QUIZ_CONFIG.practiceQuestionPresets[1];
-    }
-    return Math.min(
-      QUIZ_CONFIG.practiceQuestionMax,
-      Math.max(QUIZ_CONFIG.practiceQuestionMin, parsed),
-    );
+/** Phút → giây; `null` = không giới hạn. */
+export function resolvePracticeTimerSec(draft: PracticeSetupDraft): number | null {
+  if (draft.timerUnlimited) {
+    return null;
   }
-  return draft.questionPreset;
+  const parsed = Number.parseInt(draft.timerMin, 10);
+  if (!Number.isFinite(parsed) || parsed < QUIZ_CONFIG.practiceTimerMinMin) {
+    return QUIZ_CONFIG.practiceTimerPresetsMin[0] * 60;
+  }
+  return Math.min(parsed, QUIZ_CONFIG.practiceTimerMaxMin) * 60;
 }
 
 export function draftToPracticeConfig(draft: PracticeSetupDraft): PracticeConfig {
   return {
     questionCount: resolvePracticeQuestionCount(draft),
-    timerSec: practiceTimerPresetToSec(draft.timerPreset, draft.customTimerMin),
+    timerSec: resolvePracticeTimerSec(draft),
   };
 }
 
 export function createDefaultPracticeSetupDraft(): PracticeSetupDraft {
   return {
-    questionPreset: 20,
-    customQuestionCount: '25',
-    timerPreset: '30',
-    customTimerMin: '45',
+    questionCount: '20',
+    timerMin: '30',
+    timerUnlimited: false,
   };
 }
