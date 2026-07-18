@@ -8,7 +8,20 @@
 
 ## Danh sách các bản
 
-### Bản 10 — 18/07/2026 *(mới nhất)*
+### Bản 11 — 18/07/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_answer-validate.apk` · `versionName` **1.2.3** / `versionCode` **6**
+
+**Có gì mới:**
+- Sửa lưu câu hỏi: đáp án có dấu phẩy không bị cắt sai
+- Đáp án phải **khớp cột phương án** (A/B/C/D đúng chữ trên dòng phương án)
+- Ô đáp án đúng dùng một dòng (ổn định hơn trên tablet)
+
+> Cài đè được lên v1.2.x.
+
+---
+
+### Bản 10 — 18/07/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_downloads-backup.apk` · `versionName` **1.2.2** / `versionCode` **5**
 

@@ -49,33 +49,93 @@ export function isEssayQuestion(question: Question): boolean {
   return question.type === 'essay';
 }
 
+function normalizeMcqText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\u00a0/g, ' ')
+    .trim();
+}
+
 function stripMcqPrefix(value: string): string {
-  return value.replace(/^[A-Da-d][.):\-\s]+/, '').trim();
+  return normalizeMcqText(value).replace(/^[A-Da-d][.):\-\s]+/i, '').trim();
 }
 
 function mcqOptionLetter(value: string): string | null {
-  const trimmed = value.trim();
-  const match = trimmed.match(/^([A-Da-d])[.):\-\s]/);
+  const trimmed = normalizeMcqText(value);
+  const match = trimmed.match(/^([A-Da-d])[.):\-\s]/i);
   if (match) {
     return match[1].toUpperCase();
   }
   // Lựa chọn đã lưu dạng chữ cái thuần (MCQ nhiều đáp án: "A, C")
-  if (/^[A-Da-d]$/.test(trimmed)) {
+  if (/^[A-Da-d]$/i.test(trimmed)) {
     return trimmed.toUpperCase();
   }
   return null;
 }
 
-/** MCQ nhiều đáp án đúng — answer chứa dấu phẩy/chấm phẩy */
+/** Chỉ chữ cái lựa chọn: A, A., đáp án C — không phải nội dung dài. */
+function isLetterOnlyChoice(part: string): boolean {
+  const trimmed = normalizeMcqText(part);
+  if (!trimmed) {
+    return false;
+  }
+  if (/^(?:đáp\s*án|câu)\s*[A-Da-d]([.):\-\s]*)$/i.test(trimmed)) {
+    return true;
+  }
+  if (/^[A-Da-d]([.):\-\s]*)$/i.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+function isNumberOnlyChoice(part: string): boolean {
+  return /^[1-4]([.):\-\s]*)$/.test(normalizeMcqText(part));
+}
+
+function optionNumberPrefix(option: string): string | null {
+  const match = normalizeMcqText(option).match(/^([1-4])[.):\-\s]/);
+  return match ? match[1] : null;
+}
+
+/** Lấy chữ cái A–D từ phần đáp án (hỗ trợ "đáp án A", fullwidth). */
+function extractChoiceLetter(part: string): string | null {
+  const trimmed = normalizeMcqText(part);
+  const labeled = trimmed.match(/^(?:đáp\s*án|câu)\s*([A-Da-d])([.):\-\s]*)$/i);
+  if (labeled) {
+    return labeled[1].toUpperCase();
+  }
+  return mcqOptionLetter(trimmed);
+}
+
+/**
+ * Tách nhiều đáp án (A, C) — chỉ khi mọi phần đều là chữ cái/số lựa chọn.
+ * Tránh cắt nhầm nội dung có dấu phẩy: "A. Hà Nội, thủ đô".
+ */
+function parseMcqSelectionParts(raw: string): string[] {
+  const normalized = normalizeMcqText(raw);
+  if (!normalized) {
+    return [];
+  }
+
+  const rough = normalized
+    .split(/[,;\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (rough.length > 1 && rough.every((part) => isLetterOnlyChoice(part) || isNumberOnlyChoice(part))) {
+    return rough;
+  }
+
+  return [normalized];
+}
+
+/** MCQ nhiều đáp án đúng — answer dạng A, C / A; C */
 export function isMultipleMcqQuestion(question: Question): boolean {
   if (!isMcqQuestion(question)) {
     return false;
   }
-  const parts = question.answer
-    .split(/[,;]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return parts.length > 1;
+  return parseMcqSelectionParts(question.answer).length > 1;
 }
 
 function canonicalizeMcqSelection(raw: string, question: Question): string {
@@ -88,7 +148,7 @@ function canonicalizeMcqSelection(raw: string, question: Question): string {
   }
 
   const letters = parts.map((part) => {
-    const letter = mcqOptionLetter(part);
+    const letter = extractChoiceLetter(part);
     if (letter) {
       return letter;
     }
@@ -120,18 +180,11 @@ function resolveOptionLetter(option: string, question: Question): string | null 
   return idx >= 0 ? String.fromCharCode(65 + idx) : null;
 }
 
-function parseMcqSelectionParts(raw: string): string[] {
-  return raw
-    .split(/[,;]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function selectionToLetters(raw: string, question: Question): string[] {
   return [
     ...new Set(
       parseMcqSelectionParts(raw)
-        .map((part) => resolveOptionLetter(part, question))
+        .map((part) => extractChoiceLetter(part) ?? resolveOptionLetter(part, question))
         .filter((letter): letter is string => Boolean(letter)),
     ),
   ];
@@ -244,13 +297,14 @@ export function isMcqCorrectOption(option: string, question: Question): boolean 
 }
 
 /**
- * Kiểm tra đáp án MCQ khớp phương án.
- * - Chỉ chữ cái: A / B / C / D (hoặc A. / A))
- * - Có nội dung: phải trùng cả dòng hoặc phần sau tiền tố A./B. của một phương án
- *   (VD: "A. 1943" không khớp khi phương án là "A. 1945")
+ * Kiểm tra đáp án MCQ khớp cột phương án.
+ * - Chữ cái A/B/C/D: chỉ hợp lệ khi có phương án mang đúng chữ đó (A. / A) …)
+ * - Số 1–4: chỉ hợp lệ khi có phương án mang đúng số đó (1. / 1) …)
+ * - Nội dung: phải trùng cả dòng hoặc phần sau tiền tố của một phương án
+ * - Nhiều đáp án: chỉ khi dạng A, C (không cắt nội dung có dấu phẩy)
  */
 export function mcqAnswerMatchesOptions(answer: string, options: string[]): boolean {
-  const cleaned = options.map((item) => item.trim()).filter(Boolean);
+  const cleaned = options.map((item) => normalizeMcqText(item)).filter(Boolean);
   if (!cleaned.length) {
     return false;
   }
@@ -261,16 +315,16 @@ export function mcqAnswerMatchesOptions(answer: string, options: string[]): bool
   }
 
   return parts.every((part) => {
-    const trimmed = part.trim();
-    const letter = mcqOptionLetter(trimmed);
-    const isLetterOnly = Boolean(letter && /^[A-Da-d]([.):\-\s]*)$/.test(trimmed));
+    const trimmed = normalizeMcqText(part);
 
-    if (isLetterOnly && letter) {
-      const index = letter.charCodeAt(0) - 65;
-      if (cleaned.some((option) => mcqOptionLetter(option) === letter)) {
-        return true;
-      }
-      return index >= 0 && index < cleaned.length;
+    if (isNumberOnlyChoice(trimmed)) {
+      const num = trimmed.match(/^([1-4])/)?.[1];
+      return Boolean(num && cleaned.some((option) => optionNumberPrefix(option) === num));
+    }
+
+    if (isLetterOnlyChoice(trimmed)) {
+      const letter = extractChoiceLetter(trimmed);
+      return Boolean(letter && cleaned.some((option) => mcqOptionLetter(option) === letter));
     }
 
     const core = stripMcqPrefix(trimmed).toLowerCase();
@@ -279,7 +333,8 @@ export function mcqAnswerMatchesOptions(answer: string, options: string[]): bool
     }
 
     return cleaned.some(
-      (option) => option === trimmed || stripMcqPrefix(option).toLowerCase() === core,
+      (option) =>
+        normalizeMcqText(option) === trimmed || stripMcqPrefix(option).toLowerCase() === core,
     );
   });
 }

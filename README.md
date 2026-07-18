@@ -154,4 +154,4 @@ Cấu hình app nằm trong:
 
 **Phiên bản package:** `0.1.0`  
 
-**Android hiện tại:** `versionName` **1.2.2** / `versionCode` **5** — chi tiết từng bản trong [`releases/LICH-SU-PHIEN-BAN.md`](releases/LICH-SU-PHIEN-BAN.md)
+**Android hiện tại:** `versionName` **1.2.3** / `versionCode` **6** — chi tiết từng bản trong [`releases/LICH-SU-PHIEN-BAN.md`](releases/LICH-SU-PHIEN-BAN.md)

@@ -41,12 +41,18 @@ function renderQuestionForm(runtime: RuntimeState): string {
           </div>
 
           <label class="bank-form-label" for="answer-input">Đáp án đúng</label>
-          <textarea
-            class="textarea textarea--compact"
+          <input
+            class="input"
             id="answer-input"
             data-draft-field="answer"
+            type="text"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+            inputmode="text"
             placeholder="VD: C hoặc A, C (nhiều đáp án cách nhau bởi dấu phẩy)"
-          >${escapeHtml(draft.answer)}</textarea>
+            value="${escapeHtml(draft.answer)}"
+          />
         </div>
       </div>
 

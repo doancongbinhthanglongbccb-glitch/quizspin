@@ -56,7 +56,7 @@ export function saveQuestionDraft(): void {
     return;
   }
   if (!mcqAnswerMatchesOptions(answerText, options)) {
-    showToast('Đáp án phải là A/B/C/D hoặc đúng nội dung một phương án');
+    showToast('Đáp án phải khớp một phương án (A/B/C/D đúng chữ trên dòng phương án, hoặc đúng nội dung)');
     return;
   }
 
@@ -150,7 +150,7 @@ export function saveQuestionEdit(
     return;
   }
   if (!mcqAnswerMatchesOptions(answerText, parsedOptions)) {
-    showToast('Đáp án phải là A/B/C/D hoặc đúng nội dung một phương án');
+    showToast('Đáp án phải khớp một phương án (A/B/C/D đúng chữ trên dòng phương án, hoặc đúng nội dung)');
     return;
   }
 
