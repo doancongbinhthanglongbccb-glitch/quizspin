@@ -165,6 +165,14 @@ export function bindBankHandlers(root: ParentNode): () => void {
       return;
     }
 
+    if (getActionTarget(event, root, '[data-action="clear-category-questions"]')) {
+      const category = Actions.currentCategory();
+      if (category) {
+        Actions.requestClearCategoryQuestions(category);
+      }
+      return;
+    }
+
     const deleteQuestionButton = getActionTarget(event, root, '[data-action="delete-question"]');
     if (deleteQuestionButton) {
       const id = deleteQuestionButton.dataset.id;

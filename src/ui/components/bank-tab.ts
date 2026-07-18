@@ -183,6 +183,14 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
           Nhập Excel
           <input id="excel-input" class="bank-import-btn__input" type="file" accept=".xlsx,.xls" aria-label="Nhập Excel" />
         </label>
+        <button
+          type="button"
+          class="btn btn-danger btn--compact"
+          data-action="clear-category-questions"
+          ${category && category.questions.length ? '' : 'disabled'}
+        >
+          Xóa hết câu
+        </button>
       </div>
 
       <div class="bank-categories category-strip mb-0 w-full max-w-full min-w-0 touch-pan-x overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]" data-scroll-restore="bank-categories" role="tablist" aria-label="Lĩnh vực">

@@ -290,6 +290,16 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
         void Actions.stageSoundForEvent(eventKey, uploadInput.files[0]);
       }
       uploadInput.value = '';
+      return;
+    }
+
+    const backupInput = getInputTarget<HTMLInputElement>(event, root, '#backup-import-input');
+    if (backupInput) {
+      const file = backupInput.files?.[0];
+      if (file) {
+        Actions.stageBackupImport(file);
+      }
+      backupInput.value = '';
     }
   };
 
@@ -347,6 +357,11 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       if (eventKey) {
         Actions.clearSoundBinding(eventKey);
       }
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="export-backup"]')) {
+      Actions.exportAppBackup();
       return;
     }
 
@@ -411,7 +426,10 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
 
   const onFilePickerOpen = (event: Event): void => {
     const target = event.target;
-    if (target instanceof HTMLInputElement && target.dataset.action === 'pick-sound') {
+    if (
+      target instanceof HTMLInputElement &&
+      (target.dataset.action === 'pick-sound' || target.id === 'backup-import-input')
+    ) {
       suppressAndroidIntroOnResume();
     }
   };

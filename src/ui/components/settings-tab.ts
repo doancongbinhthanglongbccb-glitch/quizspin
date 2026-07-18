@@ -17,7 +17,7 @@ const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; d
   { id: 'gifts', label: 'Quà tặng', icon: '🎁' },
   { id: 'punishments', label: 'Hình phạt', icon: '🔥' },
   { id: 'intro', label: 'Màn Intro', icon: '🎬' },
-  { id: 'danger', label: 'Xóa dữ liệu', icon: '🗑', danger: true },
+  { id: 'danger', label: 'Backup / Xóa', icon: '🗑', danger: true },
 ];
 
 function renderSidebar(active: SettingsSection): string {
@@ -66,7 +66,7 @@ function renderStatBar(appState: AppState): string {
   const usedCount = Object.values(pools).reduce((sum, ids) => sum + ids.length, 0);
 
   return `
-    <div class="settings-stats flex gap-2.5 max-md:flex-col max-lg:grid max-lg:grid-cols-3 lg:flex lg:flex-row">
+    <div class="settings-stats flex shrink-0 gap-2.5 max-md:flex-col max-lg:grid max-lg:grid-cols-3 lg:flex lg:flex-row">
       <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
         <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Lĩnh vực</p>
         <p class="settings-stat-box__value m-0 text-display font-bold text-white">${categoryCount}</p>
@@ -377,12 +377,33 @@ function renderPoolsPanel(appState: AppState): string {
 
 function renderDangerPanel(): string {
   return `
-    <div class="settings-panel-card settings-panel-card--danger">
-      <p class="settings-panel-card__title"><span aria-hidden="true">🗑</span>Xóa toàn bộ dữ liệu</p>
-      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-        Xóa sạch toàn bộ lĩnh vực, câu hỏi, pool câu đã dùng và đưa app về dữ liệu mẫu. Hành động này không thể hoàn tác.
-      </p>
-      <button type="button" class="btn btn-danger" data-action="clear-all">Xóa sạch toàn bộ kho câu hỏi</button>
+    <div class="settings-panel-card settings-panel-card--danger grid gap-4">
+      <div>
+        <p class="settings-panel-card__title"><span aria-hidden="true">💾</span>Backup dữ liệu</p>
+        <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
+          Xuất / nhập toàn bộ lĩnh vực, câu hỏi, quà, phạt và cài đặt (không gồm file âm thanh). Dùng trước khi gỡ app hoặc đổi máy.
+        </p>
+        <div class="flex flex-wrap gap-2.5">
+          <button type="button" class="btn btn-primary" data-action="export-backup">Xuất backup</button>
+          <label class="btn btn-ghost relative m-0 cursor-pointer">
+            Nhập backup
+            <input
+              id="backup-import-input"
+              class="bank-import-btn__input"
+              type="file"
+              accept="application/json,.json"
+              aria-label="Nhập file backup"
+            />
+          </label>
+        </div>
+      </div>
+      <div>
+        <p class="settings-panel-card__title"><span aria-hidden="true">🗑</span>Xóa toàn bộ dữ liệu</p>
+        <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
+          Xóa sạch toàn bộ lĩnh vực, câu hỏi, pool câu đã dùng và đưa app về dữ liệu mẫu. Hành động này không thể hoàn tác.
+        </p>
+        <button type="button" class="btn btn-danger" data-action="clear-all">Xóa sạch toàn bộ kho câu hỏi</button>
+      </div>
     </div>
   `;
 }
@@ -410,12 +431,12 @@ export function renderSettingsTab(appState: AppState, runtime: RuntimeState): st
   const section = runtime.settingsSection;
 
   return `
-    <section class="panel panel--settings p-[18px]">
-      <div class="settings-layout flex items-stretch gap-3.5 max-lg:flex-col lg:flex-row">
+    <section class="panel panel--settings flex h-full min-h-0 flex-col overflow-hidden p-[18px]">
+      <div class="settings-layout flex min-h-0 flex-1 items-stretch gap-3.5 max-lg:flex-col lg:flex-row">
         ${renderSidebar(section)}
-        <div class="settings-main flex min-w-0 flex-1 flex-col gap-3">
+        <div class="settings-main flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           ${renderStatBar(appState)}
-          <div class="settings-content">${renderContentPanel(appState, runtime, section)}</div>
+          <div class="settings-content min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">${renderContentPanel(appState, runtime, section)}</div>
         </div>
       </div>
     </section>

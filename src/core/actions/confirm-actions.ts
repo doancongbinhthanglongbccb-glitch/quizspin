@@ -7,6 +7,7 @@ import { currentCategory, ensureQuestionDraft } from './category-actions';
 import { deleteQuestion } from './question-actions';
 import { closeModal } from './modal-actions';
 import { closeQuizSession, submitQuiz } from './quiz-actions';
+import { applyPendingBackup, clearPendingBackup } from './backup-actions';
 import { showToast, stopTimer } from './shared';
 
 function readConfirmNameInput(): string | null {
@@ -31,6 +32,23 @@ export function requestDeleteCategory(category: Category): void {
       categoryId: category.id,
       categoryName: category.name,
       questionCount: category.questions.filter(isMcqQuestion).length,
+    },
+  });
+}
+
+export function requestClearCategoryQuestions(category: Category): void {
+  const questionCount = category.questions.length;
+  if (questionCount === 0) {
+    showToast('Lĩnh vực này chưa có câu hỏi');
+    return;
+  }
+
+  appContext.setRuntimeState({
+    confirmDialog: {
+      kind: 'clear-category-questions',
+      categoryId: category.id,
+      categoryName: category.name,
+      questionCount,
     },
   });
 }
@@ -80,6 +98,7 @@ export function requestResetCategoryPool(category: Category): void {
 }
 
 export function cancelConfirmDialog(): void {
+  clearPendingBackup();
   appContext.setRuntimeState({ confirmDialog: null });
 }
 
@@ -95,6 +114,40 @@ function performRenameCategory(categoryId: string, name: string): void {
     ...current,
     categories: current.categories.map((item) => (item.id === categoryId ? { ...item, name } : item)),
   }));
+}
+
+function performClearCategoryQuestions(categoryId: string): void {
+  const runtime = appContext.getRuntimeState();
+  const category = appContext.getAppState().categories.find((item) => item.id === categoryId);
+  if (!category) {
+    return;
+  }
+
+  const questionIds = new Set(category.questions.map((question) => question.id));
+  const session = runtime.quizSession;
+  if (session?.phase === 'active' && session.questionIds.some((id) => questionIds.has(id))) {
+    closeQuizSession();
+  }
+
+  appContext.setAppState((current) => ({
+    ...current,
+    categories: current.categories.map((item) =>
+      item.id === categoryId ? { ...item, questions: [] } : item,
+    ),
+  }));
+
+  appContext.setQuestionPools((current) => resetCategoryPool(current, categoryId));
+
+  const editingCleared = Boolean(runtime.editingQuestionId && questionIds.has(runtime.editingQuestionId));
+  appContext.setRuntimeState({
+    ...(editingCleared ? { editingQuestionId: null, bankFormOpen: false } : {}),
+  });
+
+  if (editingCleared || runtime.selectedCategoryId === categoryId) {
+    ensureQuestionDraft(currentCategory());
+  }
+
+  showToast(`Đã xóa hết câu hỏi trong "${category.name}"`);
 }
 
 function performDeleteCategory(categoryId: string): void {
@@ -186,6 +239,18 @@ export async function confirmDialogAction(): Promise<void> {
   if (dialog.kind === 'delete-category') {
     appContext.setRuntimeState({ confirmDialog: null });
     performDeleteCategory(dialog.categoryId);
+    return;
+  }
+
+  if (dialog.kind === 'clear-category-questions') {
+    appContext.setRuntimeState({ confirmDialog: null });
+    performClearCategoryQuestions(dialog.categoryId);
+    return;
+  }
+
+  if (dialog.kind === 'import-backup') {
+    appContext.setRuntimeState({ confirmDialog: null });
+    applyPendingBackup();
     return;
   }
 

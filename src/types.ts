@@ -174,6 +174,8 @@ export type WheelSegment = {
 export type ConfirmDialog =
   | { kind: 'delete-question'; categoryId: string; questionId: string }
   | { kind: 'delete-category'; categoryId: string; categoryName: string; questionCount: number }
+  | { kind: 'clear-category-questions'; categoryId: string; categoryName: string; questionCount: number }
+  | { kind: 'import-backup'; categoryCount: number; questionCount: number }
   | { kind: 'clear-all-data'; step: 1 | 2 }
   | { kind: 'reset-all-pools' }
   | { kind: 'reset-category-pool'; categoryId: string; categoryName: string }

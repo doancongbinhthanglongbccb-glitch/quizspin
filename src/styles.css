@@ -1445,6 +1445,21 @@ html {
   max-height: min(58vh, 640px);
 }
 
+.content-area:has(.panel--settings) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel--settings {
+  min-height: 0;
+  width: 100%;
+}
+
+.panel--settings .settings-content {
+  overscroll-behavior: contain;
+}
+
 .content-area:has(.panel--spin) .app-header {
   margin-bottom: 12px;
 }

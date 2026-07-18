@@ -41,6 +41,7 @@ import { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBi
 import { completeIntro, showIntro } from './intro-actions';
 import { consumeAndroidIntroResumeSuppression } from '../../utils/android-intro-resume';
 import { isAndroidApp } from '../../utils/platform';
+import { exportAppBackup, stageBackupImport } from './backup-actions';
 import {
   cancelConfirmDialog,
   confirmDeleteCategoryFromMenu,
@@ -48,6 +49,7 @@ import {
   confirmRenameCategoryFromMenu,
   requestCategoryMenu,
   requestClearAllData,
+  requestClearCategoryQuestions,
   requestDeleteCategory,
   requestDeleteQuestion,
   requestResetAllPools,
@@ -55,6 +57,7 @@ import {
 } from './confirm-actions';
 
 export { clearEverything, parseExcelImport };
+export { exportAppBackup, stageBackupImport };
 export {
   openCategoryExamFlow,
   openPracticeSetupFlow,
@@ -88,6 +91,7 @@ export {
   confirmRenameCategoryFromMenu,
   requestCategoryMenu,
   requestClearAllData,
+  requestClearCategoryQuestions,
   requestDeleteCategory,
   requestDeleteQuestion,
   requestResetAllPools,

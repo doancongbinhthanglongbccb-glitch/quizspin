@@ -29,6 +29,24 @@ function describeDialog(dialog: ConfirmDialog): DialogMeta {
     };
   }
 
+  if (dialog.kind === 'clear-category-questions') {
+    return {
+      title: 'Xóa toàn bộ câu hỏi',
+      message: `Xóa hết ${dialog.questionCount} câu trong lĩnh vực "${dialog.categoryName}"? Lĩnh vực vẫn giữ lại. Hành động không thể hoàn tác.`,
+      confirmLabel: 'Xóa hết câu',
+      danger: true,
+    };
+  }
+
+  if (dialog.kind === 'import-backup') {
+    return {
+      title: 'Nhập backup',
+      message: `Ghi đè toàn bộ dữ liệu hiện tại bằng backup (${dialog.categoryCount} lĩnh vực, ${dialog.questionCount} câu)? Âm thanh tùy chỉnh không nằm trong backup. Hành động không thể hoàn tác.`,
+      confirmLabel: 'Nhập backup',
+      danger: true,
+    };
+  }
+
   if (dialog.kind === 'add-category') {
     return {
       title: 'Thêm lĩnh vực',
