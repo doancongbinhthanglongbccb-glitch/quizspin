@@ -8,7 +8,21 @@
 
 ## Danh sách các bản
 
-### Bản 7 — 18/07/2026 *(mới nhất)*
+### Bản 8 — 18/07/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_backup_7b68205.apk` (~7.9 MB, đã ký) · `versionName` **1.2** / `versionCode` **3**
+
+**Có gì mới:**
+- **Backup JSON:** xuất / nhập lĩnh vực, câu hỏi, quà, phạt, cài đặt (không gồm file âm thanh tùy chỉnh)
+- **Xóa hết câu** trong một lĩnh vực (giữ lĩnh vực)
+- Cuộn nội dung **trong từng mục** Cài đặt khi dài
+- Cập nhật hướng dẫn `GUIDE.md` / `README.md`
+
+> Cùng chữ ký với bản 7 (v1.1) — máy đang cài v1.1 có thể **cài đè** trực tiếp. Bản cũ hơn chữ ký khác vẫn cần gỡ rồi cài lại (nên xuất backup trước).
+
+---
+
+### Bản 7 — 18/07/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_bank-mcq_fec80bf.apk` (~7.9 MB, đã ký)
 
@@ -18,7 +32,7 @@
 - Kiểm tra đáp án khớp phương án khi lưu
 - Sửa nhập Excel 3 cột + báo lỗi tiếng Việt rõ hơn
 
-> **Lưu ý cài đặt:** chữ ký khác bản cũ — **gỡ app cũ** rồi cài lại.
+> **Lưu ý cài đặt:** chữ ký khác bản cũ hơn (trước v1.1) — **gỡ app cũ** rồi cài lại.
 
 ---
 
