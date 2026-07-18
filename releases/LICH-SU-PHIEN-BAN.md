@@ -8,7 +8,20 @@
 
 ## Danh sách các bản
 
-### Bản 8 — 18/07/2026 *(mới nhất)*
+### Bản 9 — 18/07/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_backup-share_14bacb0.apk` (~8.0 MB, đã ký) · `versionName` **1.2.1** / `versionCode` **4**
+
+**Có gì mới:**
+- **Android:** xuất backup qua **share sheet** (Files / Drive…) — WebView không hỗ trợ tải `.json` trực tiếp
+- Nhập backup: nới bộ lọc file để Android hiện được `.json`
+- Thêm `@capacitor/filesystem` + `@capacitor/share`
+
+> Cùng chữ ký với v1.1/v1.2 — có thể cài đè.
+
+---
+
+### Bản 8 — 18/07/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_backup_7b68205.apk` (~7.9 MB, đã ký) · `versionName` **1.2** / `versionCode` **3**
 
