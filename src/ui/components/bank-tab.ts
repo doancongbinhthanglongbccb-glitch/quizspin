@@ -1,40 +1,15 @@
 import type { RuntimeState } from '../../core/state';
-import type { AppState, Question, QuestionFilter } from '../../types';
+import type { AppState, Question } from '../../types';
 import { escapeHtml } from '../../utils/html';
 import { currentCategory } from '../../core/actions';
 import {
-  countQuestionsByType,
-  filterQuestions,
   getQuestionOptions,
   isMcqQuestion,
   isMultipleMcqQuestion,
-  questionTypeLabel,
 } from '../../data';
-
-function renderFilterPills(active: QuestionFilter, counts: { mcq: number; essay: number; total: number }): string {
-  const pill = (filter: QuestionFilter, label: string, count: number) => `
-    <button
-      type="button"
-      class="filter-pill ${active === filter ? 'filter-pill--active' : ''}"
-      data-action="filter-questions"
-      data-filter="${filter}"
-    >
-      ${label} <span class="filter-pill__count">${count}</span>
-    </button>
-  `;
-
-  return `
-    <div class="filter-strip flex w-full min-w-0 max-w-full flex-wrap gap-2" role="group" aria-label="Lọc theo loại câu hỏi">
-      ${pill('all', 'Tất cả', counts.total)}
-      ${pill('mcq', 'Trắc nghiệm', counts.mcq)}
-      ${pill('essay', 'Tự luận', counts.essay)}
-    </div>
-  `;
-}
 
 function renderQuestionForm(runtime: RuntimeState): string {
   const draft = runtime.questionDraft;
-  const isMcq = draft.type === 'mcq';
 
   return `
     <div class="bank-form-card grid gap-2.5">
@@ -45,12 +20,6 @@ function renderQuestionForm(runtime: RuntimeState): string {
 
       <div class="bank-form-card__body grid gap-2.5">
         <div class="grid min-w-0 gap-2.5">
-          <label class="bank-form-label" for="question-type-input">Loại câu hỏi</label>
-          <select id="question-type-input" class="input question-type-select cursor-pointer" data-action="draft-type" aria-label="Loại câu hỏi">
-            <option value="mcq" ${draft.type === 'mcq' ? 'selected' : ''}>Trắc nghiệm</option>
-            <option value="essay" ${draft.type === 'essay' ? 'selected' : ''}>Tự luận</option>
-          </select>
-
           <label class="bank-form-label" for="question-input">Câu hỏi</label>
           <textarea
             class="textarea textarea--compact"
@@ -61,7 +30,7 @@ function renderQuestionForm(runtime: RuntimeState): string {
         </div>
 
         <div class="grid min-w-0 gap-2.5">
-          <div class="bank-field-mcq ${isMcq ? '' : 'bank-field-mcq--hidden'}">
+          <div class="bank-field-mcq">
             <label class="bank-form-label" for="options-input">Phương án (mỗi dòng hoặc cách nhau bởi ; ,)</label>
             <textarea
               class="textarea textarea--small"
@@ -71,12 +40,12 @@ function renderQuestionForm(runtime: RuntimeState): string {
             >${escapeHtml(draft.options)}</textarea>
           </div>
 
-          <label class="bank-form-label" for="answer-input">${isMcq ? 'Đáp án đúng' : 'Đáp án / Gợi ý chấm'}</label>
+          <label class="bank-form-label" for="answer-input">Đáp án đúng</label>
           <textarea
             class="textarea textarea--compact"
             id="answer-input"
             data-draft-field="answer"
-            placeholder="${isMcq ? 'VD: C hoặc A, C (nhiều đáp án cách nhau bởi dấu phẩy)' : 'Nội dung đáp án chi tiết...'}"
+            placeholder="VD: C hoặc A, C (nhiều đáp án cách nhau bởi dấu phẩy)"
           >${escapeHtml(draft.answer)}</textarea>
         </div>
       </div>
@@ -93,16 +62,12 @@ function renderQuestionForm(runtime: RuntimeState): string {
 
 function renderQuestionRow(runtime: RuntimeState, question: Question): string {
   const isActive = runtime.editingQuestionId === question.id;
-  const typeLabel = questionTypeLabel(question.type);
   const optionCount = getQuestionOptions(question).length;
-  const optionLabel = isMcqQuestion(question)
-    ? `${optionCount} lựa chọn${isMultipleMcqQuestion(question) ? ' · nhiều đáp án' : ''}`
-    : 'Tự luận';
+  const optionLabel = `${optionCount} lựa chọn${isMultipleMcqQuestion(question) ? ' · nhiều đáp án' : ''}`;
 
   return `
     <div class="question-row flex min-w-0 max-w-full items-start justify-between gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.03] px-[18px] py-4 ${isActive ? 'question-row--active' : ''}">
       <div class="question-row__body flex min-w-0 flex-1 items-start gap-3">
-        <span class="question-type-badge question-type-badge--${question.type}">${typeLabel}</span>
         <div class="min-w-0 flex-1">
           <div class="question-row__title mb-1 break-words text-subtitle font-bold leading-snug">${question.question}</div>
           <div class="question-row__meta text-caption text-muted">${optionLabel}${question.points ? ` · ${question.points}đ` : ''}</div>
@@ -120,6 +85,7 @@ function renderCategoryTabs(appState: AppState, selectedId: string | undefined):
   return appState.categories
     .map((item) => {
       const active = item.id === selectedId;
+      const mcqCount = item.questions.filter(isMcqQuestion).length;
       return `
         <button
           type="button"
@@ -131,7 +97,7 @@ function renderCategoryTabs(appState: AppState, selectedId: string | undefined):
         >
           <span class="category-dot h-2.5 w-2.5 shrink-0 rounded-full" style="background:${item.color}"></span>
           <span class="category-pill__label max-w-[12rem] truncate">${item.name}</span>
-          <span class="category-pill__count">${item.questions.length}</span>
+          <span class="category-pill__count">${mcqCount}</span>
         </button>
       `;
     })
@@ -140,43 +106,75 @@ function renderCategoryTabs(appState: AppState, selectedId: string | undefined):
 
 export function renderBankTab(appState: AppState, runtime: RuntimeState): string {
   const category = currentCategory();
-  const typeCounts = category ? countQuestionsByType(category.questions) : { mcq: 0, essay: 0, total: 0 };
-  const filteredQuestions = category ? filterQuestions(category.questions, runtime.questionFilter) : [];
-  const questions = filteredQuestions.map((question) => renderQuestionRow(runtime, question)).join('');
-  const emptyMessage =
-    runtime.questionFilter === 'all'
-      ? 'Chưa có câu hỏi nào trong lĩnh vực này.'
-      : `Không có câu ${runtime.questionFilter === 'mcq' ? 'trắc nghiệm' : 'tự luận'} trong lĩnh vực này.`;
+  const mcqQuestions = category ? category.questions.filter(isMcqQuestion) : [];
+  const questions = mcqQuestions.map((question) => renderQuestionRow(runtime, question)).join('');
+  const emptyMessage = 'Chưa có câu hỏi nào trong lĩnh vực này.';
 
   const showForm = Boolean(category && (runtime.bankFormOpen || runtime.editingQuestionId));
 
   const importReport = runtime.importReport;
   const importSummary = importReport
-    ? `
-      <details class="import-report import-report--compact rounded-xl border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-2.5 text-blue-100">
+    ? (() => {
+        const failed = importReport.imported === 0;
+        const reasonCounts = new Map<string, number>();
+        for (const item of importReport.diagnostics) {
+          reasonCounts.set(item.reason, (reasonCounts.get(item.reason) ?? 0) + 1);
+        }
+        const grouped = [...reasonCounts.entries()].sort((a, b) => b[1] - a[1]);
+        const sampleRows = importReport.diagnostics.filter((item) => item.reason !== 'Dòng trống').slice(0, 15);
+        const tone = failed
+          ? 'border-rose-400/30 bg-rose-500/10 text-rose-100'
+          : 'border-accent-cyan/20 bg-accent-cyan/10 text-blue-100';
+
+        return `
+      <details class="import-report import-report--compact rounded-xl border ${tone} px-3 py-2.5" ${failed ? 'open' : ''}>
         <summary class="import-report__summary cursor-pointer text-caption font-bold">
-          Nhập Excel: ${importReport.imported} câu · Bỏ qua ${importReport.skipped}
+          ${
+            failed
+              ? `Không nhập được câu nào · Bỏ qua ${importReport.skipped} dòng`
+              : `Nhập Excel: ${importReport.imported} câu · Bỏ qua ${importReport.skipped}`
+          }
         </summary>
+        <p class="mt-2 mb-0 text-caption text-muted">
+          Định dạng cần có: <strong>Câu hỏi | Phương án | Đáp án đúng</strong> (mỗi phương án một dòng).
+        </p>
         ${
-          importReport.diagnostics.length
-            ? `<ul class="import-report__list mt-2 grid list-none gap-2 p-0">${importReport.diagnostics
+          grouped.length
+            ? `<ul class="import-report__list mt-2 grid list-none gap-1.5 p-0">${grouped
                 .map(
-                  (item) => `
-                  <li class="grid gap-1 rounded-[14px] bg-white/5 px-3 py-2.5">
-                    <strong>Dòng ${item.rowNumber}:</strong> ${item.reason}
-                    <span class="text-caption text-muted">${escapeHtml(item.rawData.join(' | ') || '—')}</span>
-                  </li>
-                `,
+                  ([reason, count]) => `
+                  <li class="rounded-[10px] bg-white/5 px-3 py-2 text-caption">
+                    <strong>${count} dòng</strong> — ${escapeHtml(reason)}
+                  </li>`,
                 )
                 .join('')}</ul>`
             : ''
         }
+        ${
+          sampleRows.length
+            ? `<ul class="import-report__list mt-2 grid list-none gap-2 p-0">${sampleRows
+                .map(
+                  (item) => `
+                  <li class="grid gap-1 rounded-[14px] bg-white/5 px-3 py-2.5">
+                    <strong>Dòng ${item.rowNumber}:</strong> ${escapeHtml(item.reason)}
+                    <span class="text-caption text-muted">${escapeHtml(item.rawData.join(' | ') || '—')}</span>
+                  </li>
+                `,
+                )
+                .join('')}${
+                importReport.diagnostics.length > sampleRows.length
+                  ? `<li class="text-caption text-muted px-1">… và ${importReport.diagnostics.length - sampleRows.length} dòng khác</li>`
+                  : ''
+              }</ul>`
+            : ''
+        }
       </details>
-    `
+    `;
+      })()
     : '';
 
   return `
-    <section class="panel panel--bank flex min-h-0 min-w-0 max-w-full flex-col gap-3 overflow-x-clip rounded-[20px] px-4 py-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.28)]">
+    <section class="panel panel--bank flex min-h-0 w-full min-w-0 max-w-full flex-col gap-3 self-start overflow-x-clip rounded-[20px] px-4 py-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.28)]">
       <div class="bank-toolbar flex flex-wrap items-center gap-2">
         <button class="btn btn-primary btn--compact" data-action="start-add-question" ${category ? '' : 'disabled'}>
           + Thêm câu
@@ -193,8 +191,6 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
       </div>
 
       ${importSummary}
-
-      ${category ? renderFilterPills(runtime.questionFilter, typeCounts) : ''}
 
       <div class="question-list grid min-h-0 flex-1 gap-2" data-scroll-restore="question-list">
         ${questions || `<div class="empty-state px-4 py-7 text-center text-ui text-subtle">${emptyMessage}</div>`}

@@ -4,7 +4,7 @@ import { timerMinutesInputValue } from '../../utils/timer-settings';
 import type { RuntimeState } from '../../core/state';
 import type { AppState, IntroLinkSettings, SettingsSection, SoundEventKey } from '../../types';
 import { DEFAULT_SOUND_FILE_NAMES, SOUND_EVENT_GROUPS } from '../../config/sounds';
-import { DEFAULT_INTRO_LINK_LABEL, rewardItemsToText, SOUND_EVENT_LABELS } from '../../data';
+import { DEFAULT_INTRO_LINK_LABEL, isMcqQuestion, rewardItemsToText, SOUND_EVENT_LABELS } from '../../data';
 import { MAX_INTRO_LINKS } from '../../types';
 import { escapeHtml } from '../../utils/html';
 import { appContext } from '../../core/state';
@@ -58,7 +58,10 @@ function renderSidebar(active: SettingsSection): string {
 
 function renderStatBar(appState: AppState): string {
   const categoryCount = appState.categories.length;
-  const totalQuestions = appState.categories.reduce((count, category) => count + category.questions.length, 0);
+  const totalQuestions = appState.categories.reduce(
+    (count, category) => count + category.questions.filter(isMcqQuestion).length,
+    0,
+  );
   const pools = appContext.getQuestionPools();
   const usedCount = Object.values(pools).reduce((sum, ids) => sum + ids.length, 0);
 
@@ -340,7 +343,7 @@ function renderPoolsPanel(appState: AppState): string {
 
   const rows = appState.categories
     .map((category) => {
-      const total = category.questions.length;
+      const total = category.questions.filter(isMcqQuestion).length;
       const used = countUsedInCategory(pools, category.id);
       const remaining = Math.max(0, total - used);
       return `

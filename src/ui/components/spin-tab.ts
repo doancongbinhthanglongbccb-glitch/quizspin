@@ -5,7 +5,10 @@ import { WheelRenderer } from './wheel';
 export function renderSpinTab(appState: AppState, runtime: RuntimeState): string {
   const status = runtime.spinning ? 'Đang quay' : runtime.modal ? 'Đang hiển thị kết quả' : 'Sẵn sàng';
   const rewardReady = appState.settings.gifts.length > 0 && appState.settings.punishments.length > 0;
-  const totalQuestions = appState.categories.reduce((count, category) => count + category.questions.length, 0);
+  const totalQuestions = appState.categories.reduce(
+    (count, category) => count + category.questions.filter((q) => q.type === 'mcq').length,
+    0,
+  );
   const categoryCount = appState.categories.length;
 
   const spinDisabled = runtime.spinning || runtime.modal || !rewardReady;

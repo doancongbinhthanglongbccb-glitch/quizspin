@@ -1,5 +1,5 @@
 import { appContext } from '../../core/state';
-import type { QuestionDraft, QuestionFilter, QuestionType } from '../../types';
+import type { QuestionDraft } from '../../types';
 import * as Actions from '../../core/actions';
 import { suppressAndroidIntroOnResume } from '../../utils/android-intro-resume';
 import { throttle } from '../../utils/throttle';
@@ -23,15 +23,12 @@ function getInputTarget<T extends HTMLInputElement | HTMLTextAreaElement | HTMLS
 }
 
 function readDraftFromDom(root: ParentNode): QuestionDraft {
-  const typeInput = root.querySelector<HTMLSelectElement>('#question-type-input');
   const questionInput = root.querySelector<HTMLTextAreaElement>('#question-input');
   const optionsInput = root.querySelector<HTMLTextAreaElement>('#options-input');
   const answerInput = root.querySelector<HTMLTextAreaElement>('#answer-input');
 
-  const type = (typeInput?.value === 'essay' ? 'essay' : 'mcq') as QuestionType;
-
   return {
-    type,
+    type: 'mcq',
     question: questionInput?.value ?? '',
     options: optionsInput?.value ?? '',
     answer: answerInput?.value ?? '',
@@ -120,12 +117,6 @@ export function bindBankHandlers(root: ParentNode): () => void {
       return;
     }
 
-    const filterButton = getActionTarget(event, root, '[data-action="filter-questions"]');
-    if (filterButton?.dataset.filter) {
-      Actions.setQuestionFilter(filterButton.dataset.filter as QuestionFilter);
-      return;
-    }
-
     const selectCategoryButton = getActionTarget(event, root, '[data-action="select-category"]');
     if (selectCategoryButton) {
       const id = selectCategoryButton.dataset.id;
@@ -141,9 +132,16 @@ export function bindBankHandlers(root: ParentNode): () => void {
 
     const startEditButton = getActionTarget(event, root, '[data-action="start-edit-question"]');
     if (startEditButton) {
-      appContext.setRuntimeState({ editingQuestionId: startEditButton.dataset.id ?? null, bankFormOpen: true });
+      // Nạp draft trước khi render — shell key không gồm nội dung draft.
+      appContext.patchRuntimeStateWithoutRender({
+        editingQuestionId: startEditButton.dataset.id ?? null,
+        bankFormOpen: true,
+      });
       Actions.ensureQuestionDraft(Actions.currentCategory());
       captureDraftSnapshotFromState();
+      queueMicrotask(() => {
+        root.querySelector<HTMLElement>('.bank-form-panel')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
       return;
     }
 
@@ -158,9 +156,12 @@ export function bindBankHandlers(root: ParentNode): () => void {
     }
 
     if (getActionTarget(event, root, '[data-action="start-add-question"]')) {
-      appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: true });
+      appContext.patchRuntimeStateWithoutRender({ editingQuestionId: null, bankFormOpen: true });
       Actions.ensureQuestionDraft(Actions.currentCategory());
       captureDraftSnapshotFromState();
+      queueMicrotask(() => {
+        root.querySelector<HTMLElement>('.bank-form-panel')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
       return;
     }
 
@@ -205,13 +206,6 @@ export function bindBankHandlers(root: ParentNode): () => void {
   };
 
   const onChange = (event: Event): void => {
-    const typeInput = getInputTarget<HTMLSelectElement>(event, root, '#question-type-input');
-    if (typeInput) {
-      syncDraftFromDom(root);
-      Actions.setQuestionDraftType(typeInput.value === 'essay' ? 'essay' : 'mcq');
-      return;
-    }
-
     const excelInput = getInputTarget<HTMLInputElement>(event, root, '#excel-input');
     if (excelInput) {
       const file = excelInput.files?.[0];
@@ -247,7 +241,8 @@ export function bindBankHandlers(root: ParentNode): () => void {
 
   return () => {
     clearLongPress();
-    if (appContext.getRuntimeState().bankFormOpen) {
+    // Chỉ sync khi form đã mount — tránh ghi đè draft vừa nạp khi mở form lần đầu.
+    if (appContext.getRuntimeState().bankFormOpen && root.querySelector('#question-input')) {
       syncDraftFromDom(root);
     }
     draftSnapshot = null;

@@ -243,6 +243,47 @@ export function isMcqCorrectOption(option: string, question: Question): boolean 
   return isMcqAnswerCorrect(option, question);
 }
 
+/**
+ * Kiểm tra đáp án MCQ khớp phương án.
+ * - Chỉ chữ cái: A / B / C / D (hoặc A. / A))
+ * - Có nội dung: phải trùng cả dòng hoặc phần sau tiền tố A./B. của một phương án
+ *   (VD: "A. 1943" không khớp khi phương án là "A. 1945")
+ */
+export function mcqAnswerMatchesOptions(answer: string, options: string[]): boolean {
+  const cleaned = options.map((item) => item.trim()).filter(Boolean);
+  if (!cleaned.length) {
+    return false;
+  }
+
+  const parts = parseMcqSelectionParts(answer);
+  if (!parts.length) {
+    return false;
+  }
+
+  return parts.every((part) => {
+    const trimmed = part.trim();
+    const letter = mcqOptionLetter(trimmed);
+    const isLetterOnly = Boolean(letter && /^[A-Da-d]([.):\-\s]*)$/.test(trimmed));
+
+    if (isLetterOnly && letter) {
+      const index = letter.charCodeAt(0) - 65;
+      if (cleaned.some((option) => mcqOptionLetter(option) === letter)) {
+        return true;
+      }
+      return index >= 0 && index < cleaned.length;
+    }
+
+    const core = stripMcqPrefix(trimmed).toLowerCase();
+    if (!core) {
+      return false;
+    }
+
+    return cleaned.some(
+      (option) => option === trimmed || stripMcqPrefix(option).toLowerCase() === core,
+    );
+  });
+}
+
 export function getQuestionOptions(question: Question): string[] {
   return question.options ?? [];
 }
@@ -523,12 +564,6 @@ export function createSampleState(): AppState {
             options: ['A. 80', 'B. 90', 'C. 100', 'D. 120'],
             answer: 'C. 100',
           }),
-          normalizeQuestion({
-            categoryId: scienceId,
-            type: 'essay',
-            question: 'Trình bày vai trò của nước trong đời sống con người?',
-            answer: 'Nước tham gia trao đổi chất, điều hòa thân nhiệt, vận chuyển dinh dưỡng...',
-          }),
         ],
       },
     ],
@@ -677,15 +712,33 @@ function isHeaderRow(cells: string[]): boolean {
     /^(câu hỏi|question|lĩnh vực|linh vuc|category)/i.test(first) ||
     joined.includes('đáp án') ||
     joined.includes('dap an') ||
+    joined.includes('phương án') ||
+    joined.includes('phuong an') ||
     joined.includes('loại') ||
     joined.includes('loai')
   );
+}
+
+/** Bỏ cột trống thừa cuối hàng — Excel thường padding thêm cột rỗng. */
+function trimTrailingEmptyCells(cells: string[]): string[] {
+  let end = cells.length;
+  while (end > 0 && !(cells[end - 1] ?? '').trim()) {
+    end -= 1;
+  }
+  return cells.slice(0, end);
 }
 
 type SheetFormat = 'category-four-col' | 'legacy-typed' | 'legacy-hybrid' | 'legacy-two-col';
 
 function detectSheetFormat(cells: string[]): SheetFormat {
   const col1IsType = Boolean(parseQuestionTypeInput(cells[1] ?? ''));
+  const col1LooksLikeOptions =
+    /\r?\n/.test(cells[1] ?? '') || /^[A-Da-d][.):]/.test((cells[1] ?? '').trim());
+
+  // 3 cột: Câu hỏi | Phương án | Đáp án (kể cả khi Excel còn cột trống thừa đã trim)
+  if (cells.length === 3 || (cells.length >= 3 && col1LooksLikeOptions && !col1IsType)) {
+    return 'legacy-hybrid';
+  }
 
   // Legacy: Lĩnh vực | Loại | Câu hỏi | Options/Đáp án [| Đáp án đúng]
   if (cells.length >= 5 || (cells.length >= 4 && col1IsType)) {
@@ -694,10 +747,6 @@ function detectSheetFormat(cells: string[]): SheetFormat {
 
   if (cells.length >= 4) {
     return 'category-four-col';
-  }
-
-  if (cells.length === 3) {
-    return 'legacy-hybrid';
   }
 
   return 'legacy-two-col';
@@ -711,16 +760,16 @@ function parseCategoryFourColRow(cells: string[]): { question: Question; categor
   const answer = (cells[3] ?? '').trim();
 
   if (!questionText) {
-    return { error: 'Missing question' };
+    return { error: 'Thiếu nội dung câu hỏi' };
   }
 
   if (optionsRaw) {
     const options = parseMcqOptions(optionsRaw);
     if (!options.length) {
-      return { error: 'MCQ requires options' };
+      return { error: 'Cột phương án không đọc được (mỗi lựa chọn một dòng, VD: A. ...)' };
     }
     if (!answer) {
-      return { error: 'Missing MCQ answer' };
+      return { error: 'Thiếu đáp án đúng' };
     }
     return {
       categoryName,
@@ -729,7 +778,7 @@ function parseCategoryFourColRow(cells: string[]): { question: Question; categor
   }
 
   if (!answer) {
-    return { error: 'Missing essay answer' };
+    return { error: 'Thiếu phương án hoặc đáp án đúng' };
   }
 
   return {
@@ -749,17 +798,17 @@ function parseLegacyTypedRow(cells: string[]): { question: Question; categoryNam
   const type = parseQuestionTypeInput(typeCell) ?? (parseMcqOptions(answerOrOptions).length >= 2 ? 'mcq' : 'essay');
 
   if (!questionText) {
-    return { error: 'Missing question' };
+    return { error: 'Thiếu nội dung câu hỏi' };
   }
 
   if (type === 'mcq') {
     const options = parseMcqOptions(answerOrOptions);
     const answer = extraAnswer || options.find((item) => item === answerOrOptions) || answerOrOptions;
     if (!options.length) {
-      return { error: 'MCQ requires options' };
+      return { error: 'Cột phương án không đọc được (mỗi lựa chọn một dòng, VD: A. ...)' };
     }
     if (!answer) {
-      return { error: 'Missing MCQ answer' };
+      return { error: 'Thiếu đáp án đúng' };
     }
     return {
       categoryName,
@@ -768,7 +817,7 @@ function parseLegacyTypedRow(cells: string[]): { question: Question; categoryNam
   }
 
   if (!answerOrOptions) {
-    return { error: 'Missing essay answer' };
+    return { error: 'Thiếu phương án hoặc đáp án đúng' };
   }
 
   return {
@@ -783,13 +832,16 @@ function parseLegacyHybridRow(cells: string[]): { question: Question; categoryNa
   const answer = (cells[2] ?? '').trim();
 
   if (!questionText) {
-    return { error: 'Missing question' };
+    return { error: 'Thiếu nội dung câu hỏi' };
   }
 
   if (optionsRaw) {
     const options = parseMcqOptions(optionsRaw);
+    if (!options.length) {
+      return { error: 'Cột phương án không đọc được (mỗi lựa chọn một dòng, VD: A. ...)' };
+    }
     if (!answer) {
-      return { error: 'Missing MCQ answer' };
+      return { error: 'Thiếu đáp án đúng' };
     }
     return {
       categoryName: null,
@@ -798,7 +850,7 @@ function parseLegacyHybridRow(cells: string[]): { question: Question; categoryNa
   }
 
   if (!answer) {
-    return { error: 'Missing essay answer' };
+    return { error: 'Thiếu phương án hoặc đáp án đúng' };
   }
 
   return {
@@ -812,10 +864,10 @@ function parseLegacyTwoColRow(cells: string[]): { question: Question; categoryNa
   const answer = (cells[1] ?? '').trim();
 
   if (!questionText) {
-    return { error: 'Missing question' };
+    return { error: 'Thiếu nội dung câu hỏi' };
   }
   if (!answer) {
-    return { error: 'Missing answer' };
+    return { error: 'Thiếu đáp án' };
   }
 
   return {
@@ -843,10 +895,12 @@ export function parseQuestionsFromSheet(file: ArrayBuffer): ImportResult {
 
   for (const [index, row] of rows.entries()) {
     const rowNumber = index + 1;
-    const cells = Array.isArray(row) ? row.map((cell) => String(cell ?? '').trim()) : [];
+    const cells = trimTrailingEmptyCells(
+      Array.isArray(row) ? row.map((cell) => String(cell ?? '').trim()) : [],
+    );
 
     if (!cells.length || cells.every((cell) => !cell)) {
-      diagnostics.push({ rowNumber, reason: 'Empty row', rawData: cells });
+      diagnostics.push({ rowNumber, reason: 'Dòng trống', rawData: cells });
       stats.skipped += 1;
       continue;
     }
@@ -867,6 +921,16 @@ export function parseQuestionsFromSheet(file: ArrayBuffer): ImportResult {
 
     if ('error' in parsed) {
       diagnostics.push({ rowNumber, reason: parsed.error, rawData: cells });
+      stats.skipped += 1;
+      continue;
+    }
+
+    if (parsed.question.type !== 'mcq') {
+      diagnostics.push({
+        rowNumber,
+        reason: 'Chỉ hỗ trợ câu trắc nghiệm — cần cột Phương án (A/B/C/D)',
+        rawData: cells,
+      });
       stats.skipped += 1;
       continue;
     }

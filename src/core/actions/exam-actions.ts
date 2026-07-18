@@ -1,5 +1,6 @@
 import { appContext } from '../state';
 import type { Category, CategoryExam, PracticeSetupDraft } from '../../types';
+import { isMcqQuestion } from '../../data';
 import {
   createDefaultPracticeSetupDraft,
   draftToPracticeConfig,
@@ -12,7 +13,7 @@ import { showToast } from './shared';
 
 /** Mở luồng thi theo lĩnh vực — tự chọn đề hoặc hiện danh sách đề. */
 export function openCategoryExamFlow(category: Category): void {
-  if (category.questions.length === 0) {
+  if (!category.questions.some(isMcqQuestion)) {
     showToast(`Lĩnh vực ${category.name} đang trống`);
     return;
   }
@@ -57,7 +58,10 @@ export function selectCategoryExam(examId: string): void {
 
 /** Mở form cấu hình thi thử. */
 export function openPracticeSetupFlow(): void {
-  const totalQuestions = appContext.getAppState().categories.reduce((sum, c) => sum + c.questions.length, 0);
+  const totalQuestions = appContext.getAppState().categories.reduce(
+    (sum, c) => sum + c.questions.filter(isMcqQuestion).length,
+    0,
+  );
   if (totalQuestions === 0) {
     showToast('Chưa có câu hỏi để thi thử');
     return;

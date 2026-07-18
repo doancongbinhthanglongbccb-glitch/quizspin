@@ -1,5 +1,5 @@
-import { normalizeQuestion, parseMcqOptions } from '../../data';
-import type { Category, QuestionDraft, QuestionFilter, QuestionType } from '../../types';
+import { mcqAnswerMatchesOptions, normalizeQuestion, parseMcqOptions } from '../../data';
+import type { QuestionDraft, QuestionFilter, QuestionType } from '../../types';
 import { appContext } from '../state';
 import { removeQuestionFromPools } from '../pool-manager';
 import { showToast } from './shared';
@@ -45,17 +45,27 @@ export function saveQuestionDraft(): void {
     return;
   }
 
-  if (draft.type === 'mcq' && !parseMcqOptions(draft.options).length) {
+  if (draft.type !== 'mcq') {
+    showToast('Chỉ hỗ trợ câu trắc nghiệm');
+    return;
+  }
+
+  const options = parseMcqOptions(draft.options);
+  if (!options.length) {
     showToast('Câu trắc nghiệm cần ít nhất 1 phương án');
+    return;
+  }
+  if (!mcqAnswerMatchesOptions(answerText, options)) {
+    showToast('Đáp án phải là A/B/C/D hoặc đúng nội dung một phương án');
     return;
   }
 
   const question = normalizeQuestion({
     id: runtime.editingQuestionId ?? undefined,
     categoryId: category.id,
-    type: draft.type,
+    type: 'mcq',
     question: questionText,
-    options: draft.type === 'mcq' ? draft.options : undefined,
+    options: draft.options,
     answer: answerText,
   });
 
@@ -77,7 +87,7 @@ export function saveQuestionDraft(): void {
 
   appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: false });
   ensureQuestionDraft(category);
-  showToast(`Đã lưu câu ${draft.type === 'mcq' ? 'trắc nghiệm' : 'tự luận'}`);
+  showToast('Đã lưu câu trắc nghiệm');
 }
 
 export function deleteQuestion(categoryId: string, questionId: string): void {
@@ -129,8 +139,18 @@ export function saveQuestionEdit(
     return;
   }
 
-  if (type === 'mcq' && !parseMcqOptions(options).length) {
+  if (type !== 'mcq') {
+    showToast('Chỉ hỗ trợ câu trắc nghiệm');
+    return;
+  }
+
+  const parsedOptions = parseMcqOptions(options);
+  if (!parsedOptions.length) {
     showToast('Câu trắc nghiệm cần ít nhất 1 phương án');
+    return;
+  }
+  if (!mcqAnswerMatchesOptions(answerText, parsedOptions)) {
+    showToast('Đáp án phải là A/B/C/D hoặc đúng nội dung một phương án');
     return;
   }
 
@@ -145,9 +165,9 @@ export function saveQuestionEdit(
                 ? normalizeQuestion({
                     id,
                     categoryId: category.id,
-                    type,
+                    type: 'mcq',
                     question: questionText,
-                    options: type === 'mcq' ? options : undefined,
+                    options,
                     answer: answerText,
                     points: q.points,
                   })

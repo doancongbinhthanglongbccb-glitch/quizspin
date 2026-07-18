@@ -1,5 +1,5 @@
 import { QUIZ_CONFIG } from '../config/quiz';
-import { shuffleArray } from '../data';
+import { isMcqQuestion, shuffleArray } from '../data';
 import type { Category, CategoryExam, PracticeConfig, PracticeSetupDraft } from '../types';
 
 /** Hash đơn giản — seed cố định theo category để shuffle đề ổn định giữa các lần mở app. */
@@ -29,6 +29,7 @@ export function seededShuffle<T>(items: T[], seed: number): T[] {
 /** Chữ ký bộ câu — đổi khi thêm/xóa/sửa câu trong lĩnh vực. */
 export function categoryQuestionSignature(category: Category): string {
   return category.questions
+    .filter(isMcqQuestion)
     .map((q) => q.id)
     .sort()
     .join('|');
@@ -42,12 +43,13 @@ export function generateCategoryExams(
   category: Category,
   questionsPerExam = QUIZ_CONFIG.questionsPerExam,
 ): CategoryExam[] {
-  if (category.questions.length === 0) {
+  const mcqQuestions = category.questions.filter(isMcqQuestion);
+  if (mcqQuestions.length === 0) {
     return [];
   }
 
   const seed = hashString(`${category.id}:${categoryQuestionSignature(category)}`);
-  const shuffled = seededShuffle(category.questions, seed);
+  const shuffled = seededShuffle(mcqQuestions, seed);
   const exams: CategoryExam[] = [];
 
   for (let offset = 0; offset < shuffled.length; offset += questionsPerExam) {
@@ -68,7 +70,7 @@ export function generateCategoryExams(
 
 /** Cần hiện danh sách chọn đề (≥ minQuestionsForSplit câu). */
 export function shouldShowExamPicker(category: Category): boolean {
-  return category.questions.length >= QUIZ_CONFIG.minQuestionsForSplit;
+  return category.questions.filter(isMcqQuestion).length >= QUIZ_CONFIG.minQuestionsForSplit;
 }
 
 /** Lấy đề duy nhất khi lĩnh vực ít hơn ngưỡng chia đề. */
@@ -79,7 +81,7 @@ export function getSingleCategoryExam(category: Category): CategoryExam | null {
 
 /** Random câu thi thử từ mọi lĩnh vực — mỗi lần thi khác nhau. */
 export function pickPracticeExamQuestions(categories: Category[], config: PracticeConfig) {
-  const all = categories.flatMap((c) => c.questions);
+  const all = categories.flatMap((c) => c.questions.filter(isMcqQuestion));
   if (all.length === 0) {
     return [];
   }

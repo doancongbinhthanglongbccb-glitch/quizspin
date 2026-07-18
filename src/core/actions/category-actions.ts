@@ -1,5 +1,5 @@
 import type { Category } from '../../types';
-import { defaultQuestionDraft, questionToDraft } from '../../data';
+import { defaultQuestionDraft, isMcqQuestion, questionToDraft } from '../../data';
 import { appContext } from '../state';
 
 export function currentCategory(): Category | null {
@@ -23,13 +23,13 @@ export function ensureQuestionDraft(category?: Category | null): void {
 
   if (runtime.editingQuestionId) {
     const item = category.questions.find((question) => question.id === runtime.editingQuestionId);
-    if (item) {
+    if (item && isMcqQuestion(item)) {
       appContext.setRuntimeState({ questionDraft: questionToDraft(item) });
       return;
     }
   }
 
-  appContext.setRuntimeState({ questionDraft: defaultQuestionDraft(runtime.questionDraft.type) });
+  appContext.setRuntimeState({ questionDraft: defaultQuestionDraft('mcq') });
 }
 
 export function selectCategory(categoryId: string): void {

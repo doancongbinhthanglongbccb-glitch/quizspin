@@ -1,7 +1,47 @@
 import { parseQuestionsFromSheet } from '../../data';
+import type { ImportDiagnostic } from '../../types';
 import { appContext } from '../state';
 import { currentCategory } from './category-actions';
 import { showToast } from './shared';
+
+function topSkipReasons(diagnostics: ImportDiagnostic[], limit = 3): Array<{ reason: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const item of diagnostics) {
+    if (item.reason === 'Dòng trống') {
+      continue;
+    }
+    counts.set(item.reason, (counts.get(item.reason) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+function buildImportToast(imported: number, skipped: number, categoryName: string, diagnostics: ImportDiagnostic[]): string {
+  const reasons = topSkipReasons(diagnostics);
+  const reasonHint = reasons.length
+    ? reasons.map((item) => `${item.reason} (${item.count} dòng)`).join('; ')
+    : '';
+
+  if (imported === 0) {
+    if (reasonHint) {
+      return `Không nhập được câu nào. ${reasonHint}. Xem chi tiết bên dưới.`;
+    }
+    return 'File không có dữ liệu hợp lệ. Cần cột: Câu hỏi | Phương án | Đáp án đúng.';
+  }
+
+  if (skipped > 0 && reasonHint) {
+    return `Đã thêm ${imported} câu vào ${categoryName}. Bỏ qua ${skipped} dòng — ${reasonHint}.`;
+  }
+
+  if (skipped > 0) {
+    return `Đã thêm ${imported} câu vào ${categoryName}. Bỏ qua ${skipped} dòng trống.`;
+  }
+
+  return `Đã thêm ${imported} câu vào ${categoryName}`;
+}
 
 export function parseExcelImport(file: File): void {
   const categoryAtPick = currentCategory();
@@ -28,18 +68,20 @@ export function parseExcelImport(file: File): void {
 
       const parsed = parseQuestionsFromSheet(buffer);
       if (!parsed.questions.length && !parsed.diagnostics.length) {
-        showToast('File không có dữ liệu hợp lệ');
+        showToast('File không có dữ liệu hợp lệ. Cần cột: Câu hỏi | Phương án | Đáp án đúng.');
         return;
       }
 
       const stamped = parsed.questions.map((question) => ({ ...question, categoryId: category.id }));
 
-      appContext.setAppStateWithoutRender((current) => ({
-        ...current,
-        categories: current.categories.map((item) =>
-          item.id === category.id ? { ...item, questions: [...item.questions, ...stamped] } : item,
-        ),
-      }));
+      if (stamped.length) {
+        appContext.setAppStateWithoutRender((current) => ({
+          ...current,
+          categories: current.categories.map((item) =>
+            item.id === category.id ? { ...item, questions: [...item.questions, ...stamped] } : item,
+          ),
+        }));
+      }
 
       appContext.setRuntimeState({
         importReport: {
@@ -50,12 +92,10 @@ export function parseExcelImport(file: File): void {
         },
       });
 
-      showToast(
-        `Đã thêm ${parsed.questions.length} câu (${parsed.stats.mcq} MCQ, ${parsed.stats.essay} Essay) vào ${category.name}`,
-      );
+      showToast(buildImportToast(parsed.questions.length, parsed.stats.skipped, category.name, parsed.diagnostics));
     } catch {
       appContext.setRuntimeState({ importReport: null });
-      showToast('Định dạng file Excel không hợp lệ');
+      showToast('Định dạng file Excel không hợp lệ (.xlsx / .xls)');
     }
   };
 

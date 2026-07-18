@@ -1,5 +1,5 @@
 import type { Category } from '../../types';
-import { createSampleState, makeCategory } from '../../data';
+import { createSampleState, isMcqQuestion, makeCategory } from '../../data';
 import { appContext, createDefaultRuntimeState } from '../state';
 import { resetAllPools, resetCategoryPool, removeCategoryFromPools } from '../pool-manager';
 import { clearState, saveState, savePools } from '../../storage';
@@ -30,7 +30,7 @@ export function requestDeleteCategory(category: Category): void {
       kind: 'delete-category',
       categoryId: category.id,
       categoryName: category.name,
-      questionCount: category.questions.length,
+      questionCount: category.questions.filter(isMcqQuestion).length,
     },
   });
 }
