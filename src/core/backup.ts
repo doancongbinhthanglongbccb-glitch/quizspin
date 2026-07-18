@@ -92,35 +92,16 @@ function downloadBackupOnWeb(filename: string, json: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** Web: tải file. Android: ghi cache rồi mở Share sheet (Lưu vào Files / Drive…). */
-export async function downloadBackupJson(filename: string, payload: BackupPayload): Promise<void> {
+/** Web: tải file. Android: lưu thẳng vào Downloads. */
+export async function downloadBackupJson(filename: string, payload: BackupPayload): Promise<string> {
   const json = JSON.stringify(payload, null, 2);
 
   if (!isNativeApp()) {
     downloadBackupOnWeb(filename, json);
-    return;
+    return filename;
   }
 
-  const { Directory, Encoding, Filesystem } = await import('@capacitor/filesystem');
-  const { Share } = await import('@capacitor/share');
-  const path = `backups/${filename}`;
-
-  await Filesystem.writeFile({
-    path,
-    data: json,
-    directory: Directory.Cache,
-    encoding: Encoding.UTF8,
-    recursive: true,
-  });
-
-  const { uri } = await Filesystem.getUri({
-    path,
-    directory: Directory.Cache,
-  });
-
-  await Share.share({
-    title: filename,
-    dialogTitle: 'Lưu / gửi file backup',
-    files: [uri],
-  });
+  const { BackupSaver } = await import('../plugins/backup-saver');
+  const result = await BackupSaver.saveToDownloads({ filename, content: json });
+  return result.path || `Download/${filename}`;
 }

@@ -8,7 +8,18 @@
 
 ## Danh sách các bản
 
-### Bản 9 — 18/07/2026 *(mới nhất)*
+### Bản 10 — 18/07/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_downloads-backup.apk` · `versionName` **1.2.2** / `versionCode` **5**
+
+**Có gì mới:**
+- **Xuất backup Android:** lưu thẳng vào **Downloads** (bỏ share sheet)
+
+> Cài đè được lên v1.2.x.
+
+---
+
+### Bản 9 — 18/07/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_backup-share_14bacb0.apk` (~8.0 MB, đã ký) · `versionName` **1.2.1** / `versionCode` **4**
 

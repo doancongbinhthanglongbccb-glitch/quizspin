@@ -69,7 +69,7 @@ quizspin/
 
 Luồng chính: **Action → AppContext → `render()`** (shell/modal theo render key) → persist khi đổi `AppState`.
 
-Backup: `src/core/backup.ts` + `backup-actions` — xuất/nhập JSON (`appState` + pools). Web dùng tải file; Android ghi cache rồi `@capacitor/share`. Âm thanh tùy chỉnh không đưa vào backup.
+Backup: `src/core/backup.ts` + plugin Android `BackupSaver` — xuất/nhập JSON. Web tải file; Android lưu thẳng **Downloads**. Âm thanh tùy chỉnh không đưa vào backup.
 
 ---
 
@@ -154,4 +154,4 @@ Cấu hình app nằm trong:
 
 **Phiên bản package:** `0.1.0`  
 
-**Android hiện tại:** `versionName` **1.2.1** / `versionCode` **4** — chi tiết từng bản trong [`releases/LICH-SU-PHIEN-BAN.md`](releases/LICH-SU-PHIEN-BAN.md)
+**Android hiện tại:** `versionName` **1.2.2** / `versionCode` **5** — chi tiết từng bản trong [`releases/LICH-SU-PHIEN-BAN.md`](releases/LICH-SU-PHIEN-BAN.md)

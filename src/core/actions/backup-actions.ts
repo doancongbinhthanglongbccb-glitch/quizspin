@@ -20,14 +20,14 @@ export async function exportAppBackup(): Promise<void> {
   const summary = `${payload.appState.categories.length} lĩnh vực, ${questionCount} câu`;
 
   try {
-    await downloadBackupJson(backupFilename(), payload);
-    showToast(`Đã xuất backup (${summary})`);
+    const savedPath = await downloadBackupJson(backupFilename(), payload);
+    showToast(`Đã lưu ${savedPath} (${summary})`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (/cancel|abort|dismiss/i.test(message)) {
       return;
     }
-    showToast('Không xuất được backup trên máy này');
+    showToast('Không lưu được backup vào Downloads');
   }
 }
 

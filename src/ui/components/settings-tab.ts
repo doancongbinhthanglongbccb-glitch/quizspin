@@ -382,8 +382,8 @@ function renderDangerPanel(): string {
         <p class="settings-panel-card__title"><span aria-hidden="true">💾</span>Backup dữ liệu</p>
         <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
           Xuất / nhập toàn bộ lĩnh vực, câu hỏi, quà, phạt và cài đặt (không gồm file âm thanh).
-          Trên Android: <strong>Xuất</strong> mở share sheet → chọn Files / Drive để lưu;
-          <strong>Nhập</strong> chọn file <code class="text-caption">.json</code> (có thể hiện dạng file thường).
+          Trên Android: <strong>Xuất</strong> lưu file <code class="text-caption">.json</code> thẳng vào
+          <strong>Downloads</strong>; <strong>Nhập</strong> chọn file đó để khôi phục.
         </p>
         <div class="flex flex-wrap gap-2.5">
           <button type="button" class="btn btn-primary" data-action="export-backup">Xuất backup</button>
