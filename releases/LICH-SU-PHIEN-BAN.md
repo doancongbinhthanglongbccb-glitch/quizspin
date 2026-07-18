@@ -8,7 +8,21 @@
 
 ## Danh sách các bản
 
-### Bản 6 — 19/06/2026 *(mới nhất)*
+### Bản 7 — 18/07/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_bank-mcq_fec80bf.apk` (~7.9 MB, đã ký)
+
+**Có gì mới:**
+- Sửa form **Sửa/Cập nhật** câu hỏi trong ngân hàng
+- Chỉ **trắc nghiệm** (ẩn tự luận)
+- Kiểm tra đáp án khớp phương án khi lưu
+- Sửa nhập Excel 3 cột + báo lỗi tiếng Việt rõ hơn
+
+> **Lưu ý cài đặt:** chữ ký khác bản cũ — **gỡ app cũ** rồi cài lại.
+
+---
+
+### Bản 6 — 19/06/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-06-19_practice-lite_4a178fc-dirty.apk` (~7.9 MB, **đã ký**)
 

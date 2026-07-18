@@ -11,9 +11,9 @@
 
 ### Tải APK Android
 
-**[Tải APK v0.1.0](releases/Bo-tro-Giao-duc-Chinh-tri.apk)** — release **đã ký**, build `2026-06-19 22:40` (~7.9 MB, `com.quizspin.app`)
+**[Tải APK v1.1](releases/Bo-tro-Giao-duc-Chinh-tri.apk)** — release **đã ký**, build `2026-07-18` (~7.9 MB, `com.quizspin.app`)
 
-Cài trên điện thoại: tải file `.apk` → mở → cho phép cài từ nguồn không xác định → **Cài đặt**. Bản release đã ký có thể cài đè bản debug cùng package; nếu vẫn báo lỗi chữ ký, gỡ app cũ rồi cài lại.
+Cài trên điện thoại: tải file `.apk` → mở → cho phép cài từ nguồn không xác định → **Cài đặt**. Bản này dùng **chữ ký mới** — nếu máy đang cài bản cũ, **gỡ app cũ rồi cài lại**.
 
 **Các bản đã phát hành:** [Lịch sử phiên bản](releases/LICH-SU-PHIEN-BAN.md) — xem từng bản đã thử nghiệm và tải bản cũ nếu cần.
 
@@ -305,7 +305,7 @@ android/app/build/outputs/apk/debug/app-debug.apk
 | `appId` | `com.quizspin.app` |
 | Tên launcher | `Bổ trợ Giáo dục - Chính trị` (`android/app/src/main/res/values/strings.xml`) |
 | `webDir` | `dist` |
-| APK tải về | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](releases/Bo-tro-Giao-duc-Chinh-tri.apk) — release đã ký, `2026-06-19 22:40` |
+| APK tải về | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](releases/Bo-tro-Giao-duc-Chinh-tri.apk) — release đã ký, `2026-07-18` |
 
 **Không commit:** `dist/`, `android/app/build/`, `android/.gradle/`, `android/.idea/`, `android/app/src/main/assets/public/` (tạo lại bằng `cap sync`).
 
@@ -348,13 +348,7 @@ android/app/build/outputs/apk/debug/app-debug.apk
 - [ ] Tên đội / người chơi trên màn quay
 - [ ] Tính điểm có trọng số (`question.points`) trong UI bộ thi
 - [ ] Test tự động (wheel landing, quiz flow)
-- [x] Build APK release (đã ký) & cập nhật file trong `releases/` (`2026-06-19 22:40`)
-
----
-
-## Tài liệu thiết kế
-
-Spec gốc: [`voong-quay-kien-thuc-plan.md`](./voong-quay-kien-thuc-plan.md)
+- [x] Build APK release (đã ký) & cập nhật file trong `releases/` (`2026-07-18`)
 
 ---
 
