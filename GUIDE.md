@@ -29,7 +29,7 @@ Android chặn app ngoài Google Play theo mặc định. Cần bật một lầ
 
 Nếu đang cài bản cũ và máy báo **xung đột chữ ký** / **không cập nhật được**:
 
-1. Vào app cũ → **Cài đặt → Backup / Xóa → Xuất backup** (giữ file `.json`).
+1. Vào app cũ → **Cài đặt → Backup / Xóa → Xuất backup** → trên Android chọn **Files / Drive** để lưu file `.json`.
 2. Giữ icon app → **Gỡ cài đặt**.
 3. Cài lại file APK mới → **Nhập backup** để khôi phục dữ liệu.
 
@@ -106,8 +106,13 @@ File mẫu trong repo (cho người soạn câu trên máy tính): thư mục [`
 ### 2.5. Backup dữ liệu (nên biết)
 
 1. **Cài đặt → Backup / Xóa**.
-2. **Xuất backup** → lưu file `quizspin-backup-….json` (lĩnh vực, câu hỏi, quà, phạt, cài đặt, pool; **không** gồm file âm thanh tùy chỉnh).
-3. **Nhập backup** → chọn file → xác nhận **ghi đè toàn bộ** dữ liệu hiện tại.
+2. **Xuất backup**:
+   - **Web:** tải file `quizspin-backup-….json`.
+   - **Android:** mở share sheet → chọn **Files / Drive / Zalo…** để lưu (WebView không tải file trực tiếp).
+3. **Nhập backup** → chọn file `.json` → xác nhận **ghi đè toàn bộ** dữ liệu hiện tại.
+   - Trên Android nếu không thấy file: chọn **Duyệt / Files** và bật hiện mọi loại file.
+
+Nội dung backup: lĩnh vực, câu hỏi, quà, phạt, cài đặt, pool; **không** gồm file âm thanh tùy chỉnh.
 
 Dùng trước khi gỡ app, đổi máy, hoặc sau khi cài APK mới (đặc biệt khi máy báo xung đột chữ ký).
 
@@ -136,7 +141,8 @@ Phía dưới cùng mục này còn **Xóa sạch toàn bộ kho câu hỏi** �
 | Import Excel = 0 câu | Kiểm tra đúng 3 cột; phương án mỗi dòng một lựa chọn; xem báo cáo lỗi trong app |
 | Form sửa câu trống / không bấm được Cập nhật | Đóng form rồi mở lại **Sửa**; nếu vẫn lỗi thì khởi động lại app |
 | Mất câu hỏi sau khi cài lại | Dữ liệu nằm trên máy; gỡ app là mất — **Xuất backup** trước, hoặc giữ Excel để import lại |
-| Nhập backup lỗi | Chỉ nhận file `.json` do app xuất; nhập sẽ **ghi đè** toàn bộ dữ liệu hiện tại |
+| Nhập backup lỗi | Chỉ nhận file `.json` do app xuất; trên Android chọn **Files** và hiện mọi loại file nếu bị lọc |
+| Xuất backup trên Android không tải về | Bấm **Xuất** → trong share sheet chọn **Files / Drive** để lưu (không có nút Download như Chrome) |
 | Không thấy hết mục Âm thanh / Pool | Cuộn **trong khung mục đó** (sidebar và 3 ô thống kê cố định) |
 
 ---

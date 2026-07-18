@@ -14,11 +14,21 @@ import { showToast, stopTimer } from './shared';
 
 let pendingBackup: BackupPayload | null = null;
 
-export function exportAppBackup(): void {
+export async function exportAppBackup(): Promise<void> {
   const payload = buildBackupPayload(appContext.getAppState(), appContext.getQuestionPools());
-  downloadBackupJson(backupFilename(), payload);
   const questionCount = payload.appState.categories.reduce((sum, item) => sum + item.questions.length, 0);
-  showToast(`Đã xuất backup (${payload.appState.categories.length} lĩnh vực, ${questionCount} câu)`);
+  const summary = `${payload.appState.categories.length} lĩnh vực, ${questionCount} câu`;
+
+  try {
+    await downloadBackupJson(backupFilename(), payload);
+    showToast(`Đã xuất backup (${summary})`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/cancel|abort|dismiss/i.test(message)) {
+      return;
+    }
+    showToast('Không xuất được backup trên máy này');
+  }
 }
 
 export function stageBackupImport(file: File): void {

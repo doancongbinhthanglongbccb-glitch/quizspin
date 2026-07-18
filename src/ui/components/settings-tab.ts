@@ -381,7 +381,9 @@ function renderDangerPanel(): string {
       <div>
         <p class="settings-panel-card__title"><span aria-hidden="true">💾</span>Backup dữ liệu</p>
         <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-          Xuất / nhập toàn bộ lĩnh vực, câu hỏi, quà, phạt và cài đặt (không gồm file âm thanh). Dùng trước khi gỡ app hoặc đổi máy.
+          Xuất / nhập toàn bộ lĩnh vực, câu hỏi, quà, phạt và cài đặt (không gồm file âm thanh).
+          Trên Android: <strong>Xuất</strong> mở share sheet → chọn Files / Drive để lưu;
+          <strong>Nhập</strong> chọn file <code class="text-caption">.json</code> (có thể hiện dạng file thường).
         </p>
         <div class="flex flex-wrap gap-2.5">
           <button type="button" class="btn btn-primary" data-action="export-backup">Xuất backup</button>
@@ -391,7 +393,7 @@ function renderDangerPanel(): string {
               id="backup-import-input"
               class="bank-import-btn__input"
               type="file"
-              accept="application/json,.json"
+              accept=".json,text/plain,application/json,application/octet-stream,*/*"
               aria-label="Nhập file backup"
             />
           </label>

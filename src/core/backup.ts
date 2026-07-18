@@ -1,4 +1,5 @@
 import type { AppState, QuestionPools } from '../types';
+import { isNativeApp } from '../utils/platform';
 
 export const BACKUP_VERSION = 1 as const;
 
@@ -78,8 +79,8 @@ export function backupFilename(date = new Date()): string {
   return `quizspin-backup-${y}${m}${d}.json`;
 }
 
-export function downloadBackupJson(filename: string, payload: BackupPayload): void {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+function downloadBackupOnWeb(filename: string, json: string): void {
+  const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -89,4 +90,37 @@ export function downloadBackupJson(filename: string, payload: BackupPayload): vo
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Web: tải file. Android: ghi cache rồi mở Share sheet (Lưu vào Files / Drive…). */
+export async function downloadBackupJson(filename: string, payload: BackupPayload): Promise<void> {
+  const json = JSON.stringify(payload, null, 2);
+
+  if (!isNativeApp()) {
+    downloadBackupOnWeb(filename, json);
+    return;
+  }
+
+  const { Directory, Encoding, Filesystem } = await import('@capacitor/filesystem');
+  const { Share } = await import('@capacitor/share');
+  const path = `backups/${filename}`;
+
+  await Filesystem.writeFile({
+    path,
+    data: json,
+    directory: Directory.Cache,
+    encoding: Encoding.UTF8,
+    recursive: true,
+  });
+
+  const { uri } = await Filesystem.getUri({
+    path,
+    directory: Directory.Cache,
+  });
+
+  await Share.share({
+    title: filename,
+    dialogTitle: 'Lưu / gửi file backup',
+    files: [uri],
+  });
 }
