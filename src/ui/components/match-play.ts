@@ -174,18 +174,26 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
       `;
     }
 
-    // Lượt 3 stub — Phase 5 thay bằng chọn gói điểm
+    // Stub Lượt 3 — chỉ khi currentRound===3, chưa activePlay, chưa roundSummary
+    if (session.currentRound !== 3) {
+      return '';
+    }
+
+    // TẠM — xoá khi Phase 5 có màn luật L3 thật để không bị quên dọn.
     return `
       <div class="quiz-session-backdrop match-play-backdrop">
         <div class="quiz-session match-play">
           <div class="quiz-session__content match-play__content">
             <main class="quiz-session__main">
               <header class="quiz-session__question-head">
-                <span class="quiz-session__badge" style="--badge-color:#4895ef">Lượt ${session.currentRound}</span>
-                <h2 class="quiz-session__title">Chuẩn bị Lượt ${session.currentRound}</h2>
+                <span class="quiz-session__badge" style="--badge-color:#4895ef">Lượt 3</span>
+                <h2 class="quiz-session__title">Chuẩn bị Lượt 3</h2>
                 <p class="quiz-session__hint">Chọn gói điểm sẽ có ở bước sau. Tổng tạm: ${Math.round(session.scores[1] + session.scores[2])}</p>
               </header>
             </main>
+            <footer class="quiz-session__footer">
+              <button type="button" class="btn btn-ghost" data-action="match-close-session">Thoát ván</button>
+            </footer>
           </div>
         </div>
       </div>
