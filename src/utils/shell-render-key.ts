@@ -36,6 +36,19 @@ export function getShellRenderKey(appState: AppState, runtime: RuntimeState): st
     const poolsSig = Object.entries(appContext.getQuestionPools())
       .map(([id, ids]) => `${id}:${ids.length}`)
       .join(',');
+    const match = appState.settings.match;
+    const matchSig = match
+      ? [
+          match.round1QuestionCount,
+          match.round1TimerSec,
+          match.round2QuestionsPerPack,
+          match.round2TimerSec,
+          match.round3QuestionCount,
+          match.round3PackagePickSec,
+          match.round3DefaultPackageId,
+          match.round3Packages.map((pkg) => `${pkg.id}:${pkg.points}:${pkg.timerSec}`).join(','),
+        ].join('|')
+      : '';
 
     return [
       base,
@@ -48,6 +61,7 @@ export function getShellRenderKey(appState: AppState, runtime: RuntimeState): st
       bindingsSig,
       runtime.soundUploadDraft?.eventKey ?? '',
       poolsSig,
+      matchSig,
     ].join('|');
   }
 

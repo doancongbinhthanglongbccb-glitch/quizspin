@@ -168,8 +168,8 @@ export type AppState = {
   settings: Settings;
 };
 
-/** `gift`/`punishment` giữ cho Settings/modal; wheel hiện chỉ dùng `category` */
-export type SpinKind = 'category' | 'gift' | 'punishment';
+/** `gift`/`punishment` đã bỏ khỏi wheel; segment chỉ còn category (L2 tái dùng kind này cho ô đề) */
+export type SpinKind = 'category';
 
 export type WheelSegment = {
   id: string;

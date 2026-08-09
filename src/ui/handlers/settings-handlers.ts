@@ -1,5 +1,5 @@
 import { appContext, type SettingsDraft } from '../../core/state';
-import type { IntroLinkSettings, SettingsSection, SoundEventKey } from '../../types';
+import type { IntroLinkSettings, MatchSettings, SettingsSection, SoundEventKey } from '../../types';
 import { rewardItemsToText, textToRewardItems, normalizeIntroLinks, compactIntroLinks, DEFAULT_INTRO_LINK_LABEL } from '../../data';
 import { MAX_INTRO_LINKS } from '../../types';
 import { renderIntroLinksEditor } from '../components/settings-tab';
@@ -10,6 +10,7 @@ import {
   timerMinutesInputValue,
 } from '../../utils/timer-settings';
 import { DEFAULTS } from '../../config';
+import { defaultMatchSettings, normalizeMatchSettings } from '../../config/match';
 import * as Actions from '../../core/actions';
 import { suppressAndroidIntroOnResume } from '../../utils/android-intro-resume';
 
@@ -85,6 +86,64 @@ function commitTimerValue(seconds: number): void {
     ...current,
     settings: { ...current.settings, timer: next },
   }));
+}
+
+function currentMatchSettings(): MatchSettings {
+  const settings = appContext.getAppState().settings;
+  return settings.match ?? defaultMatchSettings(settings.timer);
+}
+
+function commitMatchSettings(next: MatchSettings): void {
+  appContext.setAppState((current) => ({
+    ...current,
+    settings: {
+      ...current.settings,
+      match: normalizeMatchSettings(next, current.settings.timer),
+    },
+  }));
+}
+
+const MATCH_SCALAR_FIELDS = new Set([
+  'round1QuestionCount',
+  'round1TimerSec',
+  'round2QuestionsPerPack',
+  'round2TimerSec',
+  'round3QuestionCount',
+  'round3PackagePickSec',
+]);
+
+function commitMatchScalarField(field: string, raw: string, options?: { force?: boolean }): void {
+  if (!MATCH_SCALAR_FIELDS.has(field)) {
+    return;
+  }
+  const trimmed = raw.trim();
+  if (!options?.force && (trimmed === '' || !Number.isFinite(Number(trimmed)))) {
+    return;
+  }
+  const match = currentMatchSettings();
+  commitMatchSettings({
+    ...match,
+    [field]: Number(trimmed),
+  });
+}
+
+function commitMatchPackageField(
+  packageId: string,
+  field: 'points' | 'timerSec',
+  raw: string,
+  options?: { force?: boolean },
+): void {
+  const trimmed = raw.trim();
+  if (!options?.force && (trimmed === '' || !Number.isFinite(Number(trimmed)))) {
+    return;
+  }
+  const match = currentMatchSettings();
+  commitMatchSettings({
+    ...match,
+    round3Packages: match.round3Packages.map((pkg) =>
+      pkg.id === packageId ? { ...pkg, [field]: Number(trimmed) } : pkg,
+    ),
+  });
 }
 
 function patchSettingsDraft(patch: SettingsDraft): void {
@@ -249,6 +308,21 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       return;
     }
 
+    const matchField = getInputTarget<HTMLInputElement>(event, root, '[data-match-field]');
+    if (matchField?.dataset.matchField) {
+      commitMatchScalarField(matchField.dataset.matchField, matchField.value);
+      return;
+    }
+
+    const matchPackageField = getInputTarget<HTMLInputElement>(event, root, '[data-match-package-field]');
+    if (matchPackageField?.dataset.packageId && matchPackageField.dataset.matchPackageField) {
+      const field = matchPackageField.dataset.matchPackageField;
+      if (field === 'points' || field === 'timerSec') {
+        commitMatchPackageField(matchPackageField.dataset.packageId, field, matchPackageField.value);
+      }
+      return;
+    }
+
     const giftsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#gifts-input');
     if (giftsInput) {
       patchSettingsDraft({ gifts: giftsInput.value });
@@ -271,6 +345,23 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
     const timerMinutesInput = getInputTarget<HTMLInputElement>(event, root, '#timer-minutes-input');
     if (timerMinutesInput) {
       commitTimerMinutesInput(root);
+      return;
+    }
+
+    const matchField = getInputTarget<HTMLInputElement>(event, root, '[data-match-field]');
+    if (matchField?.dataset.matchField) {
+      commitMatchScalarField(matchField.dataset.matchField, matchField.value, { force: true });
+      return;
+    }
+
+    const matchPackageField = getInputTarget<HTMLInputElement>(event, root, '[data-match-package-field]');
+    if (matchPackageField?.dataset.packageId && matchPackageField.dataset.matchPackageField) {
+      const field = matchPackageField.dataset.matchPackageField;
+      if (field === 'points' || field === 'timerSec') {
+        commitMatchPackageField(matchPackageField.dataset.packageId, field, matchPackageField.value, {
+          force: true,
+        });
+      }
       return;
     }
 
@@ -421,6 +512,45 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       if (!Number.isNaN(index)) {
         removeIntroLink(root, index);
       }
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="match-add-package"]')) {
+      const match = currentMatchSettings();
+      commitMatchSettings({
+        ...match,
+        round3Packages: [
+          ...match.round3Packages,
+          { id: crypto.randomUUID(), points: 10, timerSec: 20 },
+        ],
+      });
+      return;
+    }
+
+    const removePackageBtn = getActionTarget(event, root, '[data-action="match-remove-package"]');
+    if (removePackageBtn?.dataset.packageId) {
+      const match = currentMatchSettings();
+      if (match.round3Packages.length <= 1) {
+        return;
+      }
+      const nextPackages = match.round3Packages.filter((pkg) => pkg.id !== removePackageBtn.dataset.packageId);
+      commitMatchSettings({
+        ...match,
+        round3Packages: nextPackages,
+        round3DefaultPackageId: nextPackages.some((pkg) => pkg.id === match.round3DefaultPackageId)
+          ? match.round3DefaultPackageId
+          : nextPackages[0]!.id,
+      });
+      return;
+    }
+
+    const defaultPackageBtn = getActionTarget(event, root, '[data-action="match-default-package"]');
+    if (defaultPackageBtn?.dataset.packageId) {
+      const match = currentMatchSettings();
+      commitMatchSettings({
+        ...match,
+        round3DefaultPackageId: defaultPackageBtn.dataset.packageId,
+      });
     }
   };
 

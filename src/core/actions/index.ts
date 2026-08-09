@@ -7,7 +7,7 @@ import { saveState, readJson, readPools, savePools } from '../../storage';
 import { defaultQuestionDraft } from '../../data';
 import { render } from '../../ui';
 import { clearEverything, parseExcelImport } from './import-actions';
-import { openGiftModal, closeModal } from './modal-actions';
+import { closeModal } from './modal-actions';
 import { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory } from './category-actions';
 import {
   saveQuestionDraft,
@@ -54,7 +54,7 @@ import {
 
 export { clearEverything, parseExcelImport };
 export { exportAppBackup, stageBackupImport };
-export { openGiftModal, closeModal };
+export { closeModal };
 export { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory };
 export { saveQuestionDraft, deleteQuestion, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };
 export { spin, spinMatchRound2 };

@@ -1,4 +1,5 @@
 import { DEFAULTS, TIMER_PRESETS } from '../../config';
+import { defaultMatchSettings, matchTheoreticalMaxScore } from '../../config/match';
 import { formatTimerDisplay } from '../../utils/timer-format';
 import { timerMinutesInputValue } from '../../utils/timer-settings';
 import type { RuntimeState } from '../../core/state';
@@ -12,6 +13,7 @@ import { countUsedInCategory } from '../../core/pool-manager';
 
 const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; danger?: boolean }> = [
   { id: 'timer', label: 'Thời gian', icon: '⏱' },
+  { id: 'match', label: 'Ván 3 lượt', icon: '🎯' },
   { id: 'pools', label: 'Pool câu hỏi', icon: '📊' },
   { id: 'sound', label: 'Âm thanh', icon: '🔊' },
   { id: 'gifts', label: 'Quà tặng', icon: '🎁' },
@@ -216,6 +218,171 @@ function renderTimerPanel(appState: AppState): string {
   `;
 }
 
+function renderMatchNumberField(params: {
+  id: string;
+  label: string;
+  field: string;
+  value: number;
+  min: number;
+  max: number;
+  hint?: string;
+}): string {
+  return `
+    <label class="bank-form-label" for="${params.id}">${params.label}</label>
+    <input
+      id="${params.id}"
+      class="input mb-3"
+      type="number"
+      inputmode="numeric"
+      min="${params.min}"
+      max="${params.max}"
+      step="1"
+      data-match-field="${params.field}"
+      value="${params.value}"
+    />
+    ${params.hint ? `<p class="settings-danger-copy m-0 mb-3 -mt-2 text-caption leading-normal text-white/45">${params.hint}</p>` : ''}
+  `;
+}
+
+function renderMatchPanel(appState: AppState): string {
+  const match = appState.settings.match ?? defaultMatchSettings(appState.settings.timer);
+  const theoreticalMax = matchTheoreticalMaxScore(match);
+  const overCap = theoreticalMax > 400;
+
+  const packageRows = match.round3Packages
+    .map((pkg) => {
+      const isDefault = pkg.id === match.round3DefaultPackageId;
+      const canRemove = match.round3Packages.length > 1;
+      return `
+        <div class="settings-match-package flex flex-wrap items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3" data-match-package-id="${escapeHtml(pkg.id)}">
+          <div class="min-w-0 flex-1 basis-[120px]">
+            <label class="bank-form-label" for="match-pkg-points-${escapeHtml(pkg.id)}">Điểm</label>
+            <input
+              id="match-pkg-points-${escapeHtml(pkg.id)}"
+              class="input"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              max="100"
+              step="1"
+              data-match-package-field="points"
+              data-package-id="${escapeHtml(pkg.id)}"
+              value="${pkg.points}"
+            />
+          </div>
+          <div class="min-w-0 flex-1 basis-[120px]">
+            <label class="bank-form-label" for="match-pkg-timer-${escapeHtml(pkg.id)}">Giây</label>
+            <input
+              id="match-pkg-timer-${escapeHtml(pkg.id)}"
+              class="input"
+              type="number"
+              inputmode="numeric"
+              min="${DEFAULTS.timerMinSec}"
+              max="${DEFAULTS.timerMaxSec}"
+              step="1"
+              data-match-package-field="timerSec"
+              data-package-id="${escapeHtml(pkg.id)}"
+              value="${pkg.timerSec}"
+            />
+          </div>
+          <label class="settings-match-default inline-flex items-center gap-2 pb-2.5 text-caption text-white/70">
+            <input
+              type="radio"
+              name="match-round3-default"
+              data-action="match-default-package"
+              data-package-id="${escapeHtml(pkg.id)}"
+              ${isDefault ? 'checked' : ''}
+            />
+            Mặc định
+          </label>
+          <button
+            type="button"
+            class="btn btn--small btn-ghost shrink-0"
+            data-action="match-remove-package"
+            data-package-id="${escapeHtml(pkg.id)}"
+            ${canRemove ? '' : 'disabled'}
+          >Xóa</button>
+        </div>
+      `;
+    })
+    .join('');
+
+  return `
+    <div class="settings-panel-card grid gap-1">
+      <p class="settings-panel-card__title"><span aria-hidden="true">🎯</span>Cấu hình ván 3 lượt</p>
+      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
+        Số câu / thời gian từng lượt và gói điểm Lượt 3. Cảnh báo trần điểm chỉ mang tính tham khảo — không chặn lưu.
+      </p>
+
+      ${
+        overCap
+          ? `<div class="warning-banner mb-3.5 rounded-[18px] border border-amber-300/30 bg-amber-300/10 px-4 py-3.5 text-amber-200" role="status">
+              Điểm tối đa lý thuyết ~${theoreticalMax} &gt; 400. Cân nhắc giảm số câu Lượt 3 hoặc điểm gói cao nhất.
+            </div>`
+          : `<p class="m-0 mb-3.5 text-caption text-white/45">Điểm tối đa lý thuyết hiện tại: <strong class="text-white/80">${theoreticalMax}</strong> (ngưỡng tham khảo 400).</p>`
+      }
+
+      <p class="settings-sound-group__title m-0 mb-2 text-caption font-extrabold uppercase tracking-widest text-violet-300/85">Lượt 1</p>
+      ${renderMatchNumberField({
+        id: 'match-round1-count',
+        label: 'Số câu',
+        field: 'round1QuestionCount',
+        value: match.round1QuestionCount,
+        min: 1,
+        max: 50,
+      })}
+      ${renderMatchNumberField({
+        id: 'match-round1-timer',
+        label: 'Thời gian mỗi câu (giây)',
+        field: 'round1TimerSec',
+        value: match.round1TimerSec,
+        min: DEFAULTS.timerMinSec,
+        max: DEFAULTS.timerMaxSec,
+      })}
+
+      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-violet-300/85">Lượt 2</p>
+      ${renderMatchNumberField({
+        id: 'match-round2-per-pack',
+        label: 'Số câu mỗi bộ đề',
+        field: 'round2QuestionsPerPack',
+        value: match.round2QuestionsPerPack,
+        min: 1,
+        max: 50,
+      })}
+      ${renderMatchNumberField({
+        id: 'match-round2-timer',
+        label: 'Thời gian mỗi câu (giây)',
+        field: 'round2TimerSec',
+        value: match.round2TimerSec,
+        min: DEFAULTS.timerMinSec,
+        max: DEFAULTS.timerMaxSec,
+      })}
+
+      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-violet-300/85">Lượt 3</p>
+      ${renderMatchNumberField({
+        id: 'match-round3-count',
+        label: 'Số câu',
+        field: 'round3QuestionCount',
+        value: match.round3QuestionCount,
+        min: 1,
+        max: 50,
+      })}
+      ${renderMatchNumberField({
+        id: 'match-round3-pick',
+        label: 'Giây chờ chọn gói (tự mặc định)',
+        field: 'round3PackagePickSec',
+        value: match.round3PackagePickSec,
+        min: DEFAULTS.timerMinSec,
+        max: DEFAULTS.timerMaxSec,
+      })}
+
+      <p class="bank-form-label m-0 mb-2">Gói điểm</p>
+      <div class="grid gap-2.5 mb-3">${packageRows}</div>
+      <button type="button" class="btn btn-ghost w-full" data-action="match-add-package">+ Thêm gói điểm</button>
+    </div>
+  `;
+}
+
 function renderSoundPanel(appState: AppState, runtime: RuntimeState): string {
   return `
     <div class="settings-panel-card">
@@ -413,6 +580,9 @@ function renderDangerPanel(): string {
 function renderContentPanel(appState: AppState, runtime: RuntimeState, section: SettingsSection): string {
   if (section === 'timer') {
     return renderTimerPanel(appState);
+  }
+  if (section === 'match') {
+    return renderMatchPanel(appState);
   }
   if (section === 'pools') {
     return renderPoolsPanel(appState);
