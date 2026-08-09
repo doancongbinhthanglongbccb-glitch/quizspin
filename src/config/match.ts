@@ -93,3 +93,6 @@ export function matchTheoreticalMaxScore(match: MatchSettings): number {
   const round3 = match.round3QuestionCount * maxPackage;
   return round1 + round2 + round3;
 }
+
+/** Giây chờ chọn gói L3 trước khi tự áp gói mặc định (chưa có field Settings). */
+export const ROUND3_PACKAGE_PICK_SEC = 10;

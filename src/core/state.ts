@@ -117,6 +117,7 @@ function cloneMatchSession(session: MatchSession | null): MatchSession | null {
     ),
     activePlay: session.activePlay ? cloneMatchPlayState(session.activePlay) : null,
     roundSummary: session.roundSummary ? { ...session.roundSummary } : null,
+    showFinalSummary: session.showFinalSummary,
   };
 }
 

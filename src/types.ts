@@ -157,6 +157,8 @@ export type MatchSession = {
   activePlay: MatchPlayState | null;
   /** Sau hết lượt — màn tóm tắt chờ MC bấm Tiếp tục */
   roundSummary: { round: MatchRoundId; score: number } | null;
+  /** Sau Continue tóm tắt L3 — màn tổng kết cả ván */
+  showFinalSummary: boolean;
 };
 
 export type AppState = {

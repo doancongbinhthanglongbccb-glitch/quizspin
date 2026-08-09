@@ -7,11 +7,12 @@ import {
   toggleMcqPlayerSelection,
 } from '../../data';
 import type { MatchPlayState, MatchRoundId, MatchSession, Question } from '../../types';
+import { ROUND3_PACKAGE_PICK_SEC } from '../../config/match';
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { matchRemainingSeconds, startMatchTimer, stopMatchTimer } from '../match-timer';
 import { syncSpinUi } from '../../utils/sync-spin-ui';
-import { buildRound2ExamPacks } from '../match-questions';
+import { buildRound2ExamPacks, pickMatchQuestionsFromBank } from '../match-questions';
 import { showToast } from './shared';
 
 function requireMatchSettings() {
@@ -111,6 +112,28 @@ function beginAnswering(play: MatchPlayState, timerSec: number): MatchPlayState 
   };
 }
 
+let packagePickTimeoutId: number | null = null;
+
+function clearPackagePickTimeout(): void {
+  if (packagePickTimeoutId !== null) {
+    window.clearTimeout(packagePickTimeoutId);
+    packagePickTimeoutId = null;
+  }
+}
+
+/** Hết thời chọn gói → áp mặc định. */
+function armPackagePickTimeout(): void {
+  clearPackagePickTimeout();
+  packagePickTimeoutId = window.setTimeout(() => {
+    packagePickTimeoutId = null;
+    const ctx = getPlayContext();
+    if (!ctx || ctx.play.round !== 3 || ctx.play.phase !== 'picking-package') {
+      return;
+    }
+    applyDefaultMatchPackage();
+  }, ROUND3_PACKAGE_PICK_SEC * 1000);
+}
+
 export function createEmptyMatchSession(currentRound: MatchRoundId = 1): MatchSession {
   return {
     currentRound,
@@ -119,6 +142,7 @@ export function createEmptyMatchSession(currentRound: MatchRoundId = 1): MatchSe
     round2Packs: [],
     activePlay: null,
     roundSummary: null,
+    showFinalSummary: false,
   };
 }
 
@@ -139,6 +163,7 @@ export function startMatchActivePlay(params: StartMatchPlayParams): void {
   }
 
   stopMatchTimer();
+  clearPackagePickTimeout();
   const match = requireMatchSettings();
   const baseSession = params.existingSession ?? createEmptyMatchSession(params.round);
 
@@ -175,17 +200,21 @@ export function startMatchActivePlay(params: StartMatchPlayParams): void {
       currentRound: params.round,
       activePlay: play,
       roundSummary: null,
+      showFinalSummary: false,
     },
   });
   syncSpinUi();
 
   if (play.phase === 'answering') {
     startMatchTimer();
+  } else if (play.phase === 'picking-package') {
+    armPackagePickTimeout();
   }
 }
 
 export function closeMatchSession(): void {
   stopMatchTimer();
+  clearPackagePickTimeout();
   appContext.setRuntimeState({ matchSession: null });
   syncSpinUi();
 }
@@ -202,6 +231,7 @@ export function selectMatchPackage(packageId: string): void {
     return;
   }
 
+  clearPackagePickTimeout();
   const play = beginAnswering(
     { ...ctx.play, selectedPackageId: pkg.id },
     pkg.timerSec,
@@ -210,10 +240,54 @@ export function selectMatchPackage(packageId: string): void {
   startMatchTimer();
 }
 
-/** Áp gói mặc định rồi vào answering — khi MC không chọn. */
+/** Áp gói mặc định rồi vào answering — khi MC không chọn / hết giờ chọn. */
 export function applyDefaultMatchPackage(): void {
   const match = requireMatchSettings();
   selectMatchPackage(match.round3DefaultPackageId);
+}
+
+/** Màn luật L3 — Xác nhận bắt đầu: pick từ bank, thiếu câu → toast + trả về summary L2. */
+export function confirmStartRound3(): void {
+  const session = appContext.getRuntimeState().matchSession;
+  if (
+    !session ||
+    session.currentRound !== 3 ||
+    session.activePlay ||
+    session.roundSummary ||
+    session.showFinalSummary
+  ) {
+    return;
+  }
+
+  const match = requireMatchSettings();
+  const picked = pickMatchQuestionsFromBank(appContext.getAppState().categories, {
+    count: match.round3QuestionCount,
+    excludeIds: session.usedQuestionIds,
+  });
+
+  if (picked.questions.length < picked.requested) {
+    showToast(
+      `Không đủ câu hỏi cho Lượt 3 (cần ${picked.requested} câu còn lại, hiện còn ${picked.available})`,
+    );
+    appContext.setRuntimeState({
+      matchSession: {
+        ...session,
+        currentRound: 2,
+        roundSummary: { round: 2, score: session.scores[2] },
+        showFinalSummary: false,
+      },
+    });
+    syncSpinUi();
+    return;
+  }
+
+  startMatchActivePlay({
+    round: 3,
+    questionIds: picked.questions.map((q) => q.id),
+    label: 'Lượt 3',
+    accentColor: '#f72585',
+    existingSession: session,
+  });
 }
 
 export function chooseMatchMcqAnswer(option: string): void {
@@ -339,9 +413,10 @@ export function handleMatchTimeUp(): void {
 }
 
 function finishActivePlayRound(session: MatchSession, play: MatchPlayState): void {
+  clearPackagePickTimeout();
   let roundScore = play.roundScore;
   if (play.round === 3) {
-    // L3 roundScore đang mang cả điểm L1+L2; tách phần Lượt 3
+    // L3 roundScore đang mang cả điểm L1+L2; tách phần Lượt 3 (có thể âm)
     roundScore = play.roundScore - session.scores[1] - session.scores[2];
   }
 
@@ -352,6 +427,7 @@ function finishActivePlayRound(session: MatchSession, play: MatchPlayState): voi
       scores: nextScores,
       activePlay: null,
       roundSummary: { round: play.round, score: roundScore },
+      showFinalSummary: false,
     },
   });
   syncSpinUi();
@@ -386,6 +462,7 @@ export function continueAfterRoundSummary(): void {
         currentRound: 2,
         roundSummary: null,
         round2Packs: built.packs,
+        showFinalSummary: false,
       },
     });
     syncSpinUi();
@@ -398,23 +475,22 @@ export function continueAfterRoundSummary(): void {
         ...session,
         currentRound: 3,
         roundSummary: null,
+        showFinalSummary: false,
       },
     });
     syncSpinUi();
-    // Phase 5
-    showToast('Lượt 3 — chọn gói điểm (sắp có)');
     return;
   }
 
-  // Hết Lượt 3 — Phase 6 tổng kết
+  // Hết Lượt 3 → màn tổng kết
   appContext.setRuntimeState({
     matchSession: {
       ...session,
       roundSummary: null,
+      showFinalSummary: true,
     },
   });
   syncSpinUi();
-  showToast('Hết ván — màn tổng kết (sắp có)');
 }
 
 /** Sang câu kế (sau khi đã chấm). L3: reset selectedPackageId trước picking-package. */
@@ -451,6 +527,7 @@ export function goToNextMatchQuestion(): void {
   if (play.round === 3) {
     nextPlay = { ...nextPlay, phase: 'picking-package' };
     patchPlay(session, nextPlay);
+    armPackagePickTimeout();
     return;
   }
 

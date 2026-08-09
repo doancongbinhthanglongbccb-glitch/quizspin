@@ -80,3 +80,21 @@ export function buildRound2ExamPacks(
 
   return { packs, available, questionsPerPack };
 }
+
+/**
+ * Lấy câu từ toàn bank (MCQ + essay), loại trừ used, random — dùng Lượt 3 (và chỗ cần pool chung).
+ */
+export function pickMatchQuestionsFromBank(
+  categories: Category[],
+  options: { count: number; excludeIds: ReadonlySet<string> | readonly string[] },
+): PickMatchQuestionsResult {
+  const pool = shuffleArray(collectMatchQuestionPool(categories, options.excludeIds));
+  const requested = Math.max(0, Math.floor(options.count));
+  const questions = pool.slice(0, Math.min(requested, pool.length));
+
+  return {
+    questions,
+    requested,
+    available: pool.length,
+  };
+}

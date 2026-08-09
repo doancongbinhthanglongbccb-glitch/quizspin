@@ -9,8 +9,14 @@ import {
   isMcqQuestion,
   isMultipleMcqQuestion,
 } from '../../data';
+import { ROUND3_PACKAGE_PICK_SEC } from '../../config/match';
 import { escapeHtml } from '../../utils/html';
 import { WheelRenderer } from './wheel';
+
+/** Hiển thị điểm có dấu — scores[3] có thể âm sau khi tách từ floor tổng. */
+function formatMatchScore(score: number): string {
+  return String(Math.round(score));
+}
 
 function stripOptionLetterPrefix(option: string, letter: string): string {
   const stripped = option.replace(new RegExp(`^${letter}[.):\\-]?\\s*`, 'i'), '').trim();
@@ -75,9 +81,16 @@ export function getMatchPlayMountKey(runtime: RuntimeState): string {
 
   const play = session.activePlay;
   const summary = session.roundSummary;
+  if (session.showFinalSummary && !play && !summary) {
+    return `final|${formatMatchScore(session.scores[1])}|${formatMatchScore(session.scores[2])}|${formatMatchScore(session.scores[3])}`;
+  }
+
   if (!play && !summary) {
     if (session.currentRound === 2 && session.round2Packs.length > 0) {
       return `session|2|packs|${session.round2Packs.map((pack) => pack.id).join(',')}`;
+    }
+    if (session.currentRound === 3) {
+      return 'session|3|rules';
     }
     return `session|${session.currentRound}|idle`;
   }
@@ -109,6 +122,40 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     return '';
   }
 
+  if (session.showFinalSummary && !session.activePlay && !session.roundSummary) {
+    const s1 = session.scores[1];
+    const s2 = session.scores[2];
+    const s3 = session.scores[3];
+    const total = s1 + s2 + s3;
+    const s3Class = s3 < 0 ? ' match-final-score--negative' : '';
+
+    return `
+      <div class="quiz-session-backdrop match-play-backdrop">
+        <div class="quiz-session match-play">
+          <div class="quiz-session__content match-play__content">
+            <main class="quiz-session__main">
+              <header class="quiz-session__question-head">
+                <span class="quiz-session__badge" style="--badge-color:#90be6d">Kết thúc ván</span>
+                <h2 class="quiz-session__title">Tổng kết 3 lượt</h2>
+                <p class="quiz-session__hint">Điểm từng lượt · Lượt 3 có thể âm nếu trừ nhiều hơn điểm mang sang</p>
+              </header>
+              <ul class="match-final-scores" aria-label="Điểm từng lượt">
+                <li class="match-final-score"><span>Lượt 1</span><strong>${formatMatchScore(s1)}</strong></li>
+                <li class="match-final-score"><span>Lượt 2</span><strong>${formatMatchScore(s2)}</strong></li>
+                <li class="match-final-score${s3Class}"><span>Lượt 3</span><strong>${formatMatchScore(s3)}</strong></li>
+                <li class="match-final-score match-final-score--total"><span>Tổng</span><strong>${formatMatchScore(total)}</strong></li>
+              </ul>
+            </main>
+            <footer class="quiz-session__footer match-final-footer">
+              <button type="button" class="btn btn-ghost" data-action="match-close-session">Kết thúc</button>
+              <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-close-session">Chơi lại</button>
+            </footer>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   if (session.roundSummary && !session.activePlay) {
     const { round, score } = session.roundSummary;
     const total = session.scores[1] + session.scores[2] + session.scores[3];
@@ -120,10 +167,10 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
               <header class="quiz-session__question-head">
                 <span class="quiz-session__badge" style="--badge-color:#90be6d">Lượt ${round}</span>
                 <h2 class="quiz-session__title">Kết thúc Lượt ${round}</h2>
-                <p class="quiz-session__hint">Điểm lượt: ${Math.round(score)} · Tổng tạm: ${Math.round(total)}</p>
+                <p class="quiz-session__hint">Điểm lượt: ${formatMatchScore(score)} · Tổng tạm: ${formatMatchScore(total)}</p>
               </header>
               <div class="quiz-score" role="status">
-                <p class="quiz-score__value">${Math.round(score)}</p>
+                <p class="quiz-score__value">${formatMatchScore(score)}</p>
                 <p class="quiz-score__label">ĐIỂM LƯỢT ${round}</p>
               </div>
             </main>
@@ -151,7 +198,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
                 <header class="quiz-session__question-head">
                   <span class="quiz-session__badge" style="--badge-color:#4895ef">Lượt 2</span>
                   <h2 class="quiz-session__title">Quay chọn đề</h2>
-                  <p class="quiz-session__hint">${packCount} bộ đề · Điểm L1: ${Math.round(session.scores[1])}</p>
+                  <p class="quiz-session__hint">${packCount} bộ đề · Điểm L1: ${formatMatchScore(session.scores[1])}</p>
                 </header>
                 <div class="match-round2-wheel spin-wheel-zone">
                   ${WheelRenderer.renderHTML(runtime.spinning)}
@@ -174,30 +221,52 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
       `;
     }
 
-    // Stub Lượt 3 — chỉ khi currentRound===3, chưa activePlay, chưa roundSummary
-    if (session.currentRound !== 3) {
-      return '';
-    }
+    if (session.currentRound === 3) {
+      const matchSettings = appState.settings.match;
+      const questionCount = matchSettings?.round3QuestionCount ?? 0;
+      const packages = matchSettings?.round3Packages ?? [];
+      const packageRows = packages
+        .map((pkg) => {
+          const isDefault = pkg.id === matchSettings?.round3DefaultPackageId;
+          return `
+            <tr>
+              <td>${escapeHtml(String(pkg.points))} điểm${isDefault ? ' <span class="text-muted">(mặc định)</span>' : ''}</td>
+              <td>${escapeHtml(String(pkg.timerSec))} giây</td>
+            </tr>`;
+        })
+        .join('');
 
-    // TẠM — xoá khi Phase 5 có màn luật L3 thật để không bị quên dọn.
-    return `
-      <div class="quiz-session-backdrop match-play-backdrop">
-        <div class="quiz-session match-play">
-          <div class="quiz-session__content match-play__content">
-            <main class="quiz-session__main">
-              <header class="quiz-session__question-head">
-                <span class="quiz-session__badge" style="--badge-color:#4895ef">Lượt 3</span>
-                <h2 class="quiz-session__title">Chuẩn bị Lượt 3</h2>
-                <p class="quiz-session__hint">Chọn gói điểm sẽ có ở bước sau. Tổng tạm: ${Math.round(session.scores[1] + session.scores[2])}</p>
-              </header>
-            </main>
-            <footer class="quiz-session__footer">
-              <button type="button" class="btn btn-ghost" data-action="match-close-session">Thoát ván</button>
-            </footer>
+      return `
+        <div class="quiz-session-backdrop match-play-backdrop">
+          <div class="quiz-session match-play">
+            <div class="quiz-session__content match-play__content">
+              <main class="quiz-session__main">
+                <header class="quiz-session__question-head">
+                  <span class="quiz-session__badge" style="--badge-color:#f72585">Lượt 3</span>
+                  <h2 class="quiz-session__title">Lượt 3 có ${questionCount} câu</h2>
+                  <p class="quiz-session__hint">Mỗi câu chọn gói điểm trước khi trả lời. Đúng cộng · Sai trừ (tổng không âm). Tổng tạm: ${formatMatchScore(session.scores[1] + session.scores[2])}</p>
+                </header>
+                <div class="match-rules-table-wrap">
+                  <table class="match-rules-table" aria-label="Gói điểm Lượt 3">
+                    <thead>
+                      <tr><th>Điểm gói</th><th>Thời gian</th></tr>
+                    </thead>
+                    <tbody>${packageRows}</tbody>
+                  </table>
+                </div>
+              </main>
+              <footer class="quiz-session__footer">
+                <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-confirm-start-round3">
+                  Xác nhận – Bắt đầu
+                </button>
+              </footer>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    }
+
+    return '';
   }
 
   const matchSettings = appState.settings.match;
@@ -232,7 +301,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
               <header class="quiz-session__question-head">
                 <span class="quiz-session__badge" style="--badge-color:${play.accentColor}">${escapeHtml(play.label)} · Câu ${currentNum}/${total}</span>
                 <h2 class="quiz-session__title">Chọn gói điểm</h2>
-                <p class="quiz-session__hint">Đúng cộng điểm gói · Sai trừ điểm gói (không âm tổng)</p>
+                <p class="quiz-session__hint">Đúng cộng · Sai trừ (không âm tổng). Không chọn trong ${ROUND3_PACKAGE_PICK_SEC}s → gói mặc định</p>
               </header>
               <div class="match-package-grid" role="group" aria-label="Gói điểm Lượt 3">${packages}</div>
             </main>
@@ -258,7 +327,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
   const showTimer = play.phase === 'answering' && play.timerSec > 0;
   const scoreBlock = `
     <div class="quiz-score" role="status">
-      <p class="quiz-score__value">${Math.round(play.roundScore)}</p>
+      <p class="quiz-score__value">${formatMatchScore(play.roundScore)}</p>
       <p class="quiz-score__label">${play.round === 3 ? 'ĐIỂM HIỆN CÓ' : `ĐIỂM LƯỢT ${play.round}`}</p>
     </div>
   `;
@@ -304,7 +373,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     const resultBanner =
       isResult && play.lastIsCorrect !== null
         ? `<div class="quiz-answer-reveal" role="status">
-            <p class="quiz-answer-reveal__title">${play.lastIsCorrect ? '✓ Đúng' : '✗ Sai'} · ${play.lastPointsDelta >= 0 ? '+' : ''}${Math.round(play.lastPointsDelta)} điểm</p>
+            <p class="quiz-answer-reveal__title">${play.lastIsCorrect ? '✓ Đúng' : '✗ Sai'} · ${play.lastPointsDelta >= 0 ? '+' : ''}${formatMatchScore(play.lastPointsDelta)} điểm</p>
             <pre class="quiz-answer-reveal__content">${escapeHtml(question.answer)}</pre>
           </div>`
         : '';
@@ -348,7 +417,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
               </div>`
             : judged
               ? `<div class="quiz-answer-reveal" role="status">
-                  <p class="quiz-answer-reveal__title">${play.lastIsCorrect ? '✓ Đúng' : '✗ Sai'} · ${play.lastPointsDelta >= 0 ? '+' : ''}${Math.round(play.lastPointsDelta)} điểm</p>
+                  <p class="quiz-answer-reveal__title">${play.lastIsCorrect ? '✓ Đúng' : '✗ Sai'} · ${play.lastPointsDelta >= 0 ? '+' : ''}${formatMatchScore(play.lastPointsDelta)} điểm</p>
                 </div>`
               : ''
         }
