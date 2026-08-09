@@ -1,12 +1,4 @@
-import type { WheelSegment } from './types';
-
 export const DEFAULT_PALETTE = ['#ffb703', '#4cc9f0', '#f72585', '#90be6d', '#f9844a', '#4895ef', '#b5179e', '#43aa8b'];
-
-export const DEFAULT_FIXED_SEGMENTS: WheelSegment[] = [
-  { id: 'gift', label: 'Quà tặng', kind: 'gift', color: '#ff8fab' },
-  { id: 'punishment', label: 'Xử phạt', kind: 'punishment', color: '#f94144' },
-  { id: 'practice', label: 'Thi thử', kind: 'practice', color: '#4895ef' },
-];
 
 import { SPIN_CONFIG } from './config/spin';
 

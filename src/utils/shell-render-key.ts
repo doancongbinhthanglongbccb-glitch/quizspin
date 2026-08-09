@@ -10,15 +10,8 @@ import { SOUND_EVENT_KEYS } from '../config/sounds';
 export function getShellRenderKey(appState: AppState, runtime: RuntimeState): string {
   const totalQuestions = appState.categories.reduce((count, category) => count + category.questions.length, 0);
   const categoryCount = appState.categories.length;
-  const giftsReady = appState.settings.gifts.length > 0;
-  const punishmentsReady = appState.settings.punishments.length > 0;
 
-  const base = [
-    runtime.tab,
-    giftsReady && punishmentsReady ? '1' : '0',
-    totalQuestions,
-    categoryCount,
-  ].join('|');
+  const base = [runtime.tab, totalQuestions, categoryCount].join('|');
 
   if (runtime.tab === 'bank') {
     const categoriesSig = appState.categories

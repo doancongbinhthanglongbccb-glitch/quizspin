@@ -6,9 +6,8 @@ import { clearState, saveState, savePools } from '../../storage';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
 import { deleteQuestion } from './question-actions';
 import { closeModal } from './modal-actions';
-import { closeQuizSession, submitQuiz } from './quiz-actions';
 import { applyPendingBackup, clearPendingBackup } from './backup-actions';
-import { showToast, stopTimer } from './shared';
+import { showToast } from './shared';
 
 function readConfirmNameInput(): string | null {
   const element = document.getElementById('confirm-name-input');
@@ -124,10 +123,6 @@ function performClearCategoryQuestions(categoryId: string): void {
   }
 
   const questionIds = new Set(category.questions.map((question) => question.id));
-  const session = runtime.quizSession;
-  if (session?.phase === 'active' && session.questionIds.some((id) => questionIds.has(id))) {
-    closeQuizSession();
-  }
 
   appContext.setAppState((current) => ({
     ...current,
@@ -152,9 +147,6 @@ function performClearCategoryQuestions(categoryId: string): void {
 
 function performDeleteCategory(categoryId: string): void {
   const runtime = appContext.getRuntimeState();
-  if (runtime.quizSession?.categoryId === categoryId) {
-    closeQuizSession();
-  }
 
   appContext.setAppState((current) => {
     const next = current.categories.filter((item) => item.id !== categoryId);
@@ -176,9 +168,6 @@ function performDeleteCategory(categoryId: string): void {
 async function performClearAllData(): Promise<void> {
   const sampleState = createSampleState();
   const tab = appContext.getRuntimeState().tab;
-
-  stopTimer();
-  closeQuizSession();
 
   appContext.setAppStateWithoutRender(sampleState);
   appContext.setQuestionPools(resetAllPools());
@@ -301,10 +290,5 @@ export async function confirmDialogAction(): Promise<void> {
     appContext.setRuntimeState({ confirmDialog: null });
     showToast(`Đã reset pool lĩnh vực ${dialog.categoryName}`);
     return;
-  }
-
-  if (dialog.kind === 'submit-quiz') {
-    appContext.setRuntimeState({ confirmDialog: null });
-    submitQuiz();
   }
 }

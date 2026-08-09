@@ -1,7 +1,6 @@
 import { App } from '@capacitor/app';
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
-import { quizRemainingSeconds, startQuizTimer, stopQuizTimer } from '../quiz-timer';
 import { enqueuePersist, resetPersistErrorFlag } from '../persist-queue';
 import { saveState, readJson, readPools, savePools } from '../../storage';
 import { defaultQuestionDraft } from '../../data';
@@ -17,25 +16,6 @@ import {
   setQuestionDraftType,
   updateQuestionDraft,
 } from './question-actions';
-import {
-  openCategoryExamFlow,
-  openPracticeSetupFlow,
-  selectCategoryExam,
-  closeExamPicker,
-  patchPracticeSetupDraft,
-  startPracticeFromSetup,
-} from './exam-actions';
-import {
-  startCategoryExamSession,
-  startPracticeExamSession,
-  goToQuizQuestion,
-  chooseQuizAnswer,
-  updateQuizEssayAnswer,
-  requestSubmitQuiz,
-  submitQuiz,
-  closeQuizSession,
-  goToQuizReviewQuestion,
-} from './quiz-actions';
 import { spin } from './spin-actions';
 import { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent } from './sound-actions';
 import { completeIntro, showIntro } from './intro-actions';
@@ -58,27 +38,7 @@ import {
 
 export { clearEverything, parseExcelImport };
 export { exportAppBackup, stageBackupImport };
-export {
-  openCategoryExamFlow,
-  openPracticeSetupFlow,
-  selectCategoryExam,
-  closeExamPicker,
-  patchPracticeSetupDraft,
-  startPracticeFromSetup,
-};
-export {
-  openGiftModal,
-  closeModal,
-  startCategoryExamSession,
-  startPracticeExamSession,
-  goToQuizQuestion,
-  chooseQuizAnswer,
-  updateQuizEssayAnswer,
-  requestSubmitQuiz,
-  submitQuiz,
-  closeQuizSession,
-  goToQuizReviewQuestion,
-};
+export { openGiftModal, closeModal };
 export { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory };
 export { saveQuestionDraft, deleteQuestion, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };
 export { spin };
@@ -150,7 +110,6 @@ export async function bootstrap(): Promise<void> {
   await KeepAwake.keepAwake().catch(() => undefined);
 
   void App.addListener('pause', () => {
-    stopQuizTimer();
     soundManager.pauseAll();
     void KeepAwake.allowSleep().catch(() => undefined);
   });
@@ -161,12 +120,6 @@ export async function bootstrap(): Promise<void> {
 
     if (isAndroidApp() && !runtime.showIntro && !consumeAndroidIntroResumeSuppression()) {
       requestAnimationFrame(() => showIntro());
-      return;
-    }
-
-    const session = runtime.quizSession;
-    if (session?.phase === 'active' && !session.paused && quizRemainingSeconds(session.deadlineAt) > 0) {
-      startQuizTimer();
     }
   });
 }

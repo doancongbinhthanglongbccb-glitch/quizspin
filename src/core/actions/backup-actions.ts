@@ -8,9 +8,7 @@ import {
 } from '../backup';
 import { ensureQuestionDraft, currentCategory } from './category-actions';
 import { closeModal } from './modal-actions';
-import { closeQuizSession } from './quiz-actions';
-import { closeExamPicker } from './exam-actions';
-import { showToast, stopTimer } from './shared';
+import { showToast } from './shared';
 
 let pendingBackup: BackupPayload | null = null;
 
@@ -77,10 +75,7 @@ export function applyPendingBackup(): boolean {
   const payload = pendingBackup;
   pendingBackup = null;
 
-  stopTimer();
-  closeQuizSession();
   closeModal();
-  closeExamPicker();
 
   const tab = appContext.getRuntimeState().tab;
   const settingsSection = appContext.getRuntimeState().settingsSection;

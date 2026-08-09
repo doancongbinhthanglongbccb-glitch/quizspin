@@ -97,15 +97,6 @@ function describeDialog(dialog: ConfirmDialog): DialogMeta {
     };
   }
 
-  if (dialog.kind === 'submit-quiz') {
-    return {
-      title: 'Nộp bài',
-      message: 'Bạn có chắc muốn nộp bài? Sau khi nộp sẽ chấm điểm và không sửa được.',
-      confirmLabel: 'Nộp bài',
-      danger: false,
-    };
-  }
-
   if (dialog.kind === 'clear-all-data' && dialog.step === 1) {
     return {
       title: 'Xóa toàn bộ dữ liệu',

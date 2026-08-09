@@ -1,8 +1,6 @@
 import { appContext, type RuntimeState } from '../core/state';
 import { buildWheelModel } from '../core/wheel';
 import { renderModal } from './components/modal';
-import { renderQuizSession, getQuizMountKey, getQuizViewKey, syncQuizSessionView } from './components/quiz-session';
-import { renderExamPicker, getExamPickerRenderKey } from './components/exam-picker';
 import { renderConfirmDialog } from './components/confirm-dialog';
 import { renderSpinTab } from './components/spin-tab';
 import { renderBankTab } from './components/bank-tab';
@@ -11,12 +9,9 @@ import { renderIntroScreen, syncIntroScreenView } from './components/intro-scree
 import { INTRO_ASSETS, INTRO_COPY } from '../config/intro';
 import { WheelRenderer } from './components/wheel';
 import * as Actions from '../core/actions';
-import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindQuizHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers } from './handlers';
-import { bindExamHandlers, initExamPickerDom } from './handlers/exam-handlers';
+import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers } from './handlers';
 import { isIntroExitInProgress } from './handlers/intro-handlers';
 import { initModalDom } from './handlers/modal-handlers';
-import { initQuizDom } from './handlers/quiz-handlers';
-import { updateQuizTimerDom } from '../utils/quiz-timer-dom';
 import { syncToastDom } from '../utils/sync-toast-dom';
 import { captureScroll, restoreScroll } from '../utils/scroll-restore';
 import { consumeAppEntryAnimation } from './intro-transition';
@@ -37,11 +32,8 @@ const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 let wheelCleanup: (() => void) | null = null;
 let eventCleanups: Array<() => void> = [];
 let lastModalRenderKey = '';
-let lastQuizMountKey = '';
-let lastQuizViewKey = '';
 let lastShellRenderKey = '';
 let lastConfirmKey = '';
-let lastExamPickerKey = '';
 let lastToastMessage = '';
 let isRendering = false;
 let pendingRender = false;
@@ -50,9 +42,7 @@ type OverlayHosts = {
   shell: HTMLElement;
   toast: HTMLElement;
   modal: HTMLElement;
-  quiz: HTMLElement;
   confirm: HTMLElement;
-  exam: HTMLElement;
   fab: HTMLElement;
 };
 
@@ -68,27 +58,20 @@ function ensureOverlayHosts(): OverlayHosts {
   const shell = document.createElement('div');
   const toast = document.createElement('div');
   const modal = document.createElement('div');
-  const quiz = document.createElement('div');
   const confirm = document.createElement('div');
-  const exam = document.createElement('div');
   const fab = document.createElement('div');
 
   shell.id = 'app-shell-root';
   toast.id = 'toast-host';
   modal.id = 'modal-host';
-  quiz.id = 'quiz-host';
   confirm.id = 'confirm-host';
-  exam.id = 'exam-host';
   fab.id = 'intro-fab-host';
 
-  appRoot.append(shell, toast, modal, quiz, confirm, exam, fab);
-  overlayHosts = { shell, toast, modal, quiz, confirm, exam, fab };
+  appRoot.append(shell, toast, modal, confirm, fab);
+  overlayHosts = { shell, toast, modal, confirm, fab };
   lastModalRenderKey = '';
-  lastQuizMountKey = '';
-  lastQuizViewKey = '';
   lastShellRenderKey = '';
   lastConfirmKey = '';
-  lastExamPickerKey = '';
   lastToastMessage = '';
   return overlayHosts;
 }
@@ -235,19 +218,13 @@ function renderOnce(): void {
   const hosts = ensureOverlayHosts();
   const shellKey = getShellRenderKey(appState, nextRuntime);
   const modalKey = getModalRenderKey(appState, nextRuntime);
-  const quizMountKey = getQuizMountKey(appState, nextRuntime);
-  const quizViewKey = nextRuntime.quizSession ? getQuizViewKey(appState, nextRuntime) : '';
   const confirmKey = JSON.stringify(nextRuntime.confirmDialog);
-  const examPickerKey = getExamPickerRenderKey(nextRuntime.examPicker, nextRuntime.practiceSetupDraft);
   const shouldRebuildShell = shellKey !== lastShellRenderKey;
 
   if (
     !shouldRebuildShell &&
     modalKey === lastModalRenderKey &&
-    quizMountKey === lastQuizMountKey &&
-    quizViewKey === lastQuizViewKey &&
     confirmKey === lastConfirmKey &&
-    examPickerKey === lastExamPickerKey &&
     nextRuntime.toast === lastToastMessage
   ) {
     return;
@@ -326,41 +303,9 @@ function renderOnce(): void {
     syncSpinUi();
   }
 
-  if (!nextRuntime.quizSession) {
-    if (lastQuizMountKey !== '') {
-      hosts.quiz.innerHTML = '';
-      lastQuizMountKey = '';
-      lastQuizViewKey = '';
-    }
-  } else if (quizMountKey !== lastQuizMountKey) {
-    lastQuizMountKey = quizMountKey;
-    lastQuizViewKey = quizViewKey;
-    hosts.quiz.innerHTML = renderQuizSession(appState, nextRuntime);
-    initQuizDom(appRoot);
-    const session = nextRuntime.quizSession;
-    if (session?.phase === 'active') {
-      updateQuizTimerDom(session.remaining, session.timerSec);
-    }
-  } else if (quizViewKey !== lastQuizViewKey) {
-    lastQuizViewKey = quizViewKey;
-    syncQuizSessionView(appState, nextRuntime, appRoot);
-    const session = nextRuntime.quizSession;
-    if (session?.phase === 'active') {
-      updateQuizTimerDom(session.remaining, session.timerSec);
-    }
-  }
-
   if (confirmKey !== lastConfirmKey) {
     lastConfirmKey = confirmKey;
     hosts.confirm.innerHTML = renderConfirmDialog(nextRuntime.confirmDialog);
-  }
-
-  if (examPickerKey !== lastExamPickerKey) {
-    lastExamPickerKey = examPickerKey;
-    hosts.exam.innerHTML = renderExamPicker(nextRuntime.examPicker, nextRuntime.practiceSetupDraft);
-    if (nextRuntime.examPicker) {
-      initExamPickerDom();
-    }
   }
 
   if (nextRuntime.tab === 'settings') {
@@ -394,11 +339,8 @@ function renderIntro(): void {
   cleanupWheel();
   overlayHosts = null;
   lastModalRenderKey = '';
-  lastQuizMountKey = '';
-  lastQuizViewKey = '';
   lastShellRenderKey = '';
   lastConfirmKey = '';
-  lastExamPickerKey = '';
   lastToastMessage = '';
   appRoot.innerHTML = renderIntroScreen(appContext.getAppState());
   eventCleanups = [bindIntroHandlers(appRoot)];
@@ -446,8 +388,6 @@ function bindEvents(): Array<() => void> {
     bindBankHandlers(appRoot),
     bindSettingsHandlers(appRoot),
     bindModalHandlers(appRoot),
-    bindQuizHandlers(appRoot),
-    bindExamHandlers(appRoot),
   ];
 }
 

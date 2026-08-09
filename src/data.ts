@@ -17,7 +17,7 @@ import type {
   WheelSegment,
 } from './types';
 import { MAX_INTRO_LINKS } from './types';
-import { DEFAULT_PALETTE, DEFAULT_FIXED_SEGMENTS, DEFAULTS, DEFAULT_TIMER_SEC } from './config';
+import { DEFAULT_PALETTE, DEFAULTS, DEFAULT_TIMER_SEC } from './config';
 
 function uid(): string {
   return crypto.randomUUID();
@@ -685,63 +685,16 @@ export function findQuestionById(categories: Category[], questionId: string): Qu
   return null;
 }
 
-export function gradeQuizAnswers(
-  categories: Category[],
-  questionIds: string[],
-  answers: Record<string, string>,
-): {
-  results: Array<{ questionId: string; playerAnswer: string; isCorrect: boolean }>;
-  correctCount: number;
-  totalGradable: number;
-  earnedPoints: number;
-  maxPoints: number;
-} {
-  const results: Array<{ questionId: string; playerAnswer: string; isCorrect: boolean }> = [];
-  let correctCount = 0;
-  let totalGradable = 0;
-  let earnedPoints = 0;
-  let maxPoints = 0;
-
-  for (const questionId of questionIds) {
-    const question = findQuestionById(categories, questionId);
-    if (!question) {
-      continue;
-    }
-
-    const playerAnswer = (answers[questionId] ?? '').trim();
-    const points = question.points ?? DEFAULTS.questionPoints;
-
-    if (isEssayQuestion(question)) {
-      results.push({ questionId, playerAnswer, isCorrect: false });
-      continue;
-    }
-
-    totalGradable += 1;
-    maxPoints += points;
-    const isCorrect = isMcqAnswerCorrect(playerAnswer, question);
-    if (isCorrect) {
-      correctCount += 1;
-      earnedPoints += points;
-    }
-    results.push({ questionId, playerAnswer, isCorrect });
-  }
-
-  return { results, correctCount, totalGradable, earnedPoints, maxPoints };
-}
-
 export function buildWheelSegments(categories: Category[]): WheelSegment[] {
-  return [
-    ...DEFAULT_FIXED_SEGMENTS,
-    ...categories.map(
-      (category): WheelSegment => ({
-        id: category.id,
-        label: category.name,
-        kind: 'category',
-        color: category.color,
-        categoryId: category.id,
-      }),
-    ),
-  ];
+  return categories.map(
+    (category): WheelSegment => ({
+      id: category.id,
+      label: category.name,
+      kind: 'category',
+      color: category.color,
+      categoryId: category.id,
+    }),
+  );
 }
 
 function bumpCategoryStats(stats: ImportStats, categoryName: string | null, type: QuestionType): void {

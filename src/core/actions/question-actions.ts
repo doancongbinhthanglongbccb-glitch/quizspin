@@ -4,7 +4,6 @@ import { appContext } from '../state';
 import { removeQuestionFromPools } from '../pool-manager';
 import { showToast } from './shared';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
-import { closeQuizSession } from './quiz-actions';
 
 export function setQuestionFilter(filter: QuestionFilter): void {
   appContext.setRuntimeState({ questionFilter: filter });
@@ -92,13 +91,6 @@ export function saveQuestionDraft(): void {
 
 export function deleteQuestion(categoryId: string, questionId: string): void {
   const runtime = appContext.getRuntimeState();
-  const session = runtime.quizSession;
-  const shouldCloseQuiz =
-    session && session.phase === 'active' && session.questionIds.includes(questionId);
-
-  if (shouldCloseQuiz) {
-    closeQuizSession();
-  }
 
   const editingCleared = runtime.editingQuestionId === questionId;
 

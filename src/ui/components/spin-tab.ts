@@ -4,21 +4,20 @@ import { WheelRenderer } from './wheel';
 
 export function renderSpinTab(appState: AppState, runtime: RuntimeState): string {
   const status = runtime.spinning ? 'Đang quay' : runtime.modal ? 'Đang hiển thị kết quả' : 'Sẵn sàng';
-  const rewardReady = appState.settings.gifts.length > 0 && appState.settings.punishments.length > 0;
   const totalQuestions = appState.categories.reduce(
-    (count, category) => count + category.questions.filter((q) => q.type === 'mcq').length,
+    (count, category) => count + category.questions.length,
     0,
   );
   const categoryCount = appState.categories.length;
 
-  const spinDisabled = runtime.spinning || runtime.modal || !rewardReady;
+  const spinDisabled = runtime.spinning || runtime.modal || categoryCount === 0;
 
   return `
     <section class="panel panel--spin" data-swipe-zone="content">
       ${
-        rewardReady
-          ? ''
-          : '<div class="warning-banner mb-4 rounded-[18px] border border-amber-300/30 bg-amber-300/10 px-4 py-3.5 text-amber-200">Hãy thêm ít nhất 1 Quà tặng và 1 Hình phạt trong Cài đặt trước khi quay.</div>'
+        categoryCount === 0
+          ? '<div class="warning-banner mb-4 rounded-[18px] border border-amber-300/30 bg-amber-300/10 px-4 py-3.5 text-amber-200">Hãy thêm ít nhất 1 lĩnh vực trong Ngân hàng trước khi quay.</div>'
+          : ''
       }
       <div class="spin-page">
         <div class="spin-layout">
