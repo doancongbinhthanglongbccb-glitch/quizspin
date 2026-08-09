@@ -2481,6 +2481,60 @@ html {
   letter-spacing: 0.04em;
 }
 
+.match-package-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin-top: 8px;
+}
+
+.match-package-btn {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 18px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.match-package-btn:hover {
+  border-color: rgba(175, 169, 236, 0.55);
+  background: rgba(175, 169, 236, 0.12);
+}
+
+.match-package-btn__points {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.match-package-btn__timer {
+  font-size: 0.9rem;
+  color: rgba(248, 250, 252, 0.7);
+}
+
+.match-package-btn__default {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #afa9ec;
+}
+
+.match-judge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.match-judge-actions .btn {
+  min-height: 48px;
+  min-width: 120px;
+}
+
 /* ── Timer hero (quiz sidebar) ── */
 .timer-ring--quiz-hero {
   width: clamp(140px, 18vw, 168px);

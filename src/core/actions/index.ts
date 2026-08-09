@@ -1,6 +1,7 @@
 import { App } from '@capacitor/app';
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
+import { matchRemainingSeconds, startMatchTimer, stopMatchTimer } from '../match-timer';
 import { enqueuePersist, resetPersistErrorFlag } from '../persist-queue';
 import { saveState, readJson, readPools, savePools } from '../../storage';
 import { defaultQuestionDraft } from '../../data';
@@ -17,6 +18,19 @@ import {
   updateQuestionDraft,
 } from './question-actions';
 import { spin } from './spin-actions';
+import {
+  applyDefaultMatchPackage,
+  chooseMatchMcqAnswer,
+  closeMatchSession,
+  confirmMatchMcqAnswer,
+  createEmptyMatchSession,
+  goToNextMatchQuestion,
+  handleMatchTimeUp,
+  judgeMatchEssay,
+  revealMatchEssayForJudging,
+  selectMatchPackage,
+  startMatchActivePlay,
+} from './match-play-actions';
 import { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent } from './sound-actions';
 import { completeIntro, showIntro } from './intro-actions';
 import { consumeAndroidIntroResumeSuppression } from '../../utils/android-intro-resume';
@@ -42,6 +56,19 @@ export { openGiftModal, closeModal };
 export { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory };
 export { saveQuestionDraft, deleteQuestion, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };
 export { spin };
+export {
+  applyDefaultMatchPackage,
+  chooseMatchMcqAnswer,
+  closeMatchSession,
+  confirmMatchMcqAnswer,
+  createEmptyMatchSession,
+  goToNextMatchQuestion,
+  handleMatchTimeUp,
+  judgeMatchEssay,
+  revealMatchEssayForJudging,
+  selectMatchPackage,
+  startMatchActivePlay,
+};
 export { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent };
 export { completeIntro, showIntro };
 export {
@@ -110,6 +137,7 @@ export async function bootstrap(): Promise<void> {
   await KeepAwake.keepAwake().catch(() => undefined);
 
   void App.addListener('pause', () => {
+    stopMatchTimer();
     soundManager.pauseAll();
     void KeepAwake.allowSleep().catch(() => undefined);
   });
@@ -120,6 +148,12 @@ export async function bootstrap(): Promise<void> {
 
     if (isAndroidApp() && !runtime.showIntro && !consumeAndroidIntroResumeSuppression()) {
       requestAnimationFrame(() => showIntro());
+      return;
+    }
+
+    const play = runtime.matchSession?.activePlay;
+    if (play?.phase === 'answering' && play.timerSec > 0 && matchRemainingSeconds(play.deadlineAt) > 0) {
+      startMatchTimer();
     }
   });
 }

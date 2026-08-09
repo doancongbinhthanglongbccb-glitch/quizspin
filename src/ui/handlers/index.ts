@@ -4,3 +4,4 @@ export { bindModalHandlers } from './modal-handlers';
 export { bindSettingsHandlers } from './settings-handlers';
 export { bindSwipeHandlers } from './swipe-handlers';
 export { bindIntroHandlers } from './intro-handlers';
+export { bindMatchPlayHandlers } from './match-play-handlers';

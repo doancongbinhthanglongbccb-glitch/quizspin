@@ -9,6 +9,7 @@ import {
 import { ensureQuestionDraft, currentCategory } from './category-actions';
 import { closeModal } from './modal-actions';
 import { showToast } from './shared';
+import { stopMatchTimer } from '../match-timer';
 
 let pendingBackup: BackupPayload | null = null;
 
@@ -75,6 +76,7 @@ export function applyPendingBackup(): boolean {
   const payload = pendingBackup;
   pendingBackup = null;
 
+  stopMatchTimer();
   closeModal();
 
   const tab = appContext.getRuntimeState().tab;

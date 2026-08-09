@@ -8,6 +8,7 @@ import { deleteQuestion } from './question-actions';
 import { closeModal } from './modal-actions';
 import { applyPendingBackup, clearPendingBackup } from './backup-actions';
 import { showToast } from './shared';
+import { stopMatchTimer } from '../match-timer';
 
 function readConfirmNameInput(): string | null {
   const element = document.getElementById('confirm-name-input');
@@ -169,6 +170,7 @@ async function performClearAllData(): Promise<void> {
   const sampleState = createSampleState();
   const tab = appContext.getRuntimeState().tab;
 
+  stopMatchTimer();
   appContext.setAppStateWithoutRender(sampleState);
   appContext.setQuestionPools(resetAllPools());
   appContext.setRuntimeState({

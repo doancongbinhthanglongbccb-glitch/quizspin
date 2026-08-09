@@ -1,9 +1,11 @@
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { closeModal } from './modal-actions';
+import { closeMatchSession } from './match-play-actions';
 
 /** Mở lại màn Intro — render intro + nhạc nền (trong bindIntroHandlers) */
 export function showIntro(): void {
+  closeMatchSession();
   closeModal();
   appContext.setRuntimeState({ showIntro: true });
 }

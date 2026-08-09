@@ -127,7 +127,19 @@ export type MatchPlayState = {
   roundScore: number;
   /** L3: gói đã chọn cho câu hiện tại; L1/L2: null */
   selectedPackageId: string | null;
-  phase: 'prompt' | 'answering' | 'revealed';
+  phase: 'picking-package' | 'prompt' | 'answering' | 'revealed';
+  /** Điểm mỗi câu đúng — L1/L2; L3 dùng gói */
+  pointsPerQuestion: number;
+  /** Nhãn hiển thị (lĩnh vực / Đề số n / Lượt 3) */
+  label: string;
+  accentColor: string;
+  timerSec: number;
+  deadlineAt: number;
+  remaining: number;
+  playerAnswer: string;
+  /** null = essay đang chờ MC bấm Đúng/Sai */
+  lastIsCorrect: boolean | null;
+  lastPointsDelta: number;
 };
 
 /**

@@ -2,6 +2,7 @@ import { appContext, type RuntimeState } from '../core/state';
 import { buildWheelModel } from '../core/wheel';
 import { renderModal } from './components/modal';
 import { renderConfirmDialog } from './components/confirm-dialog';
+import { renderMatchPlay, getMatchPlayMountKey } from './components/match-play';
 import { renderSpinTab } from './components/spin-tab';
 import { renderBankTab } from './components/bank-tab';
 import { renderSettingsTab } from './components/settings-tab';
@@ -9,7 +10,7 @@ import { renderIntroScreen, syncIntroScreenView } from './components/intro-scree
 import { INTRO_ASSETS, INTRO_COPY } from '../config/intro';
 import { WheelRenderer } from './components/wheel';
 import * as Actions from '../core/actions';
-import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers } from './handlers';
+import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers, bindMatchPlayHandlers } from './handlers';
 import { isIntroExitInProgress } from './handlers/intro-handlers';
 import { initModalDom } from './handlers/modal-handlers';
 import { syncToastDom } from '../utils/sync-toast-dom';
@@ -34,6 +35,7 @@ let eventCleanups: Array<() => void> = [];
 let lastModalRenderKey = '';
 let lastShellRenderKey = '';
 let lastConfirmKey = '';
+let lastMatchPlayKey = '';
 let lastToastMessage = '';
 let isRendering = false;
 let pendingRender = false;
@@ -42,6 +44,7 @@ type OverlayHosts = {
   shell: HTMLElement;
   toast: HTMLElement;
   modal: HTMLElement;
+  match: HTMLElement;
   confirm: HTMLElement;
   fab: HTMLElement;
 };
@@ -58,20 +61,23 @@ function ensureOverlayHosts(): OverlayHosts {
   const shell = document.createElement('div');
   const toast = document.createElement('div');
   const modal = document.createElement('div');
+  const match = document.createElement('div');
   const confirm = document.createElement('div');
   const fab = document.createElement('div');
 
   shell.id = 'app-shell-root';
   toast.id = 'toast-host';
   modal.id = 'modal-host';
+  match.id = 'match-host';
   confirm.id = 'confirm-host';
   fab.id = 'intro-fab-host';
 
-  appRoot.append(shell, toast, modal, confirm, fab);
-  overlayHosts = { shell, toast, modal, confirm, fab };
+  appRoot.append(shell, toast, modal, match, confirm, fab);
+  overlayHosts = { shell, toast, modal, match, confirm, fab };
   lastModalRenderKey = '';
   lastShellRenderKey = '';
   lastConfirmKey = '';
+  lastMatchPlayKey = '';
   lastToastMessage = '';
   return overlayHosts;
 }
@@ -219,12 +225,14 @@ function renderOnce(): void {
   const shellKey = getShellRenderKey(appState, nextRuntime);
   const modalKey = getModalRenderKey(appState, nextRuntime);
   const confirmKey = JSON.stringify(nextRuntime.confirmDialog);
+  const matchPlayKey = getMatchPlayMountKey(nextRuntime);
   const shouldRebuildShell = shellKey !== lastShellRenderKey;
 
   if (
     !shouldRebuildShell &&
     modalKey === lastModalRenderKey &&
     confirmKey === lastConfirmKey &&
+    matchPlayKey === lastMatchPlayKey &&
     nextRuntime.toast === lastToastMessage
   ) {
     return;
@@ -308,6 +316,11 @@ function renderOnce(): void {
     hosts.confirm.innerHTML = renderConfirmDialog(nextRuntime.confirmDialog);
   }
 
+  if (matchPlayKey !== lastMatchPlayKey) {
+    lastMatchPlayKey = matchPlayKey;
+    hosts.match.innerHTML = renderMatchPlay(appState, nextRuntime);
+  }
+
   if (nextRuntime.tab === 'settings') {
     lastRenderedSettingsSection = nextRuntime.settingsSection;
   } else {
@@ -341,6 +354,7 @@ function renderIntro(): void {
   lastModalRenderKey = '';
   lastShellRenderKey = '';
   lastConfirmKey = '';
+  lastMatchPlayKey = '';
   lastToastMessage = '';
   appRoot.innerHTML = renderIntroScreen(appContext.getAppState());
   eventCleanups = [bindIntroHandlers(appRoot)];
@@ -388,6 +402,7 @@ function bindEvents(): Array<() => void> {
     bindBankHandlers(appRoot),
     bindSettingsHandlers(appRoot),
     bindModalHandlers(appRoot),
+    bindMatchPlayHandlers(appRoot),
   ];
 }
 
