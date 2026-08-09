@@ -79,7 +79,7 @@ Backup: `src/core/backup.ts` + plugin Android `BackupSaver` — xuất/nhập JS
 
 - Node.js **18+**
 - npm
-- Android Studio (chỉ khi chạy/build APK)
+- Android Studio (chỉ khi chạy/build APK; kèm JDK 21 — dùng JBR của Studio nếu máy đang JDK 17)
 
 ### Cài dependency
 
@@ -120,6 +120,32 @@ npm run android
 
 Trong Android Studio: chọn thiết bị → **Run**.
 
+#### Android debug từ Cursor (terminal) — BlueStacks
+
+Yêu cầu: **JDK 21** (Capacitor build dùng `sourceCompatibility` 21). Nếu `java -version` là 17, trỏ `JAVA_HOME` sang JBR của Android Studio:
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+```
+
+File `android/local.properties` phải có SDK (không commit; tạo local nếu thiếu):
+
+```properties
+sdk.dir=C:\\Users\\<user>\\AppData\\Local\\Android\\Sdk
+```
+
+BlueStacks: bật ADB, rồi:
+
+```powershell
+adb connect 127.0.0.1:5555
+npm run build
+npm run capacitor:sync
+cd android
+.\gradlew assembleDebug
+adb -s 127.0.0.1:5555 install -r app\build\outputs\apk\debug\app-debug.apk
+adb -s 127.0.0.1:5555 shell monkey -p com.quizspin.app -c android.intent.category.LAUNCHER 1
+```
+
 **Build APK release (đã ký):** Android Studio → **Generate Signed App Bundle or APK**, rồi copy APK vào `releases/Bo-tro-Giao-duc-Chinh-tri.apk`.
 
 > `.\gradlew assembleRelease` chỉ tạo bản **chưa ký** — không dùng file đó để phát hành.
@@ -130,7 +156,7 @@ Trong Android Studio: chọn thiết bị → **Run**.
 | `webDir` | `dist` |
 | APK | [`releases/Bo-tro-Giao-duc-Chinh-tri.apk`](releases/Bo-tro-Giao-duc-Chinh-tri.apk) |
 
-**Không commit:** `dist/`, `android/app/build/`, `android/.gradle/`, `android/app/src/main/assets/public/`.
+**Không commit:** `dist/`, `android/app/build/`, `android/.gradle/`, `android/app/src/main/assets/public/`, `android/local.properties`.
 
 ---
 
