@@ -117,6 +117,7 @@ export function createEmptyMatchSession(currentRound: MatchRoundId = 1): MatchSe
     usedQuestionIds: [],
     round2Packs: [],
     activePlay: null,
+    roundSummary: null,
   };
 }
 
@@ -172,6 +173,7 @@ export function startMatchActivePlay(params: StartMatchPlayParams): void {
       ...baseSession,
       currentRound: params.round,
       activePlay: play,
+      roundSummary: null,
     },
   });
   syncSpinUi();
@@ -348,11 +350,58 @@ function finishActivePlayRound(session: MatchSession, play: MatchPlayState): voi
       ...session,
       scores: nextScores,
       activePlay: null,
+      roundSummary: { round: play.round, score: roundScore },
     },
   });
   syncSpinUi();
-  const total = nextScores[1] + nextScores[2] + nextScores[3];
-  showToast(`Hết lượt ${play.round} — lượt: ${Math.round(roundScore)} · tổng: ${Math.round(total)}`);
+}
+
+/** MC bấm Tiếp tục sau màn tóm tắt lượt. */
+export function continueAfterRoundSummary(): void {
+  const session = appContext.getRuntimeState().matchSession;
+  if (!session?.roundSummary || session.activePlay) {
+    return;
+  }
+
+  const finishedRound = session.roundSummary.round;
+
+  if (finishedRound === 1) {
+    appContext.setRuntimeState({
+      matchSession: {
+        ...session,
+        currentRound: 2,
+        roundSummary: null,
+      },
+    });
+    syncSpinUi();
+    // Phase 4: mở vòng quay Đề số n — tạm no-op
+    showToast('Lượt 2 — vòng quay đề (sắp có)');
+    return;
+  }
+
+  if (finishedRound === 2) {
+    appContext.setRuntimeState({
+      matchSession: {
+        ...session,
+        currentRound: 3,
+        roundSummary: null,
+      },
+    });
+    syncSpinUi();
+    // Phase 5
+    showToast('Lượt 3 — chọn gói điểm (sắp có)');
+    return;
+  }
+
+  // Hết Lượt 3 — Phase 6 tổng kết
+  appContext.setRuntimeState({
+    matchSession: {
+      ...session,
+      roundSummary: null,
+    },
+  });
+  syncSpinUi();
+  showToast('Hết ván — màn tổng kết (sắp có)');
 }
 
 /** Sang câu kế (sau khi đã chấm). L3: reset selectedPackageId trước picking-package. */

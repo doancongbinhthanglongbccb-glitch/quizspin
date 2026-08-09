@@ -68,10 +68,25 @@ function renderTimerRing(remaining: number, total: number): string {
 
 export function getMatchPlayMountKey(runtime: RuntimeState): string {
   const session = runtime.matchSession;
-  const play = session?.activePlay;
-  if (!session || !play) {
+  if (!session) {
     return '';
   }
+
+  const play = session.activePlay;
+  const summary = session.roundSummary;
+  if (!play && !summary) {
+    // Vẫn mount rỗng khi session tồn tại (vd. chờ Phase 4 sau Continue) — key ổn định
+    return `session|${session.currentRound}|idle`;
+  }
+
+  if (summary && !play) {
+    return `summary|${summary.round}|${Math.round(summary.score * 100)}`;
+  }
+
+  if (!play) {
+    return '';
+  }
+
   return [
     session.currentRound,
     play.round,
@@ -87,9 +102,60 @@ export function getMatchPlayMountKey(runtime: RuntimeState): string {
 
 export function renderMatchPlay(appState: AppState, runtime: RuntimeState): string {
   const session = runtime.matchSession;
-  const play = session?.activePlay;
-  if (!session || !play) {
+  if (!session) {
     return '';
+  }
+
+  if (session.roundSummary && !session.activePlay) {
+    const { round, score } = session.roundSummary;
+    const total = session.scores[1] + session.scores[2] + session.scores[3];
+    return `
+      <div class="quiz-session-backdrop match-play-backdrop">
+        <div class="quiz-session match-play">
+          <div class="quiz-session__content match-play__content">
+            <main class="quiz-session__main">
+              <header class="quiz-session__question-head">
+                <span class="quiz-session__badge" style="--badge-color:#90be6d">Lượt ${round}</span>
+                <h2 class="quiz-session__title">Kết thúc Lượt ${round}</h2>
+                <p class="quiz-session__hint">Điểm lượt: ${Math.round(score)} · Tổng tạm: ${Math.round(total)}</p>
+              </header>
+              <div class="quiz-score" role="status">
+                <p class="quiz-score__value">${Math.round(score)}</p>
+                <p class="quiz-score__label">ĐIỂM LƯỢT ${round}</p>
+              </div>
+            </main>
+            <footer class="quiz-session__footer">
+              <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-continue-round">
+                Tiếp tục
+              </button>
+            </footer>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const play = session.activePlay;
+  if (!play) {
+    // Sau Continue Lượt 1 — chờ Phase 4 gắn vòng quay đề
+    return `
+      <div class="quiz-session-backdrop match-play-backdrop">
+        <div class="quiz-session match-play">
+          <div class="quiz-session__content match-play__content">
+            <main class="quiz-session__main">
+              <header class="quiz-session__question-head">
+                <span class="quiz-session__badge" style="--badge-color:#4895ef">Lượt ${session.currentRound}</span>
+                <h2 class="quiz-session__title">Chuẩn bị Lượt ${session.currentRound}</h2>
+                <p class="quiz-session__hint">Vòng quay đề / luật lượt sẽ có ở bước sau. Điểm L1: ${Math.round(session.scores[1])}</p>
+              </header>
+            </main>
+            <footer class="quiz-session__footer">
+              <button type="button" class="btn btn-ghost" data-action="match-close-session">Thoát ván</button>
+            </footer>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   const matchSettings = appState.settings.match;

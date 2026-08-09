@@ -48,6 +48,16 @@ export function bindMatchPlayHandlers(root: ParentNode): () => void {
 
     if (getActionTarget(event, root, '[data-action="match-next-question"]')) {
       Actions.goToNextMatchQuestion();
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="match-continue-round"]')) {
+      Actions.continueAfterRoundSummary();
+      return;
+    }
+
+    if (getActionTarget(event, root, '[data-action="match-close-session"]')) {
+      Actions.closeMatchSession();
     }
   };
 

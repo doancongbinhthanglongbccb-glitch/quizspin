@@ -3,14 +3,53 @@ import { appContext } from '../state';
 import { spinSession } from '../spin-session';
 import { syncSpinUi } from '../../utils/sync-spin-ui';
 import { showToast } from './shared';
-import type { WheelSegment } from '../../types';
+import { createEmptyMatchSession, startMatchActivePlay } from './match-play-actions';
+import { pickMatchQuestionsFromCategory } from '../match-questions';
+import type { Category, WheelSegment } from '../../types';
+
+/**
+ * Thiếu câu so với Settings:
+ * - 0 câu khả dụng → chặn, không vào lượt
+ * - còn ít hơn requested → lấy hết + toast cảnh báo (pointsPerQuestion = 100/số thật)
+ */
+function startRound1FromCategory(category: Category): void {
+  const match = appContext.getAppState().settings.match;
+  if (!match) {
+    showToast('Thiếu cấu hình match trong Settings');
+    return;
+  }
+
+  const session = createEmptyMatchSession(1);
+  const picked = pickMatchQuestionsFromCategory(category, {
+    count: match.round1QuestionCount,
+    excludeIds: session.usedQuestionIds,
+  });
+
+  if (picked.available === 0 || picked.questions.length === 0) {
+    showToast(`Lĩnh vực ${category.name} không còn câu hỏi để chơi`);
+    return;
+  }
+
+  if (picked.questions.length < picked.requested) {
+    showToast(
+      `Chỉ còn ${picked.questions.length}/${picked.requested} câu trong ${category.name} — chơi với số còn lại`,
+    );
+  }
+
+  startMatchActivePlay({
+    round: 1,
+    questionIds: picked.questions.map((q) => q.id),
+    label: category.name,
+    accentColor: category.color,
+    existingSession: session,
+  });
+}
 
 function resolveSegmentAction(segment: WheelSegment): void {
   if (segment.kind === 'category' && segment.categoryId) {
     const category = appContext.getAppState().categories.find((item) => item.id === segment.categoryId);
     if (category) {
-      // TODO(Phase 3): bắt đầu MatchSession Lượt 1 theo lĩnh vực
-      showToast(`Đã chọn lĩnh vực: ${category.name}`);
+      startRound1FromCategory(category);
     }
     return;
   }

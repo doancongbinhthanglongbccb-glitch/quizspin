@@ -155,6 +155,8 @@ export type MatchSession = {
   round2Packs: MatchExamPack[];
   /** null = chưa chọn / chưa vào phần thi lượt */
   activePlay: MatchPlayState | null;
+  /** Sau hết lượt — màn tóm tắt chờ MC bấm Tiếp tục */
+  roundSummary: { round: MatchRoundId; score: number } | null;
 };
 
 export type AppState = {
