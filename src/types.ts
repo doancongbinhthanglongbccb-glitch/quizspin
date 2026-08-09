@@ -103,6 +103,8 @@ export type MatchSettings = {
   round3Packages: MatchScorePackage[];
   /** id trong round3Packages; thiếu/invalid → phần tử đầu */
   round3DefaultPackageId: string;
+  /** Giây chờ chọn gói trước khi tự áp gói mặc định */
+  round3PackagePickSec: number;
 };
 
 export type MatchRoundId = 1 | 2 | 3;

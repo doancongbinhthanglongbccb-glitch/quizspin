@@ -9,7 +9,6 @@ import {
   isMcqQuestion,
   isMultipleMcqQuestion,
 } from '../../data';
-import { ROUND3_PACKAGE_PICK_SEC } from '../../config/match';
 import { escapeHtml } from '../../utils/html';
 import { WheelRenderer } from './wheel';
 
@@ -301,7 +300,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
               <header class="quiz-session__question-head">
                 <span class="quiz-session__badge" style="--badge-color:${play.accentColor}">${escapeHtml(play.label)} · Câu ${currentNum}/${total}</span>
                 <h2 class="quiz-session__title">Chọn gói điểm</h2>
-                <p class="quiz-session__hint">Đúng cộng · Sai trừ (không âm tổng). Không chọn trong ${ROUND3_PACKAGE_PICK_SEC}s → gói mặc định</p>
+                <p class="quiz-session__hint">Đúng cộng · Sai trừ (không âm tổng). Không chọn trong ${matchSettings.round3PackagePickSec}s → gói mặc định</p>
               </header>
               <div class="match-package-grid" role="group" aria-label="Gói điểm Lượt 3">${packages}</div>
             </main>

@@ -7,7 +7,6 @@ import {
   toggleMcqPlayerSelection,
 } from '../../data';
 import type { MatchPlayState, MatchRoundId, MatchSession, Question } from '../../types';
-import { ROUND3_PACKAGE_PICK_SEC } from '../../config/match';
 import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { matchRemainingSeconds, startMatchTimer, stopMatchTimer } from '../match-timer';
@@ -124,6 +123,7 @@ function clearPackagePickTimeout(): void {
 /** Hết thời chọn gói → áp mặc định. */
 function armPackagePickTimeout(): void {
   clearPackagePickTimeout();
+  const match = requireMatchSettings();
   packagePickTimeoutId = window.setTimeout(() => {
     packagePickTimeoutId = null;
     const ctx = getPlayContext();
@@ -131,7 +131,7 @@ function armPackagePickTimeout(): void {
       return;
     }
     applyDefaultMatchPackage();
-  }, ROUND3_PACKAGE_PICK_SEC * 1000);
+  }, match.round3PackagePickSec * 1000);
 }
 
 export function createEmptyMatchSession(currentRound: MatchRoundId = 1): MatchSession {
