@@ -39,8 +39,6 @@ export type RuntimeState = {
   bankFormOpen: boolean;
   questionDraft: QuestionDraft;
   questionFilter: 'all' | 'mcq' | 'essay';
-  usedGifts: Set<string>;
-  usedPunishments: Set<string>;
   /** Ván 3 lượt từ tab Vòng quay — không persist */
   matchSession: MatchSession | null;
   importReport: {
@@ -71,8 +69,6 @@ export function createDefaultRuntimeState(): RuntimeState {
     bankFormOpen: false,
     questionDraft: defaultQuestionDraft('mcq'),
     questionFilter: 'all',
-    usedGifts: new Set(),
-    usedPunishments: new Set(),
     matchSession: null,
     importReport: null,
     confirmDialog: null,
@@ -126,8 +122,6 @@ function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
     ...runtimeState,
     settingsDraft: cloneSettingsDraft(runtimeState.settingsDraft),
     questionDraft: { ...runtimeState.questionDraft },
-    usedGifts: new Set(runtimeState.usedGifts),
-    usedPunishments: new Set(runtimeState.usedPunishments),
     matchSession: cloneMatchSession(runtimeState.matchSession),
     importReport: runtimeState.importReport
       ? {
@@ -157,8 +151,6 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
     ...current,
     ...update,
     questionDraft: update.questionDraft ? { ...update.questionDraft } : { ...current.questionDraft },
-    usedGifts: update.usedGifts ? new Set(update.usedGifts) : new Set(current.usedGifts),
-    usedPunishments: update.usedPunishments ? new Set(update.usedPunishments) : new Set(current.usedPunishments),
     matchSession: Object.prototype.hasOwnProperty.call(update, 'matchSession')
       ? cloneMatchSession(update.matchSession ?? null)
       : cloneMatchSession(current.matchSession),

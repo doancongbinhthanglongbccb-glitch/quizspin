@@ -2923,68 +2923,6 @@ html {
   }
 }
 
-/* Exam picker overlay */
-.exam-picker__title {
-  color: var(--text-primary, #f8fafc);
-}
-
-.exam-picker__exam-list {
-  display: grid;
-  gap: 0.625rem;
-  max-height: min(50vh, 320px);
-  overflow-y: auto;
-}
-
-.exam-picker__exam-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-  width: 100%;
-  padding: 0.875rem 1rem;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.exam-picker__exam-btn:hover {
-  border-color: rgba(109, 40, 217, 0.45);
-  background: rgba(109, 40, 217, 0.12);
-}
-
-.exam-picker__exam-title {
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.exam-picker__exam-meta {
-  font-size: 0.8125rem;
-  color: rgba(248, 250, 252, 0.55);
-}
-
-.exam-picker__section-label {
-  display: block;
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.55);
-}
-
-.exam-picker__check {
-  font-size: 0.875rem;
-  color: rgba(248, 250, 252, 0.85);
-}
-
-.perf-lite .exam-picker-backdrop {
-  backdrop-filter: none;
-}
-
 /* Fallback khi trình duyệt chưa hỗ trợ container query units */
 @supports not (width: 1cqmin) {
   @media (orientation: landscape) {

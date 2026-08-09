@@ -230,11 +230,6 @@ function persistSettingsDraft(draft: SettingsDraft): void {
     return;
   }
 
-  const current = appContext.getAppState();
-  const giftsChanged = hasGifts && (draft.gifts ?? '').trim() !== rewardItemsToText(current.settings.gifts).trim();
-  const punishmentsChanged =
-    hasPunishments && (draft.punishments ?? '').trim() !== rewardItemsToText(current.settings.punishments).trim();
-
   appContext.setAppStateWithoutRender((state) => {
     const settings = { ...state.settings };
 
@@ -261,16 +256,7 @@ function persistSettingsDraft(draft: SettingsDraft): void {
     return { ...state, settings };
   });
 
-  const runtimePatch: Partial<ReturnType<typeof appContext.getRuntimeState>> = {
-    settingsDraft: null,
-  };
-  if (giftsChanged) {
-    runtimePatch.usedGifts = new Set();
-  }
-  if (punishmentsChanged) {
-    runtimePatch.usedPunishments = new Set();
-  }
-  appContext.patchRuntimeStateWithoutRender(runtimePatch);
+  appContext.patchRuntimeStateWithoutRender({ settingsDraft: null });
 }
 
 export function flushSettingsFromDom(root: ParentNode): void {

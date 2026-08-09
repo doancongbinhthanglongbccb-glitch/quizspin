@@ -129,7 +129,7 @@ export type MatchPlayState = {
   roundScore: number;
   /** L3: gói đã chọn cho câu hiện tại; L1/L2: null */
   selectedPackageId: string | null;
-  phase: 'picking-package' | 'prompt' | 'answering' | 'revealed';
+  phase: 'picking-package' | 'answering' | 'revealed';
   /** Điểm mỗi câu đúng — L1/L2; L3 dùng gói */
   pointsPerQuestion: number;
   /** Nhãn hiển thị (lĩnh vực / Đề số n / Lượt 3) */
@@ -191,17 +191,7 @@ export type ConfirmDialog =
   | { kind: 'rename-category'; categoryId: string; categoryName: string }
   | { kind: 'category-menu'; categoryId: string; categoryName: string };
 
-export type ActiveModal =
-  | {
-      kind: 'gift';
-      title: string;
-      text: string;
-    }
-  | {
-      kind: 'notice';
-      text: string;
-    }
-  | null;
+export type ActiveModal = null;
 
 export type ImportDiagnostic = {
   rowNumber: number;
