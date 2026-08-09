@@ -2550,16 +2550,6 @@ html {
   color: #fca5a5;
 }
 
-.match-final-footer {
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.match-final-footer .btn {
-  justify-self: stretch;
-  min-width: 0;
-}
-
 .match-package-grid {
   display: grid;
   gap: 12px;

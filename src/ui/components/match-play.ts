@@ -136,7 +136,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
               <header class="quiz-session__question-head">
                 <span class="quiz-session__badge" style="--badge-color:#90be6d">Kết thúc ván</span>
                 <h2 class="quiz-session__title">Tổng kết 3 lượt</h2>
-                <p class="quiz-session__hint">Điểm từng lượt · Lượt 3 có thể âm nếu trừ nhiều hơn điểm mang sang</p>
+                <p class="quiz-session__hint">Lượt 3 dùng gói điểm ăn/thua — điểm lượt có thể âm nếu tổng trừ (câu sai) lớn hơn tổng cộng (câu đúng)</p>
               </header>
               <ul class="match-final-scores" aria-label="Điểm từng lượt">
                 <li class="match-final-score"><span>Lượt 1</span><strong>${formatMatchScore(s1)}</strong></li>
@@ -145,9 +145,8 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
                 <li class="match-final-score match-final-score--total"><span>Tổng</span><strong>${formatMatchScore(total)}</strong></li>
               </ul>
             </main>
-            <footer class="quiz-session__footer match-final-footer">
-              <button type="button" class="btn btn-ghost" data-action="match-close-session">Kết thúc</button>
-              <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-close-session">Chơi lại</button>
+            <footer class="quiz-session__footer">
+              <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-close-session">Về vòng quay</button>
             </footer>
           </div>
         </div>
