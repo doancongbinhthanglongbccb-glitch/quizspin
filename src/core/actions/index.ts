@@ -17,7 +17,7 @@ import {
   setQuestionDraftType,
   updateQuestionDraft,
 } from './question-actions';
-import { spin } from './spin-actions';
+import { spin, spinMatchRound2 } from './spin-actions';
 import {
   applyDefaultMatchPackage,
   chooseMatchMcqAnswer,
@@ -56,7 +56,7 @@ export { exportAppBackup, stageBackupImport };
 export { openGiftModal, closeModal };
 export { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory };
 export { saveQuestionDraft, deleteQuestion, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };
-export { spin };
+export { spin, spinMatchRound2 };
 export {
   applyDefaultMatchPackage,
   chooseMatchMcqAnswer,

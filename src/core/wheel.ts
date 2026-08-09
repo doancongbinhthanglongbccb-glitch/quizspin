@@ -57,11 +57,19 @@ function createWheelLayout(segments: WheelSegment[]): WheelLayoutSegment[] {
 }
 
 export function buildWheelModel(appState: AppState, pointerOffsetDeg = DEFAULTS.pointerOffsetDeg): WheelModel {
-  const segments = createWheelLayout(buildWheelSegments(appState.categories));
+  return buildWheelModelFromSegments(buildWheelSegments(appState.categories), pointerOffsetDeg);
+}
+
+/** Wheel từ segment có sẵn (vd. bộ đề Lượt 2) — không đụng buildWheelSegments lĩnh vực. */
+export function buildWheelModelFromSegments(
+  segments: WheelSegment[],
+  pointerOffsetDeg = DEFAULTS.pointerOffsetDeg,
+): WheelModel {
+  const layout = createWheelLayout(segments);
 
   return {
-    segments,
-    sliceDeg: segments.length > 0 ? 360 / segments.length : 360,
+    segments: layout,
+    sliceDeg: layout.length > 0 ? 360 / layout.length : 360,
     pointerAngleDeg: pointerOffsetDeg,
   };
 }

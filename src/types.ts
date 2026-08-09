@@ -107,7 +107,7 @@ export type MatchSettings = {
 
 export type MatchRoundId = 1 | 2 | 3;
 
-/** Bộ đề Lượt 2 — tạo lúc bắt đầu ván, không phải CategoryExam */
+/** Bộ đề Lượt 2 — sinh khi vào Lượt 2 (sau Continue L1), không phải CategoryExam */
 export type MatchExamPack = {
   id: string;
   index: number;

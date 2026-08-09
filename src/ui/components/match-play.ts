@@ -10,6 +10,7 @@ import {
   isMultipleMcqQuestion,
 } from '../../data';
 import { escapeHtml } from '../../utils/html';
+import { WheelRenderer } from './wheel';
 
 function stripOptionLetterPrefix(option: string, letter: string): string {
   const stripped = option.replace(new RegExp(`^${letter}[.):\\-]?\\s*`, 'i'), '').trim();
@@ -75,7 +76,9 @@ export function getMatchPlayMountKey(runtime: RuntimeState): string {
   const play = session.activePlay;
   const summary = session.roundSummary;
   if (!play && !summary) {
-    // Vẫn mount rỗng khi session tồn tại (vd. chờ Phase 4 sau Continue) — key ổn định
+    if (session.currentRound === 2 && session.round2Packs.length > 0) {
+      return `session|2|packs|${session.round2Packs.map((pack) => pack.id).join(',')}`;
+    }
     return `session|${session.currentRound}|idle`;
   }
 
@@ -137,7 +140,41 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
 
   const play = session.activePlay;
   if (!play) {
-    // Sau Continue Lượt 1 — chờ Phase 4 gắn vòng quay đề
+    if (session.currentRound === 2 && session.round2Packs.length > 0) {
+      const packCount = session.round2Packs.length;
+      const spinDisabled = runtime.spinning ? 'disabled' : '';
+      return `
+        <div class="quiz-session-backdrop match-play-backdrop">
+          <div class="quiz-session match-play match-play--round2">
+            <div class="quiz-session__content match-play__content">
+              <main class="quiz-session__main match-round2-main">
+                <header class="quiz-session__question-head">
+                  <span class="quiz-session__badge" style="--badge-color:#4895ef">Lượt 2</span>
+                  <h2 class="quiz-session__title">Quay chọn đề</h2>
+                  <p class="quiz-session__hint">${packCount} bộ đề · Điểm L1: ${Math.round(session.scores[1])}</p>
+                </header>
+                <div class="match-round2-wheel spin-wheel-zone">
+                  ${WheelRenderer.renderHTML(runtime.spinning)}
+                </div>
+              </main>
+              <footer class="quiz-session__footer">
+                <button
+                  type="button"
+                  class="btn btn-spin quiz-session__submit-btn"
+                  data-action="match-spin-round2"
+                  ${spinDisabled}
+                  aria-label="Quay chọn đề Lượt 2"
+                >
+                  QUAY CHỌN ĐỀ
+                </button>
+              </footer>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Lượt 3 stub — Phase 5 thay bằng chọn gói điểm
     return `
       <div class="quiz-session-backdrop match-play-backdrop">
         <div class="quiz-session match-play">
@@ -146,12 +183,9 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
               <header class="quiz-session__question-head">
                 <span class="quiz-session__badge" style="--badge-color:#4895ef">Lượt ${session.currentRound}</span>
                 <h2 class="quiz-session__title">Chuẩn bị Lượt ${session.currentRound}</h2>
-                <p class="quiz-session__hint">Vòng quay đề / luật lượt sẽ có ở bước sau. Điểm L1: ${Math.round(session.scores[1])}</p>
+                <p class="quiz-session__hint">Chọn gói điểm sẽ có ở bước sau. Tổng tạm: ${Math.round(session.scores[1] + session.scores[2])}</p>
               </header>
             </main>
-            <footer class="quiz-session__footer">
-              <button type="button" class="btn btn-ghost" data-action="match-close-session">Thoát ván</button>
-            </footer>
           </div>
         </div>
       </div>

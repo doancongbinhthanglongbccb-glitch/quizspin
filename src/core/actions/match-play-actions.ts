@@ -11,6 +11,7 @@ import { appContext } from '../state';
 import { soundManager } from '../sound-manager';
 import { matchRemainingSeconds, startMatchTimer, stopMatchTimer } from '../match-timer';
 import { syncSpinUi } from '../../utils/sync-spin-ui';
+import { buildRound2ExamPacks } from '../match-questions';
 import { showToast } from './shared';
 
 function requireMatchSettings() {
@@ -366,16 +367,28 @@ export function continueAfterRoundSummary(): void {
   const finishedRound = session.roundSummary.round;
 
   if (finishedRound === 1) {
+    const match = requireMatchSettings();
+    const built = buildRound2ExamPacks(appContext.getAppState().categories, {
+      questionsPerPack: match.round2QuestionsPerPack,
+      excludeIds: session.usedQuestionIds,
+    });
+
+    if (built.packs.length === 0) {
+      showToast(
+        `Không đủ câu hỏi cho Lượt 2 (cần ít nhất ${built.questionsPerPack} câu còn lại, hiện còn ${built.available})`,
+      );
+      return;
+    }
+
     appContext.setRuntimeState({
       matchSession: {
         ...session,
         currentRound: 2,
         roundSummary: null,
+        round2Packs: built.packs,
       },
     });
     syncSpinUi();
-    // Phase 4: mở vòng quay Đề số n — tạm no-op
-    showToast('Lượt 2 — vòng quay đề (sắp có)');
     return;
   }
 

@@ -1,11 +1,35 @@
-import { buildWheelModel } from '../wheel';
+import { buildWheelModel, buildWheelModelFromSegments } from '../wheel';
 import { appContext } from '../state';
 import { spinSession } from '../spin-session';
 import { syncSpinUi } from '../../utils/sync-spin-ui';
 import { showToast } from './shared';
 import { createEmptyMatchSession, startMatchActivePlay } from './match-play-actions';
 import { pickMatchQuestionsFromCategory } from '../match-questions';
-import type { Category, WheelSegment } from '../../types';
+import type { Category, MatchExamPack, WheelSegment } from '../../types';
+
+const ROUND2_PACK_COLORS = [
+  '#f94144',
+  '#f3722c',
+  '#f8961e',
+  '#90be6d',
+  '#43aa8b',
+  '#577590',
+  '#277da1',
+  '#9b5de5',
+];
+
+function buildExamPackWheelSegments(packs: MatchExamPack[]): WheelSegment[] {
+  return packs.map((pack, index) => ({
+    id: pack.id,
+    label: pack.title,
+    kind: 'category' as const,
+    color: ROUND2_PACK_COLORS[index % ROUND2_PACK_COLORS.length]!,
+  }));
+}
+
+export function buildRound2WheelModel(packs: MatchExamPack[]) {
+  return buildWheelModelFromSegments(buildExamPackWheelSegments(packs));
+}
 
 /**
  * Thiếu câu so với Settings:
@@ -77,5 +101,55 @@ export function spin(): void {
 
   spinSession.start(model, chosen, runtime.rotation, {
     onComplete: ({ segment }) => resolveSegmentAction(segment),
+  });
+}
+
+/** Vòng quay "Đề số n" trong Lượt 2 — tái dùng SpinSession + startMatchActivePlay. */
+export function spinMatchRound2(): void {
+  const runtime = appContext.getRuntimeState();
+  const session = runtime.matchSession;
+
+  if (
+    runtime.spinning ||
+    !session ||
+    session.currentRound !== 2 ||
+    session.activePlay ||
+    session.roundSummary ||
+    session.round2Packs.length === 0
+  ) {
+    return;
+  }
+
+  const model = buildRound2WheelModel(session.round2Packs);
+  if (!model.segments.length) {
+    showToast('Chưa có bộ đề để quay');
+    return;
+  }
+
+  const chosen = model.segments[Math.floor(Math.random() * model.segments.length)]!;
+
+  spinSession.cancel();
+  appContext.patchRuntimeState({ spinning: true, rotation: runtime.rotation });
+  syncSpinUi();
+
+  spinSession.start(model, chosen, runtime.rotation, {
+    onComplete: ({ segment }) => {
+      const live = appContext.getRuntimeState().matchSession;
+      if (!live || live.currentRound !== 2 || live.activePlay) {
+        return;
+      }
+      const pack = live.round2Packs.find((item) => item.id === segment.id);
+      if (!pack) {
+        showToast('Không tìm thấy bộ đề đã quay');
+        return;
+      }
+      startMatchActivePlay({
+        round: 2,
+        questionIds: pack.questionIds,
+        label: pack.title,
+        accentColor: segment.color,
+        existingSession: live,
+      });
+    },
   });
 }

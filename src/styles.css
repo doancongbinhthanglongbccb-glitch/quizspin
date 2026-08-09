@@ -2481,6 +2481,19 @@ html {
   letter-spacing: 0.04em;
 }
 
+.match-play--round2 .match-round2-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+}
+
+.match-play--round2 .match-round2-wheel {
+  width: min(100%, 360px);
+  margin-inline: auto;
+}
+
 .match-package-grid {
   display: grid;
   gap: 12px;

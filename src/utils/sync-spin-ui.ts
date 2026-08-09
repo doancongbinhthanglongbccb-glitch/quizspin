@@ -14,6 +14,11 @@ export function syncSpinUi(): void {
     spinButton.disabled = spinning || modalOpen || matchOpen || !canSpin;
   }
 
+  const matchSpinButton = document.querySelector<HTMLButtonElement>('[data-action="match-spin-round2"]');
+  if (matchSpinButton) {
+    matchSpinButton.disabled = spinning;
+  }
+
   const statusEl = document.querySelector<HTMLElement>('.spin-stat__value.status-pill--live');
   if (statusEl) {
     statusEl.textContent = spinning
@@ -25,8 +30,7 @@ export function syncSpinUi(): void {
           : 'Sẵn sàng';
   }
 
-  const wheelHost = document.querySelector<HTMLElement>('[data-wheel-host]');
-  if (wheelHost) {
+  document.querySelectorAll<HTMLElement>('[data-wheel-host]').forEach((wheelHost) => {
     wheelHost.classList.toggle('wheel-frame--spinning', spinning);
-  }
+  });
 }
