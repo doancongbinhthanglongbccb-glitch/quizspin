@@ -534,7 +534,7 @@ function renderPoolsPanel(appState: AppState): string {
     <div class="settings-panel-card">
       <p class="settings-panel-card__title"><span aria-hidden="true">📊</span>Pool câu hỏi theo lĩnh vực</p>
       <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-        Mỗi lĩnh vực theo dõi câu đã dùng trong các bộ thi. Hết câu sẽ tự reset khi quay trúng lĩnh vực.
+        Theo dõi câu đã dùng cho các luồng cũ (không áp dụng cho Ván 3 lượt — ván tự theo dõi câu đã dùng riêng trong phiên chơi).
       </p>
       <div class="grid gap-2.5">${rows || '<p class="text-caption text-white/45">Chưa có lĩnh vực.</p>'}</div>
       <button type="button" class="btn btn-ghost mt-4 w-full" data-action="reset-all-pools">Reset toàn bộ pool</button>
