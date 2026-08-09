@@ -1,4 +1,4 @@
-import type { AppState, ActiveModal, ConfirmDialog, CustomSound, ImportStats, IntroLinkSettings, QuestionDraft, QuestionPools, SettingsSection, SoundEventKey } from '../types';
+import type { AppState, ActiveModal, ConfirmDialog, CustomSound, ImportStats, IntroLinkSettings, MatchExamPack, MatchPlayState, MatchSession, QuestionDraft, QuestionPools, SettingsSection, SoundEventKey } from '../types';
 import {
   createSampleState,
   defaultQuestionDraft,
@@ -6,6 +6,7 @@ import {
   normalizeIntroLinks,
 } from '../data';
 import { DEFAULT_PALETTE, DEFAULTS } from '../config';
+import { normalizeMatchSettings } from '../config/match';
 import { SOUND_EVENT_KEYS } from '../config/sounds';
 
 /**
@@ -40,6 +41,8 @@ export type RuntimeState = {
   questionFilter: 'all' | 'mcq' | 'essay';
   usedGifts: Set<string>;
   usedPunishments: Set<string>;
+  /** Ván 3 lượt từ tab Vòng quay — không persist */
+  matchSession: MatchSession | null;
   importReport: {
     imported: number;
     skipped: number;
@@ -70,6 +73,7 @@ export function createDefaultRuntimeState(): RuntimeState {
     questionFilter: 'all',
     usedGifts: new Set(),
     usedPunishments: new Set(),
+    matchSession: null,
     importReport: null,
     confirmDialog: null,
     settingsSection: 'timer',
@@ -89,6 +93,32 @@ function cloneSettingsDraft(draft: SettingsDraft | null): SettingsDraft | null {
   };
 }
 
+function cloneMatchPlayState(play: MatchPlayState): MatchPlayState {
+  return {
+    ...play,
+    questionIds: [...play.questionIds],
+  };
+}
+
+function cloneMatchSession(session: MatchSession | null): MatchSession | null {
+  if (!session) {
+    return null;
+  }
+
+  return {
+    currentRound: session.currentRound,
+    scores: { ...session.scores },
+    usedQuestionIds: [...session.usedQuestionIds],
+    round2Packs: session.round2Packs.map(
+      (pack): MatchExamPack => ({
+        ...pack,
+        questionIds: [...pack.questionIds],
+      }),
+    ),
+    activePlay: session.activePlay ? cloneMatchPlayState(session.activePlay) : null,
+  };
+}
+
 function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
   return {
     ...runtimeState,
@@ -96,6 +126,7 @@ function cloneRuntimeState(runtimeState: RuntimeState): RuntimeState {
     questionDraft: { ...runtimeState.questionDraft },
     usedGifts: new Set(runtimeState.usedGifts),
     usedPunishments: new Set(runtimeState.usedPunishments),
+    matchSession: cloneMatchSession(runtimeState.matchSession),
     importReport: runtimeState.importReport
       ? {
           ...runtimeState.importReport,
@@ -126,6 +157,9 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
     questionDraft: update.questionDraft ? { ...update.questionDraft } : { ...current.questionDraft },
     usedGifts: update.usedGifts ? new Set(update.usedGifts) : new Set(current.usedGifts),
     usedPunishments: update.usedPunishments ? new Set(update.usedPunishments) : new Set(current.usedPunishments),
+    matchSession: Object.prototype.hasOwnProperty.call(update, 'matchSession')
+      ? cloneMatchSession(update.matchSession ?? null)
+      : cloneMatchSession(current.matchSession),
     importReport: Object.prototype.hasOwnProperty.call(update, 'importReport')
       ? cloneImportReport(update.importReport ?? null)
       : cloneImportReport(current.importReport),
@@ -229,9 +263,11 @@ function normalizeAppState(next: AppState): AppState {
     settingsWithLegacy.introLink,
   );
 
+  const timer = Math.min(DEFAULTS.timerMaxSec, Math.max(DEFAULTS.timerMinSec, next.settings.timer));
+
   return {
     settings: {
-      timer: Math.min(DEFAULTS.timerMaxSec, Math.max(DEFAULTS.timerMinSec, next.settings.timer)),
+      timer,
       sound: next.settings.sound,
       gifts: next.settings.gifts,
       punishments: next.settings.punishments,
@@ -240,6 +276,7 @@ function normalizeAppState(next: AppState): AppState {
         library: soundLibrary,
       },
       introLinks,
+      match: normalizeMatchSettings(next.settings.match, timer),
     },
     categories,
   };

@@ -3,14 +3,20 @@ import type { RuntimeState } from '../../core/state';
 import { WheelRenderer } from './wheel';
 
 export function renderSpinTab(appState: AppState, runtime: RuntimeState): string {
-  const status = runtime.spinning ? 'Đang quay' : runtime.modal ? 'Đang hiển thị kết quả' : 'Sẵn sàng';
+  const status = runtime.spinning
+    ? 'Đang quay'
+    : runtime.matchSession
+      ? 'Đang trong ván'
+      : runtime.modal
+        ? 'Đang hiển thị kết quả'
+        : 'Sẵn sàng';
   const totalQuestions = appState.categories.reduce(
     (count, category) => count + category.questions.length,
     0,
   );
   const categoryCount = appState.categories.length;
 
-  const spinDisabled = runtime.spinning || runtime.modal || categoryCount === 0;
+  const spinDisabled = runtime.spinning || runtime.modal || runtime.matchSession !== null || categoryCount === 0;
 
   return `
     <section class="panel panel--spin" data-swipe-zone="content">

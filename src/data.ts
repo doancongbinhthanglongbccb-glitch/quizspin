@@ -18,6 +18,7 @@ import type {
 } from './types';
 import { MAX_INTRO_LINKS } from './types';
 import { DEFAULT_PALETTE, DEFAULTS, DEFAULT_TIMER_SEC } from './config';
+import { defaultMatchSettings } from './config/match';
 
 function uid(): string {
   return crypto.randomUUID();
@@ -583,6 +584,7 @@ export function defaultSettings(): Settings {
       library: [],
     },
     introLinks: defaultIntroLinks(),
+    match: defaultMatchSettings(DEFAULT_TIMER_SEC),
   };
 }
 

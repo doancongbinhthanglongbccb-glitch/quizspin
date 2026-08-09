@@ -20,7 +20,7 @@ export function spin(): void {
   const runtime = appContext.getRuntimeState();
   const appState = appContext.getAppState();
 
-  if (runtime.spinning || runtime.modal) {
+  if (runtime.spinning || runtime.modal || runtime.matchSession) {
     return;
   }
 

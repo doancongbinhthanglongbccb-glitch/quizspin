@@ -14,7 +14,7 @@ export type Question = {
 
 export type QuestionFilter = 'all' | QuestionType;
 
-export type SettingsSection = 'timer' | 'pools' | 'sound' | 'gifts' | 'punishments' | 'intro' | 'danger';
+export type SettingsSection = 'timer' | 'match' | 'pools' | 'sound' | 'gifts' | 'punishments' | 'intro' | 'danger';
 
 /** Pool câu đã dùng theo lĩnh vực — persist key `quizspin_pools` */
 export type QuestionPools = Record<string, string[]>;
@@ -81,6 +81,68 @@ export type Settings = {
   punishments: PunishmentItem[];
   sounds?: SoundSettings;
   introLinks: IntroLinkSettings[];
+  /** Cấu hình ván 3 lượt — optional để migrate mềm bản cũ */
+  match?: MatchSettings;
+};
+
+/** Gói điểm Lượt 3 — cấu hình trong Settings */
+export type MatchScorePackage = {
+  id: string;
+  points: number;
+  timerSec: number;
+};
+
+/** Cấu hình ván 3 lượt (persist trong Settings) */
+export type MatchSettings = {
+  round1QuestionCount: number;
+  round1TimerSec: number;
+  /** Số câu mỗi bộ đề Lượt 2 */
+  round2QuestionsPerPack: number;
+  round2TimerSec: number;
+  round3QuestionCount: number;
+  round3Packages: MatchScorePackage[];
+  /** id trong round3Packages; thiếu/invalid → phần tử đầu */
+  round3DefaultPackageId: string;
+};
+
+export type MatchRoundId = 1 | 2 | 3;
+
+/** Bộ đề Lượt 2 — tạo lúc bắt đầu ván, không phải CategoryExam */
+export type MatchExamPack = {
+  id: string;
+  index: number;
+  title: string;
+  questionIds: string[];
+};
+
+/**
+ * Một lượt thi đang chạy trong match (1 câu/lần).
+ * Chi tiết UI/chấm điểm — Phase 2.
+ */
+export type MatchPlayState = {
+  round: MatchRoundId;
+  questionIds: string[];
+  currentIndex: number;
+  /** Điểm đã cộng trong lượt hiện tại */
+  roundScore: number;
+  /** L3: gói đã chọn cho câu hiện tại; L1/L2: null */
+  selectedPackageId: string | null;
+  phase: 'prompt' | 'answering' | 'revealed';
+};
+
+/**
+ * Ván chơi 3 lượt — runtime only (không persist).
+ * Tách bạch với spin animation (`rotation` / SpinSession).
+ */
+export type MatchSession = {
+  currentRound: MatchRoundId;
+  scores: Record<MatchRoundId, number>;
+  /** Câu đã hiện trong ván (đúng/sai đều tính) */
+  usedQuestionIds: string[];
+  /** Pack L2 đã sinh lúc start; L1/L3 không dùng */
+  round2Packs: MatchExamPack[];
+  /** null = chưa chọn / chưa vào phần thi lượt */
+  activePlay: MatchPlayState | null;
 };
 
 export type AppState = {
