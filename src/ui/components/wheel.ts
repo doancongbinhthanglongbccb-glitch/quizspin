@@ -343,9 +343,9 @@ function drawPointer(ctx: CanvasRenderingContext2D, centerX: number, centerY: nu
   ctx.save();
 
   const pointerGradient = ctx.createLinearGradient(tipX, centerY, baseX, centerY);
-  pointerGradient.addColorStop(0, '#fffbeb');
-  pointerGradient.addColorStop(0.4, '#fbbf24');
-  pointerGradient.addColorStop(1, '#b45309');
+  pointerGradient.addColorStop(0, '#f7e7b0');
+  pointerGradient.addColorStop(0.45, '#d4a017');
+  pointerGradient.addColorStop(1, '#8f1c14');
 
   ctx.fillStyle = pointerGradient;
   ctx.beginPath();
@@ -368,22 +368,22 @@ function drawWheelChrome(ctx: CanvasRenderingContext2D, radius: number): void {
   ctx.save();
 
   const ringGradient = ctx.createRadialGradient(0, 0, radius * 0.62, 0, 0, rim);
-  ringGradient.addColorStop(0, 'rgba(28, 25, 44, 0.96)');
-  ringGradient.addColorStop(0.5, 'rgba(14, 12, 24, 0.99)');
-  ringGradient.addColorStop(0.82, 'rgba(251, 191, 36, 0.22)');
-  ringGradient.addColorStop(1, 'rgba(251, 191, 36, 0.42)');
+  ringGradient.addColorStop(0, 'rgba(15, 36, 24, 0.98)');
+  ringGradient.addColorStop(0.55, 'rgba(12, 26, 18, 0.99)');
+  ringGradient.addColorStop(0.82, 'rgba(212, 160, 23, 0.28)');
+  ringGradient.addColorStop(1, 'rgba(212, 160, 23, 0.55)');
   ctx.fillStyle = ringGradient;
   ctx.beginPath();
   ctx.arc(0, 0, rim, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = 'rgba(251, 191, 36, 0.58)';
+  ctx.strokeStyle = 'rgba(212, 160, 23, 0.72)';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.arc(0, 0, rim, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+  ctx.strokeStyle = 'rgba(243, 239, 230, 0.16)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.arc(0, 0, radius + 1, 0, Math.PI * 2);

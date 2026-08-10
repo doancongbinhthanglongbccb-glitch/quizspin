@@ -215,7 +215,7 @@ export function startMatchActivePlay(params: StartMatchPlayParams): void {
 export function closeMatchSession(): void {
   stopMatchTimer();
   clearPackagePickTimeout();
-  appContext.setRuntimeState({ matchSession: null });
+  appContext.setRuntimeState({ matchSession: null, confirmDialog: null });
   syncSpinUi();
 }
 
@@ -285,7 +285,7 @@ export function confirmStartRound3(): void {
     round: 3,
     questionIds: picked.questions.map((q) => q.id),
     label: 'Lượt 3',
-    accentColor: '#f72585',
+    accentColor: '#b42318',
     existingSession: session,
   });
 }

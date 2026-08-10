@@ -11,6 +11,11 @@ import {
 } from '../../data';
 import { escapeHtml } from '../../utils/html';
 import { WheelRenderer } from './wheel';
+import {
+  formatMatchTimerClock,
+  matchTimerRatio,
+  matchTimerUrgency,
+} from '../../utils/match-timer-ui';
 
 /** Hiển thị điểm có dấu — scores[3] có thể âm sau khi tách từ floor tổng. */
 function formatMatchScore(score: number): string {
@@ -22,53 +27,56 @@ function stripOptionLetterPrefix(option: string, letter: string): string {
   return stripped || option;
 }
 
-function formatTimerDisplay(seconds: number): { value: string; unit: string } {
-  if (seconds >= 60) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return { value: `${m}:${String(s).padStart(2, '0')}`, unit: 'phút' };
-  }
-  return { value: String(seconds), unit: 'giây' };
-}
-
-function renderTimerRing(remaining: number, total: number): string {
-  const progress = remaining / Math.max(1, total);
-  const radius = 46;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - progress);
-  const { value, unit } = formatTimerDisplay(remaining);
+function renderTimebar(remaining: number, total: number): string {
+  const ratio = matchTimerRatio(remaining, total);
+  const urgency = matchTimerUrgency(remaining, total);
+  const urgencyClass =
+    urgency === 'danger' ? ' quiz-timebar--danger' : urgency === 'warning' ? ' quiz-timebar--warning' : '';
 
   return `
     <div
-      class="timer-ring timer-ring--quiz-hero"
-      data-match-timer-ring
-      data-timer-circumference="${circumference}"
+      class="quiz-timebar${urgencyClass}"
+      data-match-timebar
+      role="progressbar"
+      aria-valuemin="0"
+      aria-valuemax="${total}"
+      aria-valuenow="${remaining}"
       aria-label="Còn ${remaining} giây"
-      style="--timer-circumference:${circumference};--timer-offset:${dashOffset}"
     >
-      <svg viewBox="0 0 100 100" class="timer-ring__svg" aria-hidden="true">
-        <defs>
-          <linearGradient id="quiz-timer-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#ede9fe" />
-            <stop offset="100%" stop-color="#6d28d9" />
-          </linearGradient>
-        </defs>
-        <circle class="timer-ring__track" cx="50" cy="50" r="${radius}" pathLength="${circumference}" stroke-dasharray="${circumference}" />
-        <circle
-          class="timer-ring__progress"
-          data-match-timer-progress
-          cx="50" cy="50" r="${radius}"
-          pathLength="${circumference}"
-          stroke="url(#quiz-timer-grad)"
-          stroke-dasharray="${circumference}"
-          stroke-dashoffset="${dashOffset}"
-        />
-      </svg>
-      <div class="timer-ring__center">
-        <span class="timer-ring__value" data-match-timer-value>${value}</span>
-        <span class="timer-ring__unit" data-match-timer-unit>${unit}</span>
-      </div>
+      <div class="quiz-timebar__fill" data-match-timebar-fill style="width:${(ratio * 100).toFixed(2)}%"></div>
     </div>
+  `;
+}
+
+function renderMetaTimerPill(remaining: number, total: number): string {
+  const value = formatMatchTimerClock(remaining);
+  const urgency = matchTimerUrgency(remaining, total);
+  const urgencyClass =
+    urgency === 'danger'
+      ? ' quiz-meta__timer--danger'
+      : urgency === 'warning'
+        ? ' quiz-meta__timer--warning'
+        : '';
+
+  return `
+    <span
+      class="quiz-meta__timer${urgencyClass}"
+      data-match-timer-pill
+      aria-label="Còn ${remaining} giây"
+    >
+      <span data-match-timer-value>${value}</span>
+    </span>
+  `;
+}
+
+function renderContextFooter(contextButtonHtml: string): string {
+  if (!contextButtonHtml.trim()) {
+    return '';
+  }
+  return `
+    <footer class="quiz-session__footer">
+      ${contextButtonHtml}
+    </footer>
   `;
 }
 
@@ -134,7 +142,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
           <div class="quiz-session__content match-play__content">
             <main class="quiz-session__main">
               <header class="quiz-session__question-head">
-                <span class="quiz-session__badge" style="--badge-color:#90be6d">Kết thúc ván</span>
+                <span class="quiz-session__badge" style="--badge-color:#2d6a4f">Kết thúc ván</span>
                 <h2 class="quiz-session__title">Tổng kết 3 lượt</h2>
                 <p class="quiz-session__hint">Lượt 3 dùng gói điểm ăn/thua — điểm lượt có thể âm nếu tổng trừ (câu sai) lớn hơn tổng cộng (câu đúng)</p>
               </header>
@@ -163,7 +171,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
           <div class="quiz-session__content match-play__content">
             <main class="quiz-session__main">
               <header class="quiz-session__question-head">
-                <span class="quiz-session__badge" style="--badge-color:#90be6d">Lượt ${round}</span>
+                <span class="quiz-session__badge" style="--badge-color:#2d6a4f">Lượt ${round}</span>
                 <h2 class="quiz-session__title">Kết thúc Lượt ${round}</h2>
                 <p class="quiz-session__hint">Điểm lượt: ${formatMatchScore(score)} · Tổng tạm: ${formatMatchScore(total)}</p>
               </header>
@@ -194,7 +202,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
             <div class="quiz-session__content match-play__content">
               <main class="quiz-session__main match-round2-main">
                 <header class="quiz-session__question-head">
-                  <span class="quiz-session__badge" style="--badge-color:#4895ef">Lượt 2</span>
+                  <span class="quiz-session__badge" style="--badge-color:#c45c26">Lượt 2</span>
                   <h2 class="quiz-session__title">Quay chọn đề</h2>
                   <p class="quiz-session__hint">${packCount} bộ đề · Điểm L1: ${formatMatchScore(session.scores[1])}</p>
                 </header>
@@ -240,7 +248,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
             <div class="quiz-session__content match-play__content">
               <main class="quiz-session__main">
                 <header class="quiz-session__question-head">
-                  <span class="quiz-session__badge" style="--badge-color:#f72585">Lượt 3</span>
+                  <span class="quiz-session__badge" style="--badge-color:#b42318">Lượt 3</span>
                   <h2 class="quiz-session__title">Lượt 3 có ${questionCount} câu</h2>
                   <p class="quiz-session__hint">Mỗi câu chọn gói điểm trước khi trả lời. Đúng cộng · Sai trừ (tổng không âm). Tổng tạm: ${formatMatchScore(session.scores[1] + session.scores[2])}</p>
                 </header>
@@ -303,9 +311,9 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
               </header>
               <div class="match-package-grid" role="group" aria-label="Gói điểm Lượt 3">${packages}</div>
             </main>
-            <footer class="quiz-session__footer">
+            ${renderContextFooter(`
               <button type="button" class="btn btn-ghost" data-action="match-apply-default-package">Dùng gói mặc định</button>
-            </footer>
+            `)}
           </div>
         </div>
       </div>
@@ -323,14 +331,16 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
   }
 
   const showTimer = play.phase === 'answering' && play.timerSec > 0;
-  const scoreBlock = `
-    <div class="quiz-score" role="status">
-      <p class="quiz-score__value">${formatMatchScore(play.roundScore)}</p>
-      <p class="quiz-score__label">${play.round === 3 ? 'ĐIỂM HIỆN CÓ' : `ĐIỂM LƯỢT ${play.round}`}</p>
-    </div>
-  `;
-
   const badge = `<span class="quiz-session__badge" style="--badge-color:${play.accentColor}">${escapeHtml(play.label)} · Câu ${currentNum}/${total}</span>`;
+  const meta = `
+    <header class="quiz-meta">
+      ${badge}
+      <div class="quiz-meta__right">
+        <span class="quiz-meta__score" role="status">Điểm ${formatMatchScore(play.roundScore)}</span>
+        ${showTimer ? renderMetaTimerPill(play.remaining, play.timerSec) : ''}
+      </div>
+    </header>
+  `;
 
   let body = '';
   if (isMcqQuestion(question)) {
@@ -377,11 +387,10 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
         : '';
 
     body = `
-      <header class="quiz-session__question-head">
-        ${badge}
+      <div class="quiz-session__question-head">
         <h2 class="quiz-session__title">${escapeHtml(question.question)}</h2>
         ${isMultiple && !isResult ? '<p class="quiz-session__hint">Chọn tất cả đáp án đúng rồi bấm Chốt đáp án</p>' : ''}
-      </header>
+      </div>
       <div class="quiz-options" role="${isMultiple ? 'group' : 'radiogroup'}">${options}</div>
       ${resultBanner}
     `;
@@ -391,18 +400,16 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
 
     if (play.phase === 'answering') {
       body = `
-        <header class="quiz-session__question-head">
-          ${badge}
+        <div class="quiz-session__question-head">
           <h2 class="quiz-session__title">${escapeHtml(question.question)}</h2>
           <p class="quiz-session__hint">Tự luận miệng — khi xong, bấm nút bên dưới (hoặc chờ hết giờ)</p>
-        </header>
+        </div>
       `;
     } else {
       body = `
-        <header class="quiz-session__question-head">
-          ${badge}
+        <div class="quiz-session__question-head">
           <h2 class="quiz-session__title">${escapeHtml(question.question)}</h2>
-        </header>
+        </div>
         <div class="quiz-answer-reveal" role="status">
           <p class="quiz-answer-reveal__title">Đáp án đúng</p>
           <pre class="quiz-answer-reveal__content">${escapeHtml(question.answer)}</pre>
@@ -423,39 +430,27 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     }
   }
 
-  const footer =
-    play.phase === 'answering' && isEssayQuestion(question)
-      ? `<footer class="quiz-session__footer">
-          <button type="button" class="btn btn-submit quiz-session__submit-btn" data-action="match-reveal-essay">Đã trả lời xong</button>
-        </footer>`
-      : play.phase === 'answering' && isMcqQuestion(question) && isMultipleMcqQuestion(question)
-        ? `<footer class="quiz-session__footer">
-            <button type="button" class="btn btn-submit quiz-session__submit-btn" data-action="match-confirm-mcq" ${play.playerAnswer.trim() ? '' : 'disabled'}>Chốt đáp án</button>
-          </footer>`
-      : play.phase === 'revealed' && play.lastIsCorrect !== null
-        ? `<footer class="quiz-session__footer">
-            <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-next-question">
-              ${play.currentIndex + 1 >= play.questionIds.length ? 'Chốt lượt' : 'Câu tiếp'}
-            </button>
-          </footer>`
-        : '<footer class="quiz-session__footer"></footer>';
+  let contextButton = '';
+  if (play.phase === 'answering' && isEssayQuestion(question)) {
+    contextButton = `<button type="button" class="btn btn-submit quiz-session__submit-btn" data-action="match-reveal-essay">Đã trả lời xong</button>`;
+  } else if (play.phase === 'answering' && isMcqQuestion(question) && isMultipleMcqQuestion(question)) {
+    contextButton = `<button type="button" class="btn btn-submit quiz-session__submit-btn" data-action="match-confirm-mcq" ${play.playerAnswer.trim() ? '' : 'disabled'}>Chốt đáp án</button>`;
+  } else if (play.phase === 'revealed' && play.lastIsCorrect !== null) {
+    contextButton = `<button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-next-question">
+      ${play.currentIndex + 1 >= play.questionIds.length ? 'Chốt lượt' : 'Câu tiếp'}
+    </button>`;
+  }
 
   return `
     <div class="quiz-session-backdrop match-play-backdrop">
-      <div class="quiz-session match-play">
-        <aside class="quiz-session__sidebar" aria-label="Tiến độ lượt">
-          ${scoreBlock}
-          ${showTimer ? `<div class="quiz-session__timer-wrap">${renderTimerRing(play.remaining, play.timerSec)}</div>` : ''}
-          <div class="quiz-session__progress-label">
-            <span class="quiz-session__progress-current">Câu ${currentNum}/${total}</span>
-            <span class="quiz-session__progress-answered">Lượt ${play.round}</span>
-          </div>
-        </aside>
-        <div class="quiz-session__content">
+      <div class="quiz-session match-play match-play--question">
+        <div class="quiz-session__content match-play__content">
+          ${showTimer ? renderTimebar(play.remaining, play.timerSec) : ''}
+          ${meta}
           <main class="quiz-session__main">
             <div class="quiz-session__body">${body}</div>
           </main>
-          ${footer}
+          ${renderContextFooter(contextButton)}
         </div>
       </div>
     </div>

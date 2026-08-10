@@ -8,14 +8,14 @@ import { pickMatchQuestionsFromCategory } from '../match-questions';
 import type { Category, MatchExamPack, WheelSegment } from '../../types';
 
 const ROUND2_PACK_COLORS = [
-  '#f94144',
-  '#f3722c',
-  '#f8961e',
-  '#90be6d',
-  '#43aa8b',
-  '#577590',
-  '#277da1',
-  '#9b5de5',
+  '#b42318',
+  '#c45c26',
+  '#d4a017',
+  '#2d6a4f',
+  '#1a4d3e',
+  '#8f1c14',
+  '#a67c00',
+  '#3d5a40',
 ];
 
 function buildExamPackWheelSegments(packs: MatchExamPack[]): WheelSegment[] {

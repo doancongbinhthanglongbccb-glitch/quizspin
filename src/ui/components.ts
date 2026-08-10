@@ -25,9 +25,9 @@ import { canReplayIntro, canSwitchTab, getNavigationBlockReason } from '../utils
 import { showToast } from '../core/toast';
 
 const TAB_META: Record<'spin' | 'bank' | 'settings', { label: string; short: string; icon: string }> = {
-  spin: { label: 'Vòng Quay', short: 'Quay', icon: '🎖️' },
-  bank: { label: 'Ngân Hàng Câu Hỏi', short: 'Ngân Hàng', icon: '📋' },
-  settings: { label: 'Cài Đặt', short: 'Cài đặt', icon: '⚙️' },
+  spin: { label: 'Vòng Quay', short: 'Quay', icon: '◎' },
+  bank: { label: 'Ngân Hàng Câu Hỏi', short: 'Ngân Hàng', icon: '☰' },
+  settings: { label: 'Cài Đặt', short: 'Cài đặt', icon: '⚙' },
 };
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
@@ -263,7 +263,7 @@ function renderOnce(): void {
         ${renderTabs()}
 
         <div class="app-body flex min-h-0 flex-1 w-full min-w-0 max-w-full flex-col overflow-hidden p-4 pb-nav lg:landscape:pb-4">
-          <header class="app-header mb-[18px] min-w-0 max-w-full shrink-0 rounded-[18px] border border-accent-yellow/20 px-4 py-3.5 pb-4">
+          <header class="app-header mb-[18px] min-w-0 max-w-full shrink-0 rounded-[16px] border border-accent-yellow/30 px-4 py-3.5 pb-4">
             <div class="flex min-w-0 items-center gap-3.5">
               <img
                 class="app-header__logo h-12 w-auto shrink-0 rounded-full border-2 border-accent-yellow/45 bg-[#0f2410] object-cover shadow-lg max-lg:h-12 lg:landscape:h-11 xl:landscape:h-14"
@@ -285,7 +285,6 @@ function renderOnce(): void {
     `;
 
     lastShellRenderKey = shellKey;
-    hosts.fab.innerHTML = renderIntroReplayFab();
     eventCleanups = bindEvents();
     mountWheelCanvas();
     if (nextRuntime.tab === 'spin') {
@@ -299,6 +298,9 @@ function renderOnce(): void {
       restoreScroll(appRoot, scrollSnapshot);
     }
   }
+
+  // FAB intro ẩn khi đang trong ván (tránh chồng overlay).
+  hosts.fab.innerHTML = canReplayIntro() ? renderIntroReplayFab() : '';
 
   if (nextRuntime.toast !== lastToastMessage) {
     lastToastMessage = nextRuntime.toast;

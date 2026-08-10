@@ -1,4 +1,5 @@
-export const DEFAULT_PALETTE = ['#ffb703', '#4cc9f0', '#f72585', '#90be6d', '#f9844a', '#4895ef', '#b5179e', '#43aa8b'];
+/** Palette vòng quay — đỏ/vàng/xanh hội trường */
+export const DEFAULT_PALETTE = ['#d4a017', '#b42318', '#1a4d3e', '#c45c26', '#2d6a4f', '#8f1c14', '#a67c00', '#3d5a40'];
 
 import { SPIN_CONFIG } from './config/spin';
 

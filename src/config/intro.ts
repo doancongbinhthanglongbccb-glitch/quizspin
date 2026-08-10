@@ -14,6 +14,6 @@ export const INTRO_COPY = {
   title: 'BỔ TRỢ GIÁO DỤC - CHÍNH TRỊ',
   startLabel: 'VÒNG XOAY KIẾN THỨC',
   skipLabel: 'Bỏ qua',
-  replayLabel: 'Quay lại',
+  replayLabel: 'Màn chào',
   logoAlt: 'Bổ trợ giáo dục - chính trị',
 } as const;

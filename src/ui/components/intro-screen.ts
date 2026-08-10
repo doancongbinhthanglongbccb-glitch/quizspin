@@ -77,11 +77,11 @@ export function renderIntroScreen(appState: AppState): string {
   return `
     <section class="intro-screen" aria-label="Màn hình chào mừng">
       <div
-        class="intro-screen__bg absolute inset-0 z-0 bg-[#050810] bg-cover bg-center bg-no-repeat"
+        class="intro-screen__bg absolute inset-0 z-0 bg-[#0c1a12] bg-cover bg-center bg-no-repeat"
         style="background-image: url('${INTRO_ASSETS.background}')"
         aria-hidden="true"
       ></div>
-      <div class="intro-screen__overlay absolute inset-0 z-[1] bg-[#050810]/[0.72]" aria-hidden="true"></div>
+      <div class="intro-screen__overlay absolute inset-0 z-[1] bg-[#0c1a12]/[0.68]" aria-hidden="true"></div>
 
       <div class="intro-screen__content relative z-[2] flex w-full max-w-full flex-col items-center justify-center gap-[22px] px-5 pb-24 pt-8 text-center xs:px-4 tablet:gap-6 tablet:px-6 tablet:pb-24 tablet:pt-8">
         <img

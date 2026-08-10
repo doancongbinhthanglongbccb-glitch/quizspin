@@ -291,6 +291,5 @@ export async function confirmDialogAction(): Promise<void> {
     appContext.setQuestionPools((current) => resetCategoryPool(current, dialog.categoryId));
     appContext.setRuntimeState({ confirmDialog: null });
     showToast(`Đã reset pool lĩnh vực ${dialog.categoryName}`);
-    return;
   }
 }

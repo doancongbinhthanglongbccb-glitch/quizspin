@@ -147,7 +147,7 @@ function renderSoundEvents(appState: AppState, runtime: RuntimeState): string {
   return SOUND_EVENT_GROUPS.map(
     (group) => `
       <div class="settings-sound-group grid gap-2.5 [&+&]:mt-[18px]">
-        <p class="settings-sound-group__title m-0 text-caption font-extrabold uppercase tracking-widest text-violet-300/85">${group.title}</p>
+        <p class="settings-sound-group__title m-0 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">${group.title}</p>
         <div class="sound-events grid gap-3 mt-3 xl:landscape:grid-cols-2">
           ${group.keys.map((eventKey) => renderSoundEventRow(appState, runtime, eventKey)).join('')}
         </div>
@@ -322,7 +322,7 @@ function renderMatchPanel(appState: AppState): string {
           : `<p class="m-0 mb-3.5 text-caption text-white/45">Điểm tối đa lý thuyết hiện tại: <strong class="text-white/80">${theoreticalMax}</strong> (ngưỡng tham khảo 400).</p>`
       }
 
-      <p class="settings-sound-group__title m-0 mb-2 text-caption font-extrabold uppercase tracking-widest text-violet-300/85">Lượt 1</p>
+      <p class="settings-sound-group__title m-0 mb-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">Lượt 1</p>
       ${renderMatchNumberField({
         id: 'match-round1-count',
         label: 'Số câu',
@@ -340,7 +340,7 @@ function renderMatchPanel(appState: AppState): string {
         max: DEFAULTS.timerMaxSec,
       })}
 
-      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-violet-300/85">Lượt 2</p>
+      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">Lượt 2</p>
       ${renderMatchNumberField({
         id: 'match-round2-per-pack',
         label: 'Số câu mỗi bộ đề',
@@ -358,7 +358,7 @@ function renderMatchPanel(appState: AppState): string {
         max: DEFAULTS.timerMaxSec,
       })}
 
-      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-violet-300/85">Lượt 3</p>
+      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">Lượt 3</p>
       ${renderMatchNumberField({
         id: 'match-round3-count',
         label: 'Số câu',
@@ -395,7 +395,7 @@ function renderSoundPanel(appState: AppState, runtime: RuntimeState): string {
       </div>
       <p class="settings-sound-note mb-3.5 text-caption leading-relaxed text-slate-300/90">
         Upload file <strong>.mp3 / .wav / .ogg</strong> (tối đa 2MB). Chọn file để nghe thử trước, sau đó bấm <strong>Lưu</strong> để gán.
-        Mặc định nằm trong <code class="text-caption text-violet-300/95">public/sounds/</code>.
+        Mặc định nằm trong <code class="text-caption text-amber-200/95">public/sounds/</code>.
       </p>
       ${renderSoundEvents(appState, runtime)}
     </div>
@@ -496,7 +496,7 @@ function renderIntroPanel(appState: AppState, runtime: RuntimeState): string {
     <div class="settings-panel-card">
       <p class="settings-panel-card__title"><span aria-hidden="true">🎬</span>Nút liên kết màn Intro</p>
       <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-        Thêm nút bên cạnh «Vòng xoay kiến thức». Chỉ hiện trên Intro khi đã nhập URL (<code class="text-caption text-violet-300/95">https://...</code>). Tối đa ${MAX_INTRO_LINKS} nút.
+        Thêm nút bên cạnh «Vòng xoay kiến thức». Chỉ hiện trên Intro khi đã nhập URL (<code class="text-caption text-amber-200/95">https://...</code>). Tối đa ${MAX_INTRO_LINKS} nút.
       </p>
       <div class="intro-links-editor" id="intro-links-editor">
         ${renderIntroLinksEditor(links)}

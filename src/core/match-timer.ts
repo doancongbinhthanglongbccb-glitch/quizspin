@@ -1,5 +1,10 @@
-import { QUIZ_CONFIG } from '../config/quiz';
 import { isAndroidApp } from '../utils/platform';
+import {
+  formatMatchTimerClock,
+  matchTimerDangerSec,
+  matchTimerRatio,
+  matchTimerUrgency,
+} from '../utils/match-timer-ui';
 import { soundManager } from './sound-manager';
 import { appContext } from './state';
 
@@ -23,39 +28,32 @@ export function stopMatchTimer(): void {
 
 function updateMatchTimerDom(remaining: number, total: number): void {
   const valueEl = document.querySelector<HTMLElement>('[data-match-timer-value]');
-  const unitEl = document.querySelector<HTMLElement>('[data-match-timer-unit]');
-  const ring = document.querySelector<HTMLElement>('[data-match-timer-ring]');
-  const progress = document.querySelector<SVGCircleElement>('[data-match-timer-progress]');
-
-  const display =
-    remaining >= 60
-      ? { value: `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`, unit: 'phút' }
-      : { value: String(remaining), unit: 'giây' };
+  const timebar = document.querySelector<HTMLElement>('[data-match-timebar]');
+  const fill = document.querySelector<HTMLElement>('[data-match-timebar-fill]');
+  const pill = document.querySelector<HTMLElement>('[data-match-timer-pill]');
 
   if (valueEl) {
-    valueEl.textContent = display.value;
-  }
-  if (unitEl) {
-    unitEl.textContent = display.unit;
+    valueEl.textContent = formatMatchTimerClock(remaining);
   }
 
-  const dangerSec = Math.min(QUIZ_CONFIG.dangerThresholdSec, Math.max(3, Math.ceil(total * 0.25)));
-  const warningSec = Math.min(QUIZ_CONFIG.warningThresholdSec, Math.max(dangerSec + 1, Math.ceil(total * 0.5)));
-  const danger = remaining > 0 && remaining <= dangerSec;
-  const warning = remaining > dangerSec && remaining <= warningSec;
+  const urgency = matchTimerUrgency(remaining, total);
+  const ratio = matchTimerRatio(remaining, total);
 
-  if (ring) {
-    ring.classList.toggle('timer-ring--danger', danger);
-    ring.classList.toggle('timer-ring--warning', warning && !danger);
-    ring.setAttribute('aria-label', `Còn ${remaining} giây`);
+  if (fill) {
+    fill.style.width = `${(ratio * 100).toFixed(2)}%`;
   }
 
-  if (progress && ring) {
-    const circumference = Number(ring.dataset.timerCircumference ?? 0);
-    if (circumference > 0) {
-      const ratio = remaining / Math.max(1, total);
-      progress.style.strokeDashoffset = String(circumference * (1 - ratio));
-    }
+  if (timebar) {
+    timebar.classList.toggle('quiz-timebar--danger', urgency === 'danger');
+    timebar.classList.toggle('quiz-timebar--warning', urgency === 'warning');
+    timebar.setAttribute('aria-valuenow', String(remaining));
+    timebar.setAttribute('aria-label', `Còn ${remaining} giây`);
+  }
+
+  if (pill) {
+    pill.classList.toggle('quiz-meta__timer--danger', urgency === 'danger');
+    pill.classList.toggle('quiz-meta__timer--warning', urgency === 'warning');
+    pill.setAttribute('aria-label', `Còn ${remaining} giây`);
   }
 }
 
@@ -97,11 +95,7 @@ export function startMatchTimer(): void {
     updateMatchTimerDom(remaining, latestPlay.timerSec);
 
     if (remaining < lastRemaining) {
-      const dangerSec = Math.min(
-        QUIZ_CONFIG.dangerThresholdSec,
-        Math.max(3, Math.ceil(latestPlay.timerSec * 0.25)),
-      );
-      if (remaining <= dangerSec) {
+      if (remaining <= matchTimerDangerSec(latestPlay.timerSec)) {
         soundManager.play('countdown');
       }
       appContext.patchRuntimeState({
