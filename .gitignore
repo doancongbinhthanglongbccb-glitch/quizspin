@@ -20,6 +20,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Claude Code local skill mirror (Cursor uses .agents/ + skills-lock.json)
+.claude/
+
 # Android Studio project metadata (under android/)
 android/.idea/
 
