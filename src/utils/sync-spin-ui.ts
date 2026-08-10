@@ -1,4 +1,5 @@
 import { appContext } from '../core/state';
+import { countUsedQuestionsInBank } from '../core/pool-manager';
 
 /** Cập nhật nút quay / trạng thái / glow mà không rebuild shell */
 export function syncSpinUi(): void {
@@ -19,7 +20,7 @@ export function syncSpinUi(): void {
     matchSpinButton.disabled = spinning;
   }
 
-  const statusEl = document.querySelector<HTMLElement>('.spin-stat__value.status-pill--live');
+  const statusEl = document.querySelector<HTMLElement>('.spin-meta__status');
   if (statusEl) {
     statusEl.textContent = spinning
       ? 'Đang quay'
@@ -28,6 +29,16 @@ export function syncSpinUi(): void {
         : modalOpen
           ? 'Đang hiển thị kết quả'
           : 'Sẵn sàng';
+  }
+
+  const usedEl = document.querySelector<HTMLElement>('[data-match-used-progress]');
+  if (usedEl) {
+    const appState = appContext.getAppState();
+    const used = countUsedQuestionsInBank(appContext.getQuestionPools(), appState.categories);
+    const total = appState.categories.reduce((count, category) => count + category.questions.length, 0);
+    const value = `${used}/${total}`;
+    usedEl.dataset.matchUsedProgress = value;
+    usedEl.textContent = `Đã dùng ${value}`;
   }
 
   document.querySelectorAll<HTMLElement>('[data-wheel-host]').forEach((wheelHost) => {

@@ -1,7 +1,8 @@
-import type { RuntimeState } from '../core/state';
 import { appContext } from '../core/state';
+import type { RuntimeState } from '../core/state';
 import type { AppState } from '../types';
 import { SOUND_EVENT_KEYS } from '../config/sounds';
+import { countUsedQuestionsInBank } from '../core/pool-manager';
 
 /**
  * Chữ ký phần shell (nav + tab content). Chỉ rebuild shell khi đổi.
@@ -21,7 +22,6 @@ export function getShellRenderKey(appState: AppState, runtime: RuntimeState): st
     return [
       base,
       runtime.selectedCategoryId ?? '',
-      runtime.questionFilter,
       runtime.editingQuestionId ?? '',
       runtime.bankFormOpen ? '1' : '0',
       runtime.bankFormOpen ? runtime.questionDraft.type : '',
@@ -33,9 +33,6 @@ export function getShellRenderKey(appState: AppState, runtime: RuntimeState): st
   if (runtime.tab === 'settings') {
     const bindings = appState.settings.sounds?.bindings ?? {};
     const bindingsSig = SOUND_EVENT_KEYS.map((key) => bindings[key] ?? '').join('|');
-    const poolsSig = Object.entries(appContext.getQuestionPools())
-      .map(([id, ids]) => `${id}:${ids.length}`)
-      .join(',');
     const match = appState.settings.match;
     const matchSig = match
       ? [
@@ -44,30 +41,53 @@ export function getShellRenderKey(appState: AppState, runtime: RuntimeState): st
           match.round2QuestionsPerPack,
           match.round2TimerSec,
           match.round3QuestionCount,
+          match.round3TimerSec,
           match.round3PackagePickSec,
           match.round3DefaultPackageId,
           match.round3Packages.map((pkg) => `${pkg.id}:${pkg.points}:${pkg.timerSec}`).join(','),
         ].join('|')
       : '';
+    const usedPersist = countUsedQuestionsInBank(appContext.getQuestionPools(), appState.categories);
 
     return [
       base,
       runtime.settingsSection,
       appState.settings.timer,
       appState.settings.sound ? '1' : '0',
-      appState.settings.gifts.length,
-      appState.settings.punishments.length,
       appState.settings.sounds?.library.length ?? 0,
       bindingsSig,
       runtime.soundUploadDraft?.eventKey ?? '',
-      poolsSig,
       matchSig,
+      usedPersist,
     ].join('|');
   }
 
   if (runtime.tab === 'spin') {
     const wheelSig = appState.categories.map((c) => `${c.id}:${c.name}:${c.color}`).join(',');
-    return [base, wheelSig].join('|');
+    const match = runtime.matchSession;
+    const matchSig = match
+      ? [
+          match.currentRound,
+          match.round2Packs.map((pack) => pack.id).join(','),
+          // Idle mới đưa used vào key → rebuild bánh xe. Đang chơi: chỉ sync label qua syncSpinUi.
+          match.activePlay ? 'play' : match.usedQuestionIds.join(','),
+          match.activePlay ? '1' : '0',
+          match.roundSummary ? `s${match.roundSummary.round}` : '',
+          match.showFinalSummary ? '1' : '0',
+          match.round3SourceMode,
+          match.round3CategoryId ?? '',
+          Math.round(match.scores[1] * 100),
+          Math.round(match.scores[2] * 100),
+        ].join('|')
+      : '';
+    const packagesSig =
+      appState.settings.match?.round3Packages.map((pkg) => `${pkg.id}:${pkg.points}:${pkg.timerSec}`).join(',') ??
+      '';
+    // Idle mới đưa used persist vào key. Đang chơi: syncSpinUi cập nhật label, tránh rebuild bánh.
+    const usedPersist = runtime.matchSession?.activePlay
+      ? 'play'
+      : String(countUsedQuestionsInBank(appContext.getQuestionPools(), appState.categories));
+    return [base, wheelSig, runtime.spinRoundView, matchSig, packagesSig, usedPersist].join('|');
   }
 
   return base;

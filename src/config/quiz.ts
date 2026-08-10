@@ -1,4 +1,4 @@
-/** Ngưỡng cảnh báo timer — tái dùng cho phần thi 1 câu/lần (Phase 2+) */
+/** Ngưỡng urgency timer — dùng chung cho match-play */
 export const QUIZ_CONFIG = {
   /** Cảnh báo vàng khi còn ≤ 5 phút */
   warningThresholdSec: 300,

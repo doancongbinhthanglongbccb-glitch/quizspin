@@ -1,7 +1,7 @@
 import { Preferences } from '@capacitor/preferences';
 import type { AppState, QuestionPools } from './types';
 
-export const POOLS_STORAGE_KEY = 'quizspin_pools';
+const POOLS_STORAGE_KEY = 'quizspin_pools';
 
 const browserPrefix = 'quizspin:';
 
@@ -34,10 +34,7 @@ export async function readJson<T>(key: string, fallback: T): Promise<T> {
   }
 }
 
-/**
- * Ghi JSON value vào storage (atomically)
- */
-export async function writeJson<T>(key: string, value: T): Promise<void> {
+async function writeJson<T>(key: string, value: T): Promise<void> {
   const raw = JSON.stringify(value);
   try {
     await Preferences.set({ key, value: raw });
@@ -46,10 +43,7 @@ export async function writeJson<T>(key: string, value: T): Promise<void> {
   }
 }
 
-/**
- * Xóa value từ storage
- */
-export async function removeValue(key: string): Promise<void> {
+async function removeValue(key: string): Promise<void> {
   try {
     await Preferences.remove({ key });
   } catch {

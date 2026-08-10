@@ -61,6 +61,11 @@ export function bindMatchPlayHandlers(root: ParentNode): () => void {
       return;
     }
 
+    if (getActionTarget(event, root, '[data-action="match-proceed-round3"]')) {
+      Actions.proceedToRound3();
+      return;
+    }
+
     if (getActionTarget(event, root, '[data-action="match-spin-round2"]')) {
       Actions.spinMatchRound2();
       return;

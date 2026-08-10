@@ -1,6 +1,6 @@
 import { appContext, type RuntimeState } from '../core/state';
 import { buildWheelModel } from '../core/wheel';
-import { buildRound2WheelModel } from '../core/actions/spin-actions';
+import { buildRound2WheelModel, getSpinRound2WheelPacks } from '../core/actions/spin-actions';
 import { renderModal } from './components/modal';
 import { renderConfirmDialog } from './components/confirm-dialog';
 import { renderMatchPlay, getMatchPlayMountKey } from './components/match-play';
@@ -89,14 +89,8 @@ type FocusSnapshot = {
   selectionEnd: number;
 } | null;
 
-const SETTINGS_FIELD_IDS = new Set(['gifts-input', 'punishments-input']);
-
 function isSettingsFieldId(id: string): boolean {
-  return (
-    SETTINGS_FIELD_IDS.has(id) ||
-    id.startsWith('intro-link-label-input-') ||
-    id.startsWith('intro-link-url-input-')
-  );
+  return id.startsWith('intro-link-label-input-') || id.startsWith('intro-link-url-input-');
 }
 
 let lastRenderedSettingsSection: RuntimeState['settingsSection'] | null = null;
@@ -322,7 +316,10 @@ function renderOnce(): void {
   if (matchPlayKey !== lastMatchPlayKey) {
     lastMatchPlayKey = matchPlayKey;
     hosts.match.innerHTML = renderMatchPlay(appState, nextRuntime);
-    syncMatchRound2Wheel(appState, nextRuntime);
+    mountWheelCanvas();
+    if (nextRuntime.tab === 'spin') {
+      syncSpinUi();
+    }
   }
 
   if (nextRuntime.tab === 'settings') {
@@ -459,60 +456,52 @@ function cleanupRenderLifecycle(): void {
 
 function mountWheelCanvas(): void {
   const runtime = appContext.getRuntimeState();
-  if (runtime.tab !== 'spin') {
+  if (runtime.tab !== 'spin' || runtime.spinRoundView === 3) {
     WheelRenderer.destroy();
     wheelCleanup = null;
     return;
   }
 
-  if (isMatchRound2WheelVisible(runtime)) {
+  // Guard prompt: không rebuild danh sách bánh xe Tổng hợp khi đang chơi / quay / tóm tắt.
+  if (
+    runtime.spinRoundView === 2 &&
+    (runtime.spinning || runtime.matchSession?.activePlay || runtime.matchSession?.roundSummary)
+  ) {
     return;
   }
 
   const appState = appContext.getAppState();
-  const model = buildWheelModel(appState);
+  const model =
+    runtime.spinRoundView === 2
+      ? (() => {
+          const packs = getSpinRound2WheelPacks();
+          return packs.length > 0 ? buildRound2WheelModel(packs) : null;
+        })()
+      : buildWheelModel(appState);
+
+  if (!model) {
+    WheelRenderer.destroy();
+    wheelCleanup = null;
+    return;
+  }
+
   wheelCleanup = WheelRenderer.ensure('#app-shell-root [data-wheel-host]', model, runtime.rotation);
 
   // Layout spin landscape áp sau paint — remeasure canvas một lần
   requestAnimationFrame(() => {
-    if (appContext.getRuntimeState().tab !== 'spin') {
-      return;
-    }
-    if (isMatchRound2WheelVisible(appContext.getRuntimeState())) {
-      return;
-    }
     const nextRuntime = appContext.getRuntimeState();
+    if (nextRuntime.tab !== 'spin' || nextRuntime.spinRoundView === 3) {
+      return;
+    }
+    if (
+      nextRuntime.spinRoundView === 2 &&
+      (nextRuntime.spinning || nextRuntime.matchSession?.activePlay || nextRuntime.matchSession?.roundSummary)
+    ) {
+      return;
+    }
+    if (nextRuntime.spinRoundView === 2 && getSpinRound2WheelPacks().length === 0) {
+      return;
+    }
     wheelCleanup = WheelRenderer.ensure('#app-shell-root [data-wheel-host]', model, nextRuntime.rotation);
-  });
-}
-
-function isMatchRound2WheelVisible(runtime: RuntimeState): boolean {
-  const session = runtime.matchSession;
-  return Boolean(
-    session &&
-      session.currentRound === 2 &&
-      !session.activePlay &&
-      !session.roundSummary &&
-      session.round2Packs.length > 0,
-  );
-}
-
-function syncMatchRound2Wheel(_appState: ReturnType<typeof appContext.getAppState>, runtime: RuntimeState): void {
-  if (!isMatchRound2WheelVisible(runtime)) {
-    if (runtime.tab === 'spin') {
-      mountWheelCanvas();
-    }
-    return;
-  }
-
-  const session = runtime.matchSession!;
-  const model = buildRound2WheelModel(session.round2Packs);
-  wheelCleanup = WheelRenderer.ensure('#match-host [data-wheel-host]', model, runtime.rotation);
-  requestAnimationFrame(() => {
-    if (!isMatchRound2WheelVisible(appContext.getRuntimeState())) {
-      return;
-    }
-    const nextRuntime = appContext.getRuntimeState();
-    wheelCleanup = WheelRenderer.ensure('#match-host [data-wheel-host]', model, nextRuntime.rotation);
   });
 }

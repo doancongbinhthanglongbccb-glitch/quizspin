@@ -10,12 +10,12 @@ import {
   isMultipleMcqQuestion,
 } from '../../data';
 import { escapeHtml } from '../../utils/html';
-import { WheelRenderer } from './wheel';
 import {
   formatMatchTimerClock,
   matchTimerRatio,
   matchTimerUrgency,
 } from '../../utils/match-timer-ui';
+import { MATCH_ROUND_NAMES } from '../../config/match';
 
 /** Hiển thị điểm có dấu — scores[3] có thể âm sau khi tách từ floor tổng. */
 function formatMatchScore(score: number): string {
@@ -27,11 +27,17 @@ function stripOptionLetterPrefix(option: string, letter: string): string {
   return stripped || option;
 }
 
-function renderTimebar(remaining: number, total: number): string {
+function renderTimebar(remaining: number, total: number, bonusWindowSec?: number): string {
   const ratio = matchTimerRatio(remaining, total);
   const urgency = matchTimerUrgency(remaining, total);
   const urgencyClass =
     urgency === 'danger' ? ' quiz-timebar--danger' : urgency === 'warning' ? ' quiz-timebar--warning' : '';
+
+  const bonusSec = bonusWindowSec !== undefined ? Math.max(0, Math.min(total, bonusWindowSec)) : null;
+  const marker =
+    bonusSec !== null && total > 0
+      ? `<div class="quiz-timebar__bonus-mark" style="left:${(((total - bonusSec) / total) * 100).toFixed(2)}%" title="Hết cửa sổ điểm gói"></div>`
+      : '';
 
   return `
     <div
@@ -44,6 +50,7 @@ function renderTimebar(remaining: number, total: number): string {
       aria-label="Còn ${remaining} giây"
     >
       <div class="quiz-timebar__fill" data-match-timebar-fill style="width:${(ratio * 100).toFixed(2)}%"></div>
+      ${marker}
     </div>
   `;
 }
@@ -66,6 +73,23 @@ function renderMetaTimerPill(remaining: number, total: number): string {
     >
       <span data-match-timer-value>${value}</span>
     </span>
+  `;
+}
+
+function renderMatchRoundProgress(round: 1 | 2 | 3): string {
+  const name = MATCH_ROUND_NAMES[round];
+  const dots = ([1, 2, 3] as const)
+    .map((step) => {
+      const state = step < round ? 'done' : step === round ? 'current' : 'todo';
+      return `<span class="match-round-progress__dot match-round-progress__dot--${state}" aria-hidden="true"></span>`;
+    })
+    .join('');
+
+  return `
+    <div class="match-round-progress" aria-label="${name}">
+      <span class="match-round-progress__label">${name}</span>
+      <span class="match-round-progress__dots">${dots}</span>
+    </div>
   `;
 }
 
@@ -93,13 +117,8 @@ export function getMatchPlayMountKey(runtime: RuntimeState): string {
   }
 
   if (!play && !summary) {
-    if (session.currentRound === 2 && session.round2Packs.length > 0) {
-      return `session|2|packs|${session.round2Packs.map((pack) => pack.id).join(',')}`;
-    }
-    if (session.currentRound === 3) {
-      return 'session|3|rules';
-    }
-    return `session|${session.currentRound}|idle`;
+    // L2 vòng đề / L3 luật hiện trên tab Quay (spinRoundView), không overlay
+    return `session|${session.currentRound}|spin|u${session.usedQuestionIds.length}`;
   }
 
   if (summary && !play) {
@@ -120,6 +139,9 @@ export function getMatchPlayMountKey(runtime: RuntimeState): string {
     play.playerAnswer,
     play.lastIsCorrect === null ? 'pending' : play.lastIsCorrect ? '1' : '0',
     Math.round(play.roundScore * 100),
+    Object.entries(session.round3PackageRemaining)
+      .map(([id, left]) => `${id}:${left}`)
+      .join(','),
   ].join('|');
 }
 
@@ -134,24 +156,41 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     const s2 = session.scores[2];
     const s3 = session.scores[3];
     const total = s1 + s2 + s3;
-    const s3Class = s3 < 0 ? ' match-final-score--negative' : '';
+    const totalClass = total < 0 ? ' match-final-hero__value--negative' : '';
+    const s3Class = s3 < 0 ? ' match-final-act--negative' : '';
 
     return `
       <div class="quiz-session-backdrop match-play-backdrop">
-        <div class="quiz-session match-play">
-          <div class="quiz-session__content match-play__content">
-            <main class="quiz-session__main">
-              <header class="quiz-session__question-head">
-                <span class="quiz-session__badge" style="--badge-color:#2d6a4f">Kết thúc ván</span>
-                <h2 class="quiz-session__title">Tổng kết 3 lượt</h2>
-                <p class="quiz-session__hint">Lượt 3 dùng gói điểm ăn/thua — điểm lượt có thể âm nếu tổng trừ (câu sai) lớn hơn tổng cộng (câu đúng)</p>
+        <div class="quiz-session match-play match-play--final">
+          <div class="quiz-session__content match-play__content match-final">
+            <main class="quiz-session__main match-final__main">
+              <header class="match-final__head">
+                <p class="match-final__eyebrow">Kết thúc ván</p>
+                <h2 class="match-final__title">Tổng kết</h2>
               </header>
-              <ul class="match-final-scores" aria-label="Điểm từng lượt">
-                <li class="match-final-score"><span>Lượt 1</span><strong>${formatMatchScore(s1)}</strong></li>
-                <li class="match-final-score"><span>Lượt 2</span><strong>${formatMatchScore(s2)}</strong></li>
-                <li class="match-final-score${s3Class}"><span>Lượt 3</span><strong>${formatMatchScore(s3)}</strong></li>
-                <li class="match-final-score match-final-score--total"><span>Tổng</span><strong>${formatMatchScore(total)}</strong></li>
-              </ul>
+
+              <div class="match-final-hero" role="status" aria-label="Tổng điểm ${formatMatchScore(total)}">
+                <p class="match-final-hero__value${totalClass}">${formatMatchScore(total)}</p>
+                <p class="match-final-hero__label">Tổng điểm</p>
+              </div>
+
+              <ol class="match-final-board" aria-label="Điểm từng màn">
+                <li class="match-final-act">
+                  <span class="match-final-act__index" aria-hidden="true">01</span>
+                  <span class="match-final-act__name">${MATCH_ROUND_NAMES[1]}</span>
+                  <strong class="match-final-act__score">${formatMatchScore(s1)}</strong>
+                </li>
+                <li class="match-final-act">
+                  <span class="match-final-act__index" aria-hidden="true">02</span>
+                  <span class="match-final-act__name">${MATCH_ROUND_NAMES[2]}</span>
+                  <strong class="match-final-act__score">${formatMatchScore(s2)}</strong>
+                </li>
+                <li class="match-final-act${s3Class}">
+                  <span class="match-final-act__index" aria-hidden="true">03</span>
+                  <span class="match-final-act__name">${MATCH_ROUND_NAMES[3]}</span>
+                  <strong class="match-final-act__score">${formatMatchScore(s3)}</strong>
+                </li>
+              </ol>
             </main>
             <footer class="quiz-session__footer">
               <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-close-session">Về vòng quay</button>
@@ -164,25 +203,34 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
 
   if (session.roundSummary && !session.activePlay) {
     const { round, score } = session.roundSummary;
-    const total = session.scores[1] + session.scores[2] + session.scores[3];
+    const runningTotal = session.scores[1] + session.scores[2] + session.scores[3];
+    const title = `Kết thúc ${MATCH_ROUND_NAMES[round]}`;
+    const continueLabel =
+      round === 1
+        ? `Sang ${MATCH_ROUND_NAMES[2]}`
+        : round === 2
+          ? `Sang ${MATCH_ROUND_NAMES[3]}`
+          : 'Xem tổng kết';
+
     return `
       <div class="quiz-session-backdrop match-play-backdrop">
         <div class="quiz-session match-play">
           <div class="quiz-session__content match-play__content">
+            ${renderMatchRoundProgress(round)}
             <main class="quiz-session__main">
               <header class="quiz-session__question-head">
-                <span class="quiz-session__badge" style="--badge-color:#2d6a4f">Lượt ${round}</span>
-                <h2 class="quiz-session__title">Kết thúc Lượt ${round}</h2>
-                <p class="quiz-session__hint">Điểm lượt: ${formatMatchScore(score)} · Tổng tạm: ${formatMatchScore(total)}</p>
+                <span class="quiz-session__badge" style="--badge-color:#2d6a4f">${MATCH_ROUND_NAMES[round]}</span>
+                <h2 class="quiz-session__title">${title}</h2>
               </header>
               <div class="quiz-score" role="status">
                 <p class="quiz-score__value">${formatMatchScore(score)}</p>
-                <p class="quiz-score__label">ĐIỂM LƯỢT ${round}</p>
+                <p class="quiz-score__label">ĐIỂM ${MATCH_ROUND_NAMES[round].toUpperCase()}</p>
               </div>
+              <p class="quiz-session__hint match-round-total">Tổng tạm: <strong>${formatMatchScore(runningTotal)}</strong></p>
             </main>
             <footer class="quiz-session__footer">
               <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-continue-round">
-                Tiếp tục
+                ${continueLabel}
               </button>
             </footer>
           </div>
@@ -193,85 +241,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
 
   const play = session.activePlay;
   if (!play) {
-    if (session.currentRound === 2 && session.round2Packs.length > 0) {
-      const packCount = session.round2Packs.length;
-      const spinDisabled = runtime.spinning ? 'disabled' : '';
-      return `
-        <div class="quiz-session-backdrop match-play-backdrop">
-          <div class="quiz-session match-play match-play--round2">
-            <div class="quiz-session__content match-play__content">
-              <main class="quiz-session__main match-round2-main">
-                <header class="quiz-session__question-head">
-                  <span class="quiz-session__badge" style="--badge-color:#c45c26">Lượt 2</span>
-                  <h2 class="quiz-session__title">Quay chọn đề</h2>
-                  <p class="quiz-session__hint">${packCount} bộ đề · Điểm L1: ${formatMatchScore(session.scores[1])}</p>
-                </header>
-                <div class="match-round2-wheel spin-wheel-zone">
-                  ${WheelRenderer.renderHTML(runtime.spinning)}
-                </div>
-              </main>
-              <footer class="quiz-session__footer">
-                <button
-                  type="button"
-                  class="btn btn-spin quiz-session__submit-btn"
-                  data-action="match-spin-round2"
-                  ${spinDisabled}
-                  aria-label="Quay chọn đề Lượt 2"
-                >
-                  QUAY CHỌN ĐỀ
-                </button>
-              </footer>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    if (session.currentRound === 3) {
-      const matchSettings = appState.settings.match;
-      const questionCount = matchSettings?.round3QuestionCount ?? 0;
-      const packages = matchSettings?.round3Packages ?? [];
-      const packageRows = packages
-        .map((pkg) => {
-          const isDefault = pkg.id === matchSettings?.round3DefaultPackageId;
-          return `
-            <tr>
-              <td>${escapeHtml(String(pkg.points))} điểm${isDefault ? ' <span class="text-muted">(mặc định)</span>' : ''}</td>
-              <td>${escapeHtml(String(pkg.timerSec))} giây</td>
-            </tr>`;
-        })
-        .join('');
-
-      return `
-        <div class="quiz-session-backdrop match-play-backdrop">
-          <div class="quiz-session match-play">
-            <div class="quiz-session__content match-play__content">
-              <main class="quiz-session__main">
-                <header class="quiz-session__question-head">
-                  <span class="quiz-session__badge" style="--badge-color:#b42318">Lượt 3</span>
-                  <h2 class="quiz-session__title">Lượt 3 có ${questionCount} câu</h2>
-                  <p class="quiz-session__hint">Mỗi câu chọn gói điểm trước khi trả lời. Đúng cộng · Sai trừ (tổng không âm). Tổng tạm: ${formatMatchScore(session.scores[1] + session.scores[2])}</p>
-                </header>
-                <div class="match-rules-table-wrap">
-                  <table class="match-rules-table" aria-label="Gói điểm Lượt 3">
-                    <thead>
-                      <tr><th>Điểm gói</th><th>Thời gian</th></tr>
-                    </thead>
-                    <tbody>${packageRows}</tbody>
-                  </table>
-                </div>
-              </main>
-              <footer class="quiz-session__footer">
-                <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-confirm-start-round3">
-                  Xác nhận – Bắt đầu
-                </button>
-              </footer>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
+    // Idle L2/L3: UI trên màn Quay theo spinRoundView
     return '';
   }
 
@@ -283,8 +253,17 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
 
   if (play.phase === 'picking-package' && matchSettings) {
     const packages = matchSettings.round3Packages
+      .filter((pkg) => {
+        if (pkg.id === matchSettings.round3DefaultPackageId) {
+          return true;
+        }
+        return (session.round3PackageRemaining[pkg.id] ?? 0) > 0;
+      })
       .map((pkg) => {
         const isDefault = pkg.id === matchSettings.round3DefaultPackageId;
+        const left = session.round3PackageRemaining[pkg.id];
+        const leftLabel =
+          !isDefault && left !== undefined ? `<span class="match-package-btn__left">còn ${left}</span>` : '';
         return `
           <button
             type="button"
@@ -293,23 +272,33 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
             data-package-id="${escapeHtml(pkg.id)}"
           >
             <span class="match-package-btn__points">+${pkg.points} điểm</span>
-            <span class="match-package-btn__timer">${pkg.timerSec}s</span>
-            ${isDefault ? '<span class="match-package-btn__default">Mặc định</span>' : ''}
+            <span class="match-package-btn__timer">${pkg.timerSec}s giữ điểm</span>
+            ${isDefault ? '<span class="match-package-btn__default">Mặc định</span>' : leftLabel}
           </button>`;
       })
       .join('');
+
+    const showTimer = play.timerSec > 0;
+    const questionTitle = question ? escapeHtml(question.question) : 'Chọn gói điểm';
 
     return `
       <div class="quiz-session-backdrop match-play-backdrop">
         <div class="quiz-session match-play">
           <div class="quiz-session__content match-play__content">
+            ${showTimer ? renderTimebar(play.remaining, play.timerSec) : ''}
+            ${renderMatchRoundProgress(3)}
+            <header class="quiz-meta">
+              <span class="quiz-session__badge" style="--badge-color:${play.accentColor}">${escapeHtml(play.label)} · Câu ${currentNum}/${total}</span>
+              <div class="quiz-meta__right">
+                <span class="quiz-meta__score" role="status">Điểm ${formatMatchScore(play.roundScore)}</span>
+                ${showTimer ? renderMetaTimerPill(play.remaining, play.timerSec) : ''}
+              </div>
+            </header>
             <main class="quiz-session__main">
               <header class="quiz-session__question-head">
-                <span class="quiz-session__badge" style="--badge-color:${play.accentColor}">${escapeHtml(play.label)} · Câu ${currentNum}/${total}</span>
-                <h2 class="quiz-session__title">Chọn gói điểm</h2>
-                <p class="quiz-session__hint">Đúng cộng · Sai trừ (không âm tổng). Không chọn trong ${matchSettings.round3PackagePickSec}s → gói mặc định</p>
+                <h2 class="quiz-session__title">${questionTitle}</h2>
               </header>
-              <div class="match-package-grid" role="group" aria-label="Gói điểm Lượt 3">${packages}</div>
+              <div class="match-package-grid" role="group" aria-label="Gói điểm ${MATCH_ROUND_NAMES[3]}">${packages}</div>
             </main>
             ${renderContextFooter(`
               <button type="button" class="btn btn-ghost" data-action="match-apply-default-package">Dùng gói mặc định</button>
@@ -330,9 +319,16 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     `;
   }
 
-  const showTimer = play.phase === 'answering' && play.timerSec > 0;
+  const showTimer =
+    (play.phase === 'answering' || play.phase === 'picking-package') && play.timerSec > 0;
+  const selectedPackage =
+    play.selectedPackageId && matchSettings
+      ? matchSettings.round3Packages.find((pkg) => pkg.id === play.selectedPackageId)
+      : null;
+  const bonusWindowSec = selectedPackage?.timerSec;
   const badge = `<span class="quiz-session__badge" style="--badge-color:${play.accentColor}">${escapeHtml(play.label)} · Câu ${currentNum}/${total}</span>`;
   const meta = `
+    ${renderMatchRoundProgress(play.round)}
     <header class="quiz-meta">
       ${badge}
       <div class="quiz-meta__right">
@@ -389,7 +385,6 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     body = `
       <div class="quiz-session__question-head">
         <h2 class="quiz-session__title">${escapeHtml(question.question)}</h2>
-        ${isMultiple && !isResult ? '<p class="quiz-session__hint">Chọn tất cả đáp án đúng rồi bấm Chốt đáp án</p>' : ''}
       </div>
       <div class="quiz-options" role="${isMultiple ? 'group' : 'radiogroup'}">${options}</div>
       ${resultBanner}
@@ -402,7 +397,6 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
       body = `
         <div class="quiz-session__question-head">
           <h2 class="quiz-session__title">${escapeHtml(question.question)}</h2>
-          <p class="quiz-session__hint">Tự luận miệng — khi xong, bấm nút bên dưới (hoặc chờ hết giờ)</p>
         </div>
       `;
     } else {
@@ -437,7 +431,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     contextButton = `<button type="button" class="btn btn-submit quiz-session__submit-btn" data-action="match-confirm-mcq" ${play.playerAnswer.trim() ? '' : 'disabled'}>Chốt đáp án</button>`;
   } else if (play.phase === 'revealed' && play.lastIsCorrect !== null) {
     contextButton = `<button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-next-question">
-      ${play.currentIndex + 1 >= play.questionIds.length ? 'Chốt lượt' : 'Câu tiếp'}
+      ${play.currentIndex + 1 >= play.questionIds.length ? 'Kết thúc màn' : 'Câu tiếp'}
     </button>`;
   }
 
@@ -445,7 +439,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     <div class="quiz-session-backdrop match-play-backdrop">
       <div class="quiz-session match-play match-play--question">
         <div class="quiz-session__content match-play__content">
-          ${showTimer ? renderTimebar(play.remaining, play.timerSec) : ''}
+          ${showTimer ? renderTimebar(play.remaining, play.timerSec, bonusWindowSec) : ''}
           ${meta}
           <main class="quiz-session__main">
             <div class="quiz-session__body">${body}</div>

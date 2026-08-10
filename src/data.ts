@@ -6,12 +6,9 @@ import type {
   ImportStats,
   ImportedQuestionRow,
   IntroLinkSettings,
-  PunishmentItem,
   Question,
   QuestionDraft,
-  QuestionFilter,
   QuestionType,
-  RewardItem,
   Settings,
   SoundEventKey,
   WheelSegment,
@@ -22,14 +19,6 @@ import { defaultMatchSettings } from './config/match';
 
 function uid(): string {
   return crypto.randomUUID();
-}
-
-function createRewardItem(text: string): RewardItem {
-  return { id: uid(), text };
-}
-
-function createPunishmentItem(text: string): PunishmentItem {
-  return { id: uid(), text };
 }
 
 function normalizeText(value: string): string {
@@ -344,11 +333,7 @@ export function getQuestionOptions(question: Question): string[] {
   return question.options ?? [];
 }
 
-export function questionTypeLabel(type: QuestionType): string {
-  return type === 'mcq' ? 'Trắc nghiệm' : 'Tự luận';
-}
-
-export function parseQuestionTypeInput(value: string): QuestionType | null {
+function parseQuestionTypeInput(value: string): QuestionType | null {
   const normalized = value.trim().toLowerCase();
   if (!normalized) {
     return null;
@@ -385,7 +370,7 @@ export function parseMcqOptions(raw: string): string[] {
   return byLine;
 }
 
-export function inferQuestionType(input: { type?: QuestionType; options?: string[] }): QuestionType {
+function inferQuestionType(input: { type?: QuestionType; options?: string[] }): QuestionType {
   if (input.type) {
     return input.type;
   }
@@ -447,7 +432,7 @@ export function normalizeQuestion(input: NormalizeQuestionInput): Question {
 }
 
 /** Migrate dữ liệu cũ (không có `type`, có thể có `options`) */
-export function migrateQuestion(raw: unknown): Question | null {
+function migrateQuestion(raw: unknown): Question | null {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
@@ -499,18 +484,6 @@ export function migrateCategoryQuestions(categoryId: string, questions: unknown[
     .filter((item): item is Question => Boolean(item));
 }
 
-export function filterQuestions(questions: Question[], filter: QuestionFilter): Question[] {
-  if (filter === 'all') {
-    return questions;
-  }
-  return questions.filter((item) => item.type === filter);
-}
-
-export function countQuestionsByType(questions: Question[]): { mcq: number; essay: number; total: number } {
-  const mcq = questions.filter(isMcqQuestion).length;
-  return { mcq, essay: questions.length - mcq, total: questions.length };
-}
-
 export function defaultQuestionDraft(type: QuestionType = 'mcq'): QuestionDraft {
   return { type, question: '', options: '', answer: '' };
 }
@@ -538,13 +511,8 @@ function normalizeIntroLinkEntry(raw: unknown, index: number): IntroLinkSettings
   };
 }
 
-export function defaultIntroLinks(): IntroLinkSettings[] {
+function defaultIntroLinks(): IntroLinkSettings[] {
   return [];
-}
-
-/** @deprecated Dùng defaultIntroLinks */
-export function defaultIntroLinkSettings(): IntroLinkSettings {
-  return { label: DEFAULT_INTRO_LINK_LABEL, url: '' };
 }
 
 export function compactIntroLinks(links: IntroLinkSettings[]): IntroLinkSettings[] {
@@ -573,12 +541,10 @@ export function getVisibleIntroLinks(links: IntroLinkSettings[]): IntroLinkSetti
   return links.filter((item) => item.url.trim());
 }
 
-export function defaultSettings(): Settings {
+function defaultSettings(): Settings {
   return {
     timer: DEFAULT_TIMER_SEC,
     sound: true,
-    gifts: ['Được cộng thêm 10 điểm', 'Nghỉ 1 lượt miễn phí'].map(createRewardItem),
-    punishments: ['Chống đẩy 10 cái', 'Hát 1 bài'].map(createPunishmentItem),
     sounds: {
       bindings: {},
       library: [],
@@ -644,9 +610,7 @@ export const SOUND_EVENT_LABELS: Record<SoundEventKey, string> = {
   correct: 'Trả lời đúng',
   wrong: 'Trả lời sai',
   countdown: 'Tick đếm giờ (mỗi giây)',
-  fanfare: 'Fanfare',
-  gift: 'Trúng quà tặng',
-  punishment: 'Trúng xử phạt',
+  fanfare: 'Chúc mừng tổng kết',
 };
 
 export function shuffleArray<T>(items: T[]): T[] {
@@ -656,25 +620,6 @@ export function shuffleArray<T>(items: T[]): T[] {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
-}
-
-/** Bốc ngẫu nhiên tối đa `maxCount` câu chưa dùng; tự reset khi hết */
-export function pickQuestionsFromCategory(
-  category: Category,
-  usedIds: string[],
-  maxCount: number,
-): { questions: Question[]; usedIds: string[] } {
-  let used = [...usedIds];
-  let unused = category.questions.filter((item) => !used.includes(item.id));
-
-  if (unused.length === 0 && category.questions.length > 0) {
-    used = [];
-    unused = [...category.questions];
-  }
-
-  const picked = shuffleArray(unused).slice(0, Math.min(maxCount, unused.length));
-  const newUsed = [...used, ...picked.map((item) => item.id)];
-  return { questions: picked, usedIds: newUsed };
 }
 
 export function findQuestionById(categories: Category[], questionId: string): Question | null {
@@ -955,21 +900,4 @@ export function parseQuestionsFromSheet(file: ArrayBuffer): ImportResult {
     stats,
     diagnostics,
   };
-}
-
-export function rewardItemsToText(items: Array<{ text: string }>): string {
-  return items.map((item) => item.text).join('\n');
-}
-
-export function textToRewardItems<T extends { id: string; text: string }>(text: string, existing: T[], createItem: (text: string) => T): T[] {
-  const lines = text.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
-  const byText = new Map(existing.map((item) => [item.text.trim(), item]));
-
-  return lines.map((line) => {
-    const matched = byText.get(line);
-    if (matched) {
-      return { ...matched, text: line };
-    }
-    return createItem(line);
-  });
 }

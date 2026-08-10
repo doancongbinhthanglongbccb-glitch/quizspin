@@ -1,24 +1,21 @@
 import { DEFAULTS, TIMER_PRESETS } from '../../config';
-import { defaultMatchSettings, matchTheoreticalMaxScore } from '../../config/match';
+import { defaultMatchSettings, matchTheoreticalMaxScore, MATCH_ROUND_NAMES, MATCH_SCORE_CAP, buildRound3PackageQuotas } from '../../config/match';
 import { formatTimerDisplay } from '../../utils/timer-format';
 import { timerMinutesInputValue } from '../../utils/timer-settings';
-import type { RuntimeState } from '../../core/state';
+import { appContext, type RuntimeState } from '../../core/state';
 import type { AppState, IntroLinkSettings, SettingsSection, SoundEventKey } from '../../types';
 import { DEFAULT_SOUND_FILE_NAMES, SOUND_EVENT_GROUPS } from '../../config/sounds';
-import { DEFAULT_INTRO_LINK_LABEL, isMcqQuestion, rewardItemsToText, SOUND_EVENT_LABELS } from '../../data';
+import { DEFAULT_INTRO_LINK_LABEL, isMcqQuestion, SOUND_EVENT_LABELS } from '../../data';
 import { MAX_INTRO_LINKS } from '../../types';
+import { countUsedQuestionsInBank } from '../../core/pool-manager';
 import { escapeHtml } from '../../utils/html';
-import { appContext } from '../../core/state';
-import { countUsedInCategory } from '../../core/pool-manager';
 
 const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; danger?: boolean }> = [
   { id: 'timer', label: 'Thời gian', icon: '⏱' },
-  { id: 'match', label: 'Ván 3 lượt', icon: '🎯' },
-  { id: 'pools', label: 'Pool câu hỏi', icon: '📊' },
+  { id: 'match', label: 'Ván 3 màn', icon: '🎯' },
   { id: 'sound', label: 'Âm thanh', icon: '🔊' },
-  { id: 'gifts', label: 'Quà tặng', icon: '🎁' },
-  { id: 'punishments', label: 'Hình phạt', icon: '🔥' },
   { id: 'intro', label: 'Màn Intro', icon: '🎬' },
+  { id: 'pool', label: 'Đã dùng', icon: '📋' },
   { id: 'danger', label: 'Backup / Xóa', icon: '🗑', danger: true },
 ];
 
@@ -64,11 +61,11 @@ function renderStatBar(appState: AppState): string {
     (count, category) => count + category.questions.filter(isMcqQuestion).length,
     0,
   );
-  const pools = appContext.getQuestionPools();
-  const usedCount = Object.values(pools).reduce((sum, ids) => sum + ids.length, 0);
+  const usedCount = countUsedQuestionsInBank(appContext.getQuestionPools(), appState.categories);
+  const bankTotal = appState.categories.reduce((count, category) => count + category.questions.length, 0);
 
   return `
-    <div class="settings-stats flex shrink-0 gap-2.5 max-md:flex-col max-lg:grid max-lg:grid-cols-3 lg:flex lg:flex-row">
+    <div class="settings-stats flex shrink-0 gap-2.5 max-md:flex-col max-lg:grid max-lg:grid-cols-2 lg:flex lg:flex-row">
       <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
         <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Lĩnh vực</p>
         <p class="settings-stat-box__value m-0 text-display font-bold text-white">${categoryCount}</p>
@@ -79,7 +76,7 @@ function renderStatBar(appState: AppState): string {
       </div>
       <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
         <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Đã dùng</p>
-        <p class="settings-stat-box__value settings-stat-box__value--accent m-0 text-display font-bold text-[#afa9ec]">${usedCount}</p>
+        <p class="settings-stat-box__value m-0 text-display font-bold text-white">${usedCount}/${bankTotal}</p>
       </div>
     </div>
   `;
@@ -212,7 +209,6 @@ function renderTimerPanel(appState: AppState): string {
         <span class="settings-timer-value__unit text-ui text-white/45" id="timer-slider-unit">${unit}</span>
       </p>
 
-      <p class="m-0 mb-2 text-center text-caption text-white/45">Nút nhanh</p>
       <div class="timer-preset-grid" role="group" aria-label="Thời gian có sẵn">${presets}</div>
     </div>
   `;
@@ -225,7 +221,6 @@ function renderMatchNumberField(params: {
   value: number;
   min: number;
   max: number;
-  hint?: string;
 }): string {
   return `
     <label class="bank-form-label" for="${params.id}">${params.label}</label>
@@ -240,19 +235,21 @@ function renderMatchNumberField(params: {
       data-match-field="${params.field}"
       value="${params.value}"
     />
-    ${params.hint ? `<p class="settings-danger-copy m-0 mb-3 -mt-2 text-caption leading-normal text-white/45">${params.hint}</p>` : ''}
   `;
 }
 
 function renderMatchPanel(appState: AppState): string {
   const match = appState.settings.match ?? defaultMatchSettings(appState.settings.timer);
   const theoreticalMax = matchTheoreticalMaxScore(match);
-  const overCap = theoreticalMax > 400;
+  const overCap = theoreticalMax > MATCH_SCORE_CAP;
+  const quotas = buildRound3PackageQuotas(match);
 
   const packageRows = match.round3Packages
     .map((pkg) => {
       const isDefault = pkg.id === match.round3DefaultPackageId;
       const canRemove = match.round3Packages.length > 1;
+      const quota = quotas[pkg.id];
+      const quotaHint = isDefault ? 'Không giới hạn' : `${quota ?? 0} lần/ván`;
       return `
         <div class="settings-match-package flex flex-wrap items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3" data-match-package-id="${escapeHtml(pkg.id)}">
           <div class="min-w-0 flex-1 basis-[120px]">
@@ -271,7 +268,7 @@ function renderMatchPanel(appState: AppState): string {
             />
           </div>
           <div class="min-w-0 flex-1 basis-[120px]">
-            <label class="bank-form-label" for="match-pkg-timer-${escapeHtml(pkg.id)}">Giây</label>
+            <label class="bank-form-label" for="match-pkg-timer-${escapeHtml(pkg.id)}">Cửa sổ (giây)</label>
             <input
               id="match-pkg-timer-${escapeHtml(pkg.id)}"
               class="input"
@@ -302,6 +299,7 @@ function renderMatchPanel(appState: AppState): string {
             data-package-id="${escapeHtml(pkg.id)}"
             ${canRemove ? '' : 'disabled'}
           >Xóa</button>
+          <p class="m-0 w-full text-caption text-white/45">${quotaHint}</p>
         </div>
       `;
     })
@@ -309,20 +307,17 @@ function renderMatchPanel(appState: AppState): string {
 
   return `
     <div class="settings-panel-card grid gap-1">
-      <p class="settings-panel-card__title"><span aria-hidden="true">🎯</span>Cấu hình ván 3 lượt</p>
-      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-        Số câu / thời gian từng lượt và gói điểm Lượt 3. Cảnh báo trần điểm chỉ mang tính tham khảo — không chặn lưu.
-      </p>
+      <p class="settings-panel-card__title"><span aria-hidden="true">🎯</span>Cấu hình ván 3 màn</p>
 
       ${
         overCap
           ? `<div class="warning-banner mb-3.5 rounded-[18px] border border-amber-300/30 bg-amber-300/10 px-4 py-3.5 text-amber-200" role="status">
-              Điểm tối đa lý thuyết ~${theoreticalMax} &gt; 400. Cân nhắc giảm số câu Lượt 3 hoặc điểm gói cao nhất.
+              Điểm tối đa ~${theoreticalMax} &gt; ${MATCH_SCORE_CAP}. Giảm số câu ${MATCH_ROUND_NAMES[3]} hoặc điểm gói.
             </div>`
-          : `<p class="m-0 mb-3.5 text-caption text-white/45">Điểm tối đa lý thuyết hiện tại: <strong class="text-white/80">${theoreticalMax}</strong> (ngưỡng tham khảo 400).</p>`
+          : ''
       }
 
-      <p class="settings-sound-group__title m-0 mb-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">Lượt 1</p>
+      <p class="settings-sound-group__title m-0 mb-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">${MATCH_ROUND_NAMES[1]}</p>
       ${renderMatchNumberField({
         id: 'match-round1-count',
         label: 'Số câu',
@@ -340,7 +335,7 @@ function renderMatchPanel(appState: AppState): string {
         max: DEFAULTS.timerMaxSec,
       })}
 
-      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">Lượt 2</p>
+      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">${MATCH_ROUND_NAMES[2]}</p>
       ${renderMatchNumberField({
         id: 'match-round2-per-pack',
         label: 'Số câu mỗi bộ đề',
@@ -358,7 +353,7 @@ function renderMatchPanel(appState: AppState): string {
         max: DEFAULTS.timerMaxSec,
       })}
 
-      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">Lượt 3</p>
+      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">${MATCH_ROUND_NAMES[3]}</p>
       ${renderMatchNumberField({
         id: 'match-round3-count',
         label: 'Số câu',
@@ -366,6 +361,14 @@ function renderMatchPanel(appState: AppState): string {
         value: match.round3QuestionCount,
         min: 1,
         max: 50,
+      })}
+      ${renderMatchNumberField({
+        id: 'match-round3-timer',
+        label: 'Thời gian mỗi câu (giây)',
+        field: 'round3TimerSec',
+        value: match.round3TimerSec,
+        min: DEFAULTS.timerMinSec,
+        max: DEFAULTS.timerMaxSec,
       })}
       ${renderMatchNumberField({
         id: 'match-round3-pick',
@@ -393,39 +396,7 @@ function renderSoundPanel(appState: AppState, runtime: RuntimeState): string {
           <span class="settings-toggle__track" aria-hidden="true"></span>
         </label>
       </div>
-      <p class="settings-sound-note mb-3.5 text-caption leading-relaxed text-slate-300/90">
-        Upload file <strong>.mp3 / .wav / .ogg</strong> (tối đa 2MB). Chọn file để nghe thử trước, sau đó bấm <strong>Lưu</strong> để gán.
-        Mặc định nằm trong <code class="text-caption text-amber-200/95">public/sounds/</code>.
-      </p>
       ${renderSoundEvents(appState, runtime)}
-    </div>
-  `;
-}
-
-function renderRewardsPanel(appState: AppState, runtime: RuntimeState, section: SettingsSection): string {
-  const giftsActive = section === 'gifts';
-  const punishmentsActive = section === 'punishments';
-  const giftsText = runtime.settingsDraft?.gifts ?? rewardItemsToText(appState.settings.gifts);
-  const punishmentsText = runtime.settingsDraft?.punishments ?? rewardItemsToText(appState.settings.punishments);
-
-  return `
-    <div class="settings-rewards-grid grid grid-cols-1 gap-3 max-lg:grid-cols-1 lg:landscape:grid-cols-2">
-      <div class="settings-panel-card ${giftsActive ? 'settings-panel-card--focus' : ''}">
-        <p class="settings-panel-card__title"><span aria-hidden="true">🎁</span>Quà tặng</p>
-        <textarea
-          class="textarea settings-textarea-compact"
-          id="gifts-input"
-          placeholder="Mỗi dòng = 1 phần quà"
-        >${escapeHtml(giftsText)}</textarea>
-      </div>
-      <div class="settings-panel-card ${punishmentsActive ? 'settings-panel-card--focus' : ''}">
-        <p class="settings-panel-card__title"><span aria-hidden="true">🔥</span>Hình phạt</p>
-        <textarea
-          class="textarea settings-textarea-compact"
-          id="punishments-input"
-          placeholder="Mỗi dòng = 1 hình phạt"
-        >${escapeHtml(punishmentsText)}</textarea>
-      </div>
     </div>
   `;
 }
@@ -472,7 +443,7 @@ export function renderIntroLinksEditor(links: IntroLinkSettings[]): string {
   const list =
     links.length > 0
       ? links.map((link, index) => renderIntroLinkBlock(link, index)).join('')
-      : '<p class="intro-links-empty m-0 text-caption leading-normal text-white/45">Chưa có liên kết. Bấm «Thêm liên kết» để tạo nút trên màn Intro.</p>';
+      : '<p class="intro-links-empty m-0 text-caption leading-normal text-white/45">Chưa có liên kết.</p>';
 
   return `
     <div id="intro-links-list" class="intro-links-list grid gap-4">${list}</div>
@@ -495,9 +466,6 @@ function renderIntroPanel(appState: AppState, runtime: RuntimeState): string {
   return `
     <div class="settings-panel-card">
       <p class="settings-panel-card__title"><span aria-hidden="true">🎬</span>Nút liên kết màn Intro</p>
-      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-        Thêm nút bên cạnh «Vòng xoay kiến thức». Chỉ hiện trên Intro khi đã nhập URL (<code class="text-caption text-amber-200/95">https://...</code>). Tối đa ${MAX_INTRO_LINKS} nút.
-      </p>
       <div class="intro-links-editor" id="intro-links-editor">
         ${renderIntroLinksEditor(links)}
       </div>
@@ -505,39 +473,53 @@ function renderIntroPanel(appState: AppState, runtime: RuntimeState): string {
   `;
 }
 
-function renderPoolsPanel(appState: AppState): string {
+function renderPoolPanel(appState: AppState): string {
   const pools = appContext.getQuestionPools();
+  const usedCount = countUsedQuestionsInBank(pools, appState.categories);
+  const bankTotal = appState.categories.reduce((count, category) => count + category.questions.length, 0);
+  const remaining = Math.max(0, bankTotal - usedCount);
 
-  const rows = appState.categories
+  const byCategory = appState.categories
     .map((category) => {
-      const total = category.questions.filter(isMcqQuestion).length;
-      const used = countUsedInCategory(pools, category.id);
-      const remaining = Math.max(0, total - used);
+      const usedInCategory = (pools[category.id] ?? []).filter((id) =>
+        category.questions.some((question) => question.id === id),
+      ).length;
+      const totalInCategory = category.questions.length;
       return `
-        <div class="settings-pool-row flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3">
-          <div class="min-w-0">
-            <strong class="text-subtitle" style="color:${category.color}">${escapeHtml(category.name)}</strong>
-            <p class="m-0 mt-1 text-caption text-white/50">${used} đã dùng · ${remaining} còn lại · ${total} tổng</p>
-          </div>
-          <button
-            type="button"
-            class="btn btn--small btn-ghost shrink-0"
-            data-action="reset-category-pool"
-            data-category-id="${category.id}"
-          >Reset</button>
-        </div>
-      `;
+        <li class="flex items-center justify-between gap-3 rounded-[12px] border border-white/[0.08] bg-white/[0.04] px-3.5 py-3">
+          <span class="min-w-0 truncate font-bold text-slate-100">${escapeHtml(category.name)}</span>
+          <span class="shrink-0 text-caption tabular-nums text-muted">${usedInCategory}/${totalInCategory}</span>
+        </li>`;
     })
     .join('');
 
   return `
-    <div class="settings-panel-card">
-      <p class="settings-panel-card__title"><span aria-hidden="true">📊</span>Pool câu hỏi theo lĩnh vực</p>
-      <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-        Theo dõi câu đã dùng cho các luồng cũ (không áp dụng cho Ván 3 lượt — ván tự theo dõi câu đã dùng riêng trong phiên chơi).
-      </p>
-      <div class="grid gap-2.5">${rows || '<p class="text-caption text-white/45">Chưa có lĩnh vực.</p>'}</div>
-      <button type="button" class="btn btn-ghost mt-4 w-full" data-action="reset-all-pools">Reset toàn bộ pool</button>
+    <div class="settings-panel-card grid gap-4">
+      <div>
+        <p class="settings-panel-card__title"><span aria-hidden="true">📋</span>Câu đã dùng</p>
+        <div class="settings-stats mb-4 flex gap-2.5 max-md:flex-col">
+          <div class="settings-stat-box flex-1 rounded-lg border border-accent-yellow/25 bg-accent-yellow/10 px-4 py-3.5 text-center">
+            <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Đã dùng</p>
+            <p class="settings-stat-box__value m-0 text-display font-bold text-amber-100">${usedCount}</p>
+          </div>
+          <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
+            <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Còn lại</p>
+            <p class="settings-stat-box__value m-0 text-display font-bold text-white">${remaining}</p>
+          </div>
+          <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
+            <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Tổng ngân hàng</p>
+            <p class="settings-stat-box__value m-0 text-display font-bold text-white">${bankTotal}</p>
+          </div>
+        </div>
+        <ul class="m-0 grid list-none gap-2 p-0" aria-label="Đã dùng theo lĩnh vực">
+          ${byCategory || '<li class="text-caption text-muted">Chưa có lĩnh vực.</li>'}
+        </ul>
+      </div>
+      <div>
+        <button type="button" class="btn btn-ghost" data-action="clear-used-questions" ${usedCount ? '' : 'disabled'}>
+          Xóa lịch sử đã dùng
+        </button>
+      </div>
     </div>
   `;
 }
@@ -547,11 +529,6 @@ function renderDangerPanel(): string {
     <div class="settings-panel-card settings-panel-card--danger grid gap-4">
       <div>
         <p class="settings-panel-card__title"><span aria-hidden="true">💾</span>Backup dữ liệu</p>
-        <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-          Xuất / nhập toàn bộ lĩnh vực, câu hỏi, quà, phạt và cài đặt (không gồm file âm thanh).
-          Trên Android: <strong>Xuất</strong> lưu file <code class="text-caption">.json</code> thẳng vào
-          <strong>Downloads</strong>; <strong>Nhập</strong> chọn file đó để khôi phục.
-        </p>
         <div class="flex flex-wrap gap-2.5">
           <button type="button" class="btn btn-primary" data-action="export-backup">Xuất backup</button>
           <label class="btn btn-ghost relative m-0 cursor-pointer">
@@ -568,9 +545,6 @@ function renderDangerPanel(): string {
       </div>
       <div>
         <p class="settings-panel-card__title"><span aria-hidden="true">🗑</span>Xóa toàn bộ dữ liệu</p>
-        <p class="settings-danger-copy mb-3.5 text-caption leading-normal text-white/55">
-          Xóa sạch toàn bộ lĩnh vực, câu hỏi, pool câu đã dùng và đưa app về dữ liệu mẫu. Hành động này không thể hoàn tác.
-        </p>
         <button type="button" class="btn btn-danger" data-action="clear-all">Xóa sạch toàn bộ kho câu hỏi</button>
       </div>
     </div>
@@ -584,17 +558,14 @@ function renderContentPanel(appState: AppState, runtime: RuntimeState, section: 
   if (section === 'match') {
     return renderMatchPanel(appState);
   }
-  if (section === 'pools') {
-    return renderPoolsPanel(appState);
-  }
   if (section === 'sound') {
     return renderSoundPanel(appState, runtime);
   }
-  if (section === 'gifts' || section === 'punishments') {
-    return renderRewardsPanel(appState, runtime, section);
-  }
   if (section === 'intro') {
     return renderIntroPanel(appState, runtime);
+  }
+  if (section === 'pool') {
+    return renderPoolPanel(appState);
   }
   return renderDangerPanel();
 }

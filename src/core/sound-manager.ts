@@ -18,8 +18,6 @@ const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
   wrong: { frequency: 220, duration: 260, type: 'sawtooth' },
   countdown: { frequency: 640, duration: 35, type: 'square' },
   fanfare: { frequency: 1040, duration: 320, type: 'sine' },
-  gift: { frequency: 880, duration: 280, type: 'sine' },
-  punishment: { frequency: 180, duration: 220, type: 'sawtooth' },
 };
 
 /** Số bản sao Audio one-shot — cho phép chồng tiếng nhanh trên tablet. */
@@ -40,7 +38,7 @@ type SustainedPlayback = {
  * SoundManager — singleton quản lý toàn bộ âm thanh.
  * Tái sử dụng HTMLAudioElement + AudioContext dùng chung (tối ưu WebView/Capacitor).
  */
-export class SoundManager {
+class SoundManager {
   private static instance: SoundManager | null = null;
 
   static getInstance(): SoundManager {

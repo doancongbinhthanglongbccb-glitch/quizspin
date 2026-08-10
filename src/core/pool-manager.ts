@@ -1,4 +1,4 @@
-import type { QuestionPools } from '../types';
+import type { Category, QuestionPools } from '../types';
 
 export function resetCategoryPool(pools: QuestionPools, categoryId: string): QuestionPools {
   const next = { ...pools };
@@ -27,6 +27,35 @@ export function removeCategoryFromPools(pools: QuestionPools, categoryId: string
   return next;
 }
 
-export function countUsedInCategory(pools: QuestionPools, categoryId: string): number {
-  return (pools[categoryId] ?? []).length;
+/** Mọi id đã dùng (có thể trùng category — flatten unique). */
+export function collectUsedQuestionIds(pools: QuestionPools): string[] {
+  return [...new Set(Object.values(pools).flatMap((ids) => ids))];
+}
+
+/** Đếm câu đã dùng còn tồn tại trong ngân hàng. */
+export function countUsedQuestionsInBank(pools: QuestionPools, categories: readonly Category[]): number {
+  const bankIds = new Set(categories.flatMap((category) => category.questions.map((question) => question.id)));
+  return collectUsedQuestionIds(pools).filter((id) => bankIds.has(id)).length;
+}
+
+export function markQuestionIdsInPools(
+  pools: QuestionPools,
+  entries: ReadonlyArray<{ categoryId: string; questionId: string }>,
+): QuestionPools {
+  if (entries.length === 0) {
+    return pools;
+  }
+
+  const next: QuestionPools = { ...pools };
+  for (const { categoryId, questionId } of entries) {
+    if (!categoryId || !questionId) {
+      continue;
+    }
+    const existing = next[categoryId] ?? [];
+    if (existing.includes(questionId)) {
+      continue;
+    }
+    next[categoryId] = [...existing, questionId];
+  }
+  return next;
 }

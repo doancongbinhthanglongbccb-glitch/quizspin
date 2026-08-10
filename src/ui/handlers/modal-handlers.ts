@@ -12,6 +12,11 @@ export function initModalDom(_root: ParentNode): void {
 
 export function bindModalHandlers(root: ParentNode): () => void {
   const onClick = (event: Event): void => {
+    if (getActionTarget(event, root, '[data-action="confirm-spin-result"]')) {
+      Actions.confirmSpinResult();
+      return;
+    }
+
     if (getActionTarget(event, root, '[data-action="close-modal"]')) {
       Actions.closeModal();
     }

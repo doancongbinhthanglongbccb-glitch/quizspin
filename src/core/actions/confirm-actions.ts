@@ -1,7 +1,8 @@
 import type { Category } from '../../types';
 import { createSampleState, isMcqQuestion, makeCategory } from '../../data';
+import { MAX_CATEGORIES } from '../../config';
 import { appContext, createDefaultRuntimeState } from '../state';
-import { resetAllPools, resetCategoryPool, removeCategoryFromPools } from '../pool-manager';
+import { resetAllPools, resetCategoryPool, removeCategoryFromPools, countUsedQuestionsInBank } from '../pool-manager';
 import { clearState, saveState, savePools } from '../../storage';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
 import { deleteQuestion } from './question-actions';
@@ -54,6 +55,10 @@ export function requestClearCategoryQuestions(category: Category): void {
 }
 
 export function requestAddCategory(): void {
+  if (appContext.getAppState().categories.length >= MAX_CATEGORIES) {
+    showToast(`Tối đa ${MAX_CATEGORIES} lĩnh vực`);
+    return;
+  }
   appContext.setRuntimeState({ confirmDialog: { kind: 'add-category' } });
 }
 
@@ -83,17 +88,18 @@ export function requestClearAllData(): void {
   });
 }
 
-export function requestResetAllPools(): void {
-  appContext.setRuntimeState({ confirmDialog: { kind: 'reset-all-pools' } });
-}
+export function requestClearUsedQuestions(): void {
+  const usedCount = countUsedQuestionsInBank(
+    appContext.getQuestionPools(),
+    appContext.getAppState().categories,
+  );
+  if (usedCount === 0) {
+    showToast('Chưa có câu nào được đánh dấu đã dùng');
+    return;
+  }
 
-export function requestResetCategoryPool(category: Category): void {
   appContext.setRuntimeState({
-    confirmDialog: {
-      kind: 'reset-category-pool',
-      categoryId: category.id,
-      categoryName: category.name,
-    },
+    confirmDialog: { kind: 'clear-used-questions', usedCount },
   });
 }
 
@@ -103,6 +109,10 @@ export function cancelConfirmDialog(): void {
 }
 
 function performAddCategory(name: string): void {
+  if (appContext.getAppState().categories.length >= MAX_CATEGORIES) {
+    showToast(`Tối đa ${MAX_CATEGORIES} lĩnh vực`);
+    return;
+  }
   const nextCategory = makeCategory(name);
   appContext.setAppStateWithoutRender((current) => ({ ...current, categories: [...current.categories, nextCategory] }));
   appContext.setRuntimeState({ selectedCategoryId: nextCategory.id });
@@ -267,6 +277,13 @@ export async function confirmDialogAction(): Promise<void> {
     return;
   }
 
+  if (dialog.kind === 'clear-used-questions') {
+    appContext.setQuestionPools(resetAllPools());
+    appContext.setRuntimeState({ confirmDialog: null });
+    showToast('Đã xóa lịch sử câu đã dùng');
+    return;
+  }
+
   if (dialog.kind === 'clear-all-data') {
     if (dialog.step === 1) {
       appContext.setRuntimeState({
@@ -277,19 +294,5 @@ export async function confirmDialogAction(): Promise<void> {
 
     await performClearAllData();
     appContext.setRuntimeState({ confirmDialog: null });
-    return;
-  }
-
-  if (dialog.kind === 'reset-all-pools') {
-    appContext.setQuestionPools(resetAllPools());
-    appContext.setRuntimeState({ confirmDialog: null });
-    showToast('Đã reset toàn bộ pool câu hỏi');
-    return;
-  }
-
-  if (dialog.kind === 'reset-category-pool') {
-    appContext.setQuestionPools((current) => resetCategoryPool(current, dialog.categoryId));
-    appContext.setRuntimeState({ confirmDialog: null });
-    showToast(`Đã reset pool lĩnh vực ${dialog.categoryName}`);
   }
 }

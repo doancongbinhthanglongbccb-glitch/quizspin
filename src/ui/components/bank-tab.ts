@@ -2,6 +2,7 @@ import type { RuntimeState } from '../../core/state';
 import type { AppState, Question } from '../../types';
 import { escapeHtml } from '../../utils/html';
 import { currentCategory } from '../../core/actions';
+import { MAX_CATEGORIES } from '../../config';
 import {
   getQuestionOptions,
   isMcqQuestion,
@@ -142,7 +143,7 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
           }
         </summary>
         <p class="mt-2 mb-0 text-caption text-muted">
-          Định dạng cần có: <strong>Câu hỏi | Phương án | Đáp án đúng</strong> (mỗi phương án một dòng).
+          Cột: <strong>Câu hỏi | Phương án | Đáp án đúng</strong>
         </p>
         ${
           grouped.length
@@ -201,8 +202,15 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
 
       <div class="bank-categories category-strip mb-0 w-full max-w-full min-w-0 touch-pan-x overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]" data-scroll-restore="bank-categories" role="tablist" aria-label="Lĩnh vực">
         ${renderCategoryTabs(appState, category?.id)}
-        <button type="button" class="category-pill category-pill--add" data-action="add-category" aria-label="Thêm lĩnh vực">+</button>
+        ${
+          appState.categories.length < MAX_CATEGORIES
+            ? '<button type="button" class="category-pill category-pill--add" data-action="add-category" aria-label="Thêm lĩnh vực">+</button>'
+            : ''
+        }
       </div>
+      <p class="bank-category-limit m-0 text-caption text-subtle">
+        Lĩnh vực ${appState.categories.length}/${MAX_CATEGORIES}
+      </p>
 
       ${importSummary}
 

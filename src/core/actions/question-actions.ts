@@ -1,24 +1,9 @@
 import { mcqAnswerMatchesOptions, normalizeQuestion, parseMcqOptions } from '../../data';
-import type { QuestionDraft, QuestionFilter, QuestionType } from '../../types';
+import type { QuestionDraft } from '../../types';
 import { appContext } from '../state';
 import { removeQuestionFromPools } from '../pool-manager';
 import { showToast } from './shared';
 import { currentCategory, ensureQuestionDraft } from './category-actions';
-
-export function setQuestionFilter(filter: QuestionFilter): void {
-  appContext.setRuntimeState({ questionFilter: filter });
-}
-
-export function setQuestionDraftType(type: QuestionType): void {
-  const runtime = appContext.getRuntimeState();
-  appContext.setRuntimeState({
-    questionDraft: {
-      ...runtime.questionDraft,
-      type,
-      options: type === 'essay' ? '' : runtime.questionDraft.options,
-    },
-  });
-}
 
 export function updateQuestionDraft(patch: Partial<QuestionDraft>): void {
   const runtime = appContext.getRuntimeState();
@@ -110,67 +95,4 @@ export function deleteQuestion(categoryId: string, questionId: string): void {
   if (editingCleared) {
     ensureQuestionDraft(currentCategory());
   }
-}
-
-export function saveQuestionEdit(
-  id: string,
-  type: QuestionType,
-  question: string,
-  options: string,
-  answer: string,
-): void {
-  const category = currentCategory();
-  if (!category) {
-    return;
-  }
-
-  const questionText = question.trim();
-  const answerText = answer.trim();
-  if (!questionText || !answerText) {
-    showToast('Cần nhập câu hỏi và đáp án');
-    return;
-  }
-
-  if (type !== 'mcq') {
-    showToast('Chỉ hỗ trợ câu trắc nghiệm');
-    return;
-  }
-
-  const parsedOptions = parseMcqOptions(options);
-  if (!parsedOptions.length) {
-    showToast('Câu trắc nghiệm cần ít nhất 1 phương án');
-    return;
-  }
-  if (!mcqAnswerMatchesOptions(answerText, parsedOptions)) {
-    showToast('Đáp án phải khớp một phương án (A/B/C/D đúng chữ trên dòng phương án, hoặc đúng nội dung)');
-    return;
-  }
-
-  appContext.setAppState((current) => ({
-    ...current,
-    categories: current.categories.map((item) =>
-      item.id === category.id
-        ? {
-            ...item,
-            questions: item.questions.map((q) =>
-              q.id === id
-                ? normalizeQuestion({
-                    id,
-                    categoryId: category.id,
-                    type: 'mcq',
-                    question: questionText,
-                    options,
-                    answer: answerText,
-                    points: q.points,
-                  })
-                : q,
-            ),
-          }
-        : item,
-    ),
-  }));
-
-  appContext.setRuntimeState({ editingQuestionId: null, bankFormOpen: false });
-  ensureQuestionDraft(currentCategory());
-  showToast('Đã cập nhật câu hỏi');
 }

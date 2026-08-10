@@ -3,9 +3,11 @@ import { appContext } from '../state';
 import { spinSession } from '../spin-session';
 import { syncSpinUi } from '../../utils/sync-spin-ui';
 import { showToast } from './shared';
-import { createEmptyMatchSession, startMatchActivePlay } from './match-play-actions';
-import { pickMatchQuestionsFromCategory } from '../match-questions';
-import type { Category, MatchExamPack, WheelSegment } from '../../types';
+import { createEmptyMatchSession, getMatchExcludeIds, startMatchActivePlay } from './match-play-actions';
+import { buildRound2ExamPacks, getMatchWheelExamPacks, isMatchExamPackUsed, pickMatchQuestionsFromCategory } from '../match-questions';
+import { MATCH_ROUND_NAMES } from '../../config/match';
+import { MAX_WHEEL_SEGMENTS } from '../../config';
+import type { Category, MatchExamPack, MatchRoundId, WheelSegment } from '../../types';
 
 const ROUND2_PACK_COLORS = [
   '#b42318',
@@ -31,12 +33,55 @@ export function buildRound2WheelModel(packs: MatchExamPack[]) {
   return buildWheelModelFromSegments(buildExamPackWheelSegments(packs));
 }
 
+/** Pool đầy đủ (preview hoặc session) — chưa cắt cửa sổ bánh xe. */
+export function getSpinRound2PoolPacks(): MatchExamPack[] {
+  const session = appContext.getRuntimeState().matchSession;
+  if (session?.round2Packs.length) {
+    return session.round2Packs;
+  }
+
+  const match = appContext.getAppState().settings.match;
+  if (!match) {
+    return [];
+  }
+
+  return buildRound2ExamPacks(appContext.getAppState().categories, {
+    questionsPerPack: match.round2QuestionsPerPack,
+    excludeIds: getMatchExcludeIds(session?.usedQuestionIds ?? []),
+  }).packs;
+}
+
+/** Tối đa 8 bộ chưa hỏi hết — dùng để vẽ / quay bánh xe. */
+export function getSpinRound2WheelPacks(): MatchExamPack[] {
+  const session = appContext.getRuntimeState().matchSession;
+  const pool = getSpinRound2PoolPacks();
+  return getMatchWheelExamPacks(pool, session?.usedQuestionIds ?? [], MAX_WHEEL_SEGMENTS);
+}
+
+export function setSpinRoundView(round: MatchRoundId): void {
+  const runtime = appContext.getRuntimeState();
+  if (runtime.spinning || runtime.spinRoundView === round) {
+    return;
+  }
+  appContext.setRuntimeState({ spinRoundView: round });
+}
+
+export function notifySpinRoundLocked(round: MatchRoundId): void {
+  if (round === 2) {
+    showToast(`Hoàn thành ${MATCH_ROUND_NAMES[1]} để mở ${MATCH_ROUND_NAMES[2]}`);
+    return;
+  }
+  if (round === 3) {
+    showToast(`Hoàn thành ${MATCH_ROUND_NAMES[1]} và ${MATCH_ROUND_NAMES[2]} để mở ${MATCH_ROUND_NAMES[3]}`);
+  }
+}
+
 /**
  * Thiếu câu so với Settings:
- * - 0 câu khả dụng → chặn, không vào lượt
- * - còn ít hơn requested → lấy hết + toast cảnh báo (pointsPerQuestion = 100/số thật)
+ * - 0 câu khả dụng → chặn
+ * - còn ít hơn requested → lấy hết + toast
  */
-function startRound1FromCategory(category: Category): void {
+export function startRound1FromCategory(category: Category): void {
   const match = appContext.getAppState().settings.match;
   if (!match) {
     showToast('Thiếu cấu hình match trong Settings');
@@ -46,7 +91,7 @@ function startRound1FromCategory(category: Category): void {
   const session = createEmptyMatchSession(1);
   const picked = pickMatchQuestionsFromCategory(category, {
     count: match.round1QuestionCount,
-    excludeIds: session.usedQuestionIds,
+    excludeIds: getMatchExcludeIds(),
   });
 
   if (picked.available === 0 || picked.questions.length === 0) {
@@ -69,14 +114,58 @@ function startRound1FromCategory(category: Category): void {
   });
 }
 
+function showSpinResultModal(params: {
+  label: string;
+  color: string;
+  round: 1 | 2;
+  categoryId?: string;
+  packId?: string;
+}): void {
+  appContext.setRuntimeState({
+    modal: {
+      kind: 'spin-result',
+      label: params.label,
+      color: params.color,
+      eyebrow: MATCH_ROUND_NAMES[params.round],
+      round: params.round,
+      categoryId: params.categoryId,
+      packId: params.packId,
+    },
+  });
+  syncSpinUi();
+}
+
 function resolveSegmentAction(segment: WheelSegment): void {
-  if (segment.kind === 'category' && segment.categoryId) {
-    const category = appContext.getAppState().categories.find((item) => item.id === segment.categoryId);
-    if (category) {
-      startRound1FromCategory(category);
-    }
+  if (segment.kind !== 'category' || !segment.categoryId) {
     return;
   }
+
+  const category = appContext.getAppState().categories.find((item) => item.id === segment.categoryId);
+  if (!category) {
+    return;
+  }
+
+  const match = appContext.getAppState().settings.match;
+  if (!match) {
+    showToast('Thiếu cấu hình match trong Settings');
+    return;
+  }
+
+  const preview = pickMatchQuestionsFromCategory(category, {
+    count: match.round1QuestionCount,
+    excludeIds: getMatchExcludeIds(),
+  });
+  if (preview.available === 0 || preview.questions.length === 0) {
+    showToast(`Lĩnh vực ${category.name} không còn câu hỏi để chơi`);
+    return;
+  }
+
+  showSpinResultModal({
+    label: category.name,
+    color: category.color,
+    round: 1,
+    categoryId: category.id,
+  });
 }
 
 export function spin(): void {
@@ -104,7 +193,7 @@ export function spin(): void {
   });
 }
 
-/** Vòng quay "Đề số n" trong Lượt 2 — tái dùng SpinSession + startMatchActivePlay. */
+/** Vòng quay bộ đề màn Tổng hợp. */
 export function spinMatchRound2(): void {
   const runtime = appContext.getRuntimeState();
   const session = runtime.matchSession;
@@ -120,9 +209,14 @@ export function spinMatchRound2(): void {
     return;
   }
 
-  const model = buildRound2WheelModel(session.round2Packs);
+  if (session.round2Packs.some((pack) => isMatchExamPackUsed(pack, session.usedQuestionIds))) {
+    showToast(`${MATCH_ROUND_NAMES[2]} chỉ chơi một lần`);
+    return;
+  }
+
+  const model = buildRound2WheelModel(getMatchWheelExamPacks(session.round2Packs, session.usedQuestionIds, MAX_WHEEL_SEGMENTS));
   if (!model.segments.length) {
-    showToast('Chưa có bộ đề để quay');
+    showToast('Không còn bộ đề để quay');
     return;
   }
 
@@ -143,12 +237,11 @@ export function spinMatchRound2(): void {
         showToast('Không tìm thấy bộ đề đã quay');
         return;
       }
-      startMatchActivePlay({
-        round: 2,
-        questionIds: pack.questionIds,
+      showSpinResultModal({
         label: pack.title,
-        accentColor: segment.color,
-        existingSession: live,
+        color: segment.color,
+        round: 2,
+        packId: pack.id,
       });
     },
   });

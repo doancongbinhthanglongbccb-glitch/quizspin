@@ -1,6 +1,12 @@
 /** Palette vòng quay — đỏ/vàng/xanh hội trường */
 export const DEFAULT_PALETTE = ['#d4a017', '#b42318', '#1a4d3e', '#c45c26', '#2d6a4f', '#8f1c14', '#a67c00', '#3d5a40'];
 
+/** Số lĩnh vực tối đa trong Ngân hàng (đủ cho vòng quay) */
+export const MAX_CATEGORIES = 8;
+
+/** Số lát tối đa trên bánh xe (lĩnh vực / bộ đề Tổng hợp) */
+export const MAX_WHEEL_SEGMENTS = 8;
+
 import { SPIN_CONFIG } from './config/spin';
 
 export const DEFAULTS = {

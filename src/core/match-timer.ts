@@ -63,7 +63,10 @@ export function startMatchTimer(): void {
 
   const session = appContext.getRuntimeState().matchSession;
   const play = session?.activePlay;
-  if (!session || !play || play.phase !== 'answering' || play.timerSec <= 0) {
+  if (!session || !play || play.timerSec <= 0) {
+    return;
+  }
+  if (play.phase !== 'answering' && play.phase !== 'picking-package') {
     return;
   }
 
@@ -77,7 +80,11 @@ export function startMatchTimer(): void {
 
     const latestSession = appContext.getRuntimeState().matchSession;
     const latestPlay = latestSession?.activePlay;
-    if (!latestSession || !latestPlay || latestPlay.phase !== 'answering') {
+    if (
+      !latestSession ||
+      !latestPlay ||
+      (latestPlay.phase !== 'answering' && latestPlay.phase !== 'picking-package')
+    ) {
       return;
     }
 
@@ -98,10 +105,20 @@ export function startMatchTimer(): void {
       if (remaining <= matchTimerDangerSec(latestPlay.timerSec)) {
         soundManager.play('countdown');
       }
+      // Đọc lại session mới nhất — tránh patch bằng snapshot cũ làm mất usedQuestionIds.
+      const liveSession = appContext.getRuntimeState().matchSession;
+      const livePlay = liveSession?.activePlay;
+      if (
+        !liveSession ||
+        !livePlay ||
+        (livePlay.phase !== 'answering' && livePlay.phase !== 'picking-package')
+      ) {
+        return;
+      }
       appContext.patchRuntimeState({
         matchSession: {
-          ...latestSession,
-          activePlay: { ...latestPlay, remaining },
+          ...liveSession,
+          activePlay: { ...livePlay, remaining },
         },
       });
     }

@@ -1,4 +1,4 @@
-import type { AppState, ActiveModal, ConfirmDialog, CustomSound, ImportStats, IntroLinkSettings, MatchExamPack, MatchPlayState, MatchSession, QuestionDraft, QuestionPools, SettingsSection, SoundEventKey } from '../types';
+import type { AppState, ActiveModal, ConfirmDialog, CustomSound, ImportStats, IntroLinkSettings, MatchExamPack, MatchPlayState, MatchRoundId, MatchSession, QuestionDraft, QuestionPools, SettingsSection, SoundEventKey } from '../types';
 import {
   createSampleState,
   defaultQuestionDraft,
@@ -22,8 +22,6 @@ export type SoundUploadDraft = {
 
 /** Bản nháp form Cài đặt — cập nhật khi gõ, không re-render */
 export type SettingsDraft = {
-  gifts?: string;
-  punishments?: string;
   introLinks?: IntroLinkSettings[];
 };
 
@@ -38,7 +36,8 @@ export type RuntimeState = {
   /** Form thêm/sửa câu hỏi đang mở */
   bankFormOpen: boolean;
   questionDraft: QuestionDraft;
-  questionFilter: 'all' | 'mcq' | 'essay';
+  /** Tab màn đang xem trên Quay (xem được cả màn chưa tới) */
+  spinRoundView: MatchRoundId;
   /** Ván 3 lượt từ tab Vòng quay — không persist */
   matchSession: MatchSession | null;
   importReport: {
@@ -68,7 +67,7 @@ export function createDefaultRuntimeState(): RuntimeState {
     editingQuestionId: null,
     bankFormOpen: false,
     questionDraft: defaultQuestionDraft('mcq'),
-    questionFilter: 'all',
+    spinRoundView: 1,
     matchSession: null,
     importReport: null,
     confirmDialog: null,
@@ -111,6 +110,9 @@ function cloneMatchSession(session: MatchSession | null): MatchSession | null {
         questionIds: [...pack.questionIds],
       }),
     ),
+    round3PackageRemaining: { ...session.round3PackageRemaining },
+    round3SourceMode: session.round3SourceMode,
+    round3CategoryId: session.round3CategoryId,
     activePlay: session.activePlay ? cloneMatchPlayState(session.activePlay) : null,
     roundSummary: session.roundSummary ? { ...session.roundSummary } : null,
     showFinalSummary: session.showFinalSummary,
@@ -172,7 +174,6 @@ function mergeRuntimeState(current: RuntimeState, update: Partial<RuntimeState>)
  * Chuẩn hóa AppState: đảm bảo tính hợp lệ của dữ liệu
  * - Xác thực timer trong phạm vi cho phép
  * - Đảm bảo mỗi category có màu
- * - Xử lý gifts/punishments (FIX: không generate UUID mới!)
  */
 function migrateSoundLibrary(items: unknown): CustomSound[] {
   if (!Array.isArray(items)) {
@@ -263,8 +264,6 @@ function normalizeAppState(next: AppState): AppState {
     settings: {
       timer,
       sound: next.settings.sound,
-      gifts: next.settings.gifts,
-      punishments: next.settings.punishments,
       sounds: {
         bindings: migrateSoundBindings(next.settings.sounds?.bindings, soundLibrary),
         library: soundLibrary,
@@ -280,7 +279,7 @@ function normalizeAppState(next: AppState): AppState {
  * AppContext: Quản lý AppState + RuntimeState
  * Sử dụng EventEmitter pattern để notify subscribers khi state thay đổi
  */
-export class AppContext {
+class AppContext {
   private appState: AppState;
   private runtimeState: RuntimeState;
   private questionPools: QuestionPools = {};
@@ -425,8 +424,6 @@ export class AppContext {
     await saver('appState', this.appState);
   }
 }
-
-export type { AppState } from '../types';
 
 // Export singleton instance theo context pattern
 export const appContext = new AppContext();

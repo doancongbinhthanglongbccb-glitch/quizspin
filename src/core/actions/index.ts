@@ -7,17 +7,10 @@ import { saveState, readJson, readPools, savePools } from '../../storage';
 import { defaultQuestionDraft } from '../../data';
 import { render } from '../../ui';
 import { clearEverything, parseExcelImport } from './import-actions';
-import { closeModal } from './modal-actions';
+import { closeModal, confirmSpinResult } from './modal-actions';
 import { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory } from './category-actions';
-import {
-  saveQuestionDraft,
-  deleteQuestion,
-  saveQuestionEdit,
-  setQuestionFilter,
-  setQuestionDraftType,
-  updateQuestionDraft,
-} from './question-actions';
-import { spin, spinMatchRound2 } from './spin-actions';
+import { saveQuestionDraft, updateQuestionDraft } from './question-actions';
+import { spin, spinMatchRound2, setSpinRoundView, notifySpinRoundLocked } from './spin-actions';
 import {
   applyDefaultMatchPackage,
   chooseMatchMcqAnswer,
@@ -25,13 +18,13 @@ import {
   confirmMatchMcqAnswer,
   confirmStartRound3,
   continueAfterRoundSummary,
-  createEmptyMatchSession,
   goToNextMatchQuestion,
-  handleMatchTimeUp,
   judgeMatchEssay,
+  proceedToRound3,
   revealMatchEssayForJudging,
   selectMatchPackage,
-  startMatchActivePlay,
+  setMatchRound3Category,
+  setMatchRound3SourceMode,
 } from './match-play-actions';
 import { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent } from './sound-actions';
 import { completeIntro, showIntro } from './intro-actions';
@@ -45,19 +38,17 @@ import {
   confirmRenameCategoryFromMenu,
   requestCategoryMenu,
   requestClearAllData,
+  requestClearUsedQuestions,
   requestClearCategoryQuestions,
-  requestDeleteCategory,
   requestDeleteQuestion,
-  requestResetAllPools,
-  requestResetCategoryPool,
 } from './confirm-actions';
 
 export { clearEverything, parseExcelImport };
 export { exportAppBackup, stageBackupImport };
-export { closeModal };
+export { closeModal, confirmSpinResult };
 export { currentCategory, ensureQuestionDraft, selectCategory, addCategory, renameCategory, deleteCategory };
-export { saveQuestionDraft, deleteQuestion, saveQuestionEdit, setQuestionFilter, setQuestionDraftType, updateQuestionDraft };
-export { spin, spinMatchRound2 };
+export { saveQuestionDraft, updateQuestionDraft };
+export { spin, spinMatchRound2, setSpinRoundView, notifySpinRoundLocked };
 export {
   applyDefaultMatchPackage,
   chooseMatchMcqAnswer,
@@ -65,13 +56,13 @@ export {
   confirmMatchMcqAnswer,
   confirmStartRound3,
   continueAfterRoundSummary,
-  createEmptyMatchSession,
   goToNextMatchQuestion,
-  handleMatchTimeUp,
   judgeMatchEssay,
+  proceedToRound3,
   revealMatchEssayForJudging,
   selectMatchPackage,
-  startMatchActivePlay,
+  setMatchRound3Category,
+  setMatchRound3SourceMode,
 };
 export { stageSoundForEvent, confirmSoundUpload, cancelSoundUpload, clearSoundBinding, previewSoundEvent };
 export { completeIntro, showIntro };
@@ -82,16 +73,14 @@ export {
   confirmRenameCategoryFromMenu,
   requestCategoryMenu,
   requestClearAllData,
+  requestClearUsedQuestions,
   requestClearCategoryQuestions,
-  requestDeleteCategory,
   requestDeleteQuestion,
-  requestResetAllPools,
-  requestResetCategoryPool,
 };
 
-export let renderApp: () => void = render;
+let renderApp: () => void = render;
 
-export async function setupUI(): Promise<void> {
+async function setupUI(): Promise<void> {
   renderApp = render;
 
   appContext.subscribe(() => {

@@ -1,6 +1,6 @@
 import { appContext, type SettingsDraft } from '../../core/state';
 import type { IntroLinkSettings, MatchSettings, SettingsSection, SoundEventKey } from '../../types';
-import { rewardItemsToText, textToRewardItems, normalizeIntroLinks, compactIntroLinks, DEFAULT_INTRO_LINK_LABEL } from '../../data';
+import { normalizeIntroLinks, compactIntroLinks, DEFAULT_INTRO_LINK_LABEL } from '../../data';
 import { MAX_INTRO_LINKS } from '../../types';
 import { renderIntroLinksEditor } from '../components/settings-tab';
 import { formatTimerDisplay } from '../../utils/timer-format';
@@ -109,6 +109,7 @@ const MATCH_SCALAR_FIELDS = new Set([
   'round2QuestionsPerPack',
   'round2TimerSec',
   'round3QuestionCount',
+  'round3TimerSec',
   'round3PackagePickSec',
 ]);
 
@@ -205,15 +206,7 @@ function hasIntroLinkInputs(root: ParentNode): boolean {
 
 function readSettingsDraftFromDom(root: ParentNode): SettingsDraft {
   const draft: SettingsDraft = { ...(appContext.getRuntimeState().settingsDraft ?? {}) };
-  const giftsInput = root.querySelector<HTMLTextAreaElement>('#gifts-input');
-  const punishmentsInput = root.querySelector<HTMLTextAreaElement>('#punishments-input');
 
-  if (giftsInput) {
-    draft.gifts = giftsInput.value;
-  }
-  if (punishmentsInput) {
-    draft.punishments = punishmentsInput.value;
-  }
   if (hasIntroLinkInputs(root)) {
     draft.introLinks = readIntroLinksFromDom(root);
   }
@@ -222,48 +215,25 @@ function readSettingsDraftFromDom(root: ParentNode): SettingsDraft {
 }
 
 function persistSettingsDraft(draft: SettingsDraft): void {
-  const hasGifts = draft.gifts !== undefined;
-  const hasPunishments = draft.punishments !== undefined;
   const hasIntro = draft.introLinks !== undefined;
 
-  if (!hasGifts && !hasPunishments && !hasIntro) {
+  if (!hasIntro) {
     return;
   }
 
   appContext.setAppStateWithoutRender((state) => {
     const settings = { ...state.settings };
-
-    if (hasGifts) {
-      settings.gifts = textToRewardItems(draft.gifts ?? '', state.settings.gifts, (text) => ({
-        id: crypto.randomUUID(),
-        text,
-      }));
-    }
-
-    if (hasPunishments) {
-      settings.punishments = textToRewardItems(draft.punishments ?? '', state.settings.punishments, (text) => ({
-        id: crypto.randomUUID(),
-        text,
-      }));
-    }
-
-    if (hasIntro) {
-      settings.introLinks = compactIntroLinks(
-        normalizeIntroLinks(draft.introLinks ?? state.settings.introLinks, state.settings.introLinks[0]),
-      );
-    }
-
+    settings.introLinks = compactIntroLinks(
+      normalizeIntroLinks(draft.introLinks ?? state.settings.introLinks, state.settings.introLinks[0]),
+    );
     return { ...state, settings };
   });
 
   appContext.patchRuntimeStateWithoutRender({ settingsDraft: null });
 }
 
-export function flushSettingsFromDom(root: ParentNode): void {
-  const giftsInput = root.querySelector('#gifts-input');
-  const punishmentsInput = root.querySelector('#punishments-input');
-
-  if (!giftsInput && !punishmentsInput && !hasIntroLinkInputs(root)) {
+function flushSettingsFromDom(root: ParentNode): void {
+  if (!hasIntroLinkInputs(root)) {
     const draft = appContext.getRuntimeState().settingsDraft;
     if (draft) {
       persistSettingsDraft(draft);
@@ -306,18 +276,6 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       if (field === 'points' || field === 'timerSec') {
         commitMatchPackageField(matchPackageField.dataset.packageId, field, matchPackageField.value);
       }
-      return;
-    }
-
-    const giftsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#gifts-input');
-    if (giftsInput) {
-      patchSettingsDraft({ gifts: giftsInput.value });
-      return;
-    }
-
-    const punishmentsInput = getInputTarget<HTMLTextAreaElement>(event, root, '#punishments-input');
-    if (punishmentsInput) {
-      patchSettingsDraft({ punishments: punishmentsInput.value });
       return;
     }
 
@@ -442,13 +400,13 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       return;
     }
 
-    if (getActionTarget(event, root, '[data-action="clear-all"]')) {
-      Actions.requestClearAllData();
+    if (getActionTarget(event, root, '[data-action="clear-used-questions"]')) {
+      Actions.requestClearUsedQuestions();
       return;
     }
 
-    if (getActionTarget(event, root, '[data-action="reset-all-pools"]')) {
-      Actions.requestResetAllPools();
+    if (getActionTarget(event, root, '[data-action="clear-all"]')) {
+      Actions.requestClearAllData();
       return;
     }
 
@@ -475,15 +433,6 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
       const next = clampTimerSeconds(current + DEFAULTS.timerStepSec);
       commitTimerValue(next);
       updateTimerDisplayPreview(root, next);
-      return;
-    }
-
-    const resetPoolBtn = getActionTarget(event, root, '[data-action="reset-category-pool"]');
-    if (resetPoolBtn?.dataset.categoryId) {
-      const category = appContext.getAppState().categories.find((item) => item.id === resetPoolBtn.dataset.categoryId);
-      if (category) {
-        Actions.requestResetCategoryPool(category);
-      }
       return;
     }
 

@@ -16,12 +16,12 @@ type SpinAudioState = {
   ended: boolean;
 };
 
-export type SpinSessionResult = {
+type SpinSessionResult = {
   segment: WheelSegment;
   rotationDeg: number;
 };
 
-export type SpinSessionCallbacks = {
+type SpinSessionCallbacks = {
   onComplete: (result: SpinSessionResult) => void;
 };
 
@@ -29,7 +29,7 @@ export type SpinSessionCallbacks = {
  * Một phiên quay: animation canvas + âm thanh + finalize dùng chung elapsedMs từ rAF.
  * Kết quả luôn theo segment đã random (`chosen`) — khớp kim + lịch sử + modal.
  */
-export class SpinSession {
+class SpinSession {
   private animation: SpinAnimationController | null = null;
   private audio: SpinAudioState = { started: false, ended: false };
   private finalized = false;

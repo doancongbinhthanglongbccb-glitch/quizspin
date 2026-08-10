@@ -1,7 +1,7 @@
 import type { AppState, QuestionPools } from '../types';
 import { isNativeApp } from '../utils/platform';
 
-export const BACKUP_VERSION = 1 as const;
+const BACKUP_VERSION = 1 as const;
 
 export type BackupPayload = {
   version: typeof BACKUP_VERSION;
@@ -11,7 +11,7 @@ export type BackupPayload = {
 };
 
 /** Bỏ thư viện âm thanh custom — default sounds nằm trong app. */
-export function stripCustomSounds(state: AppState): AppState {
+function stripCustomSounds(state: AppState): AppState {
   return {
     ...state,
     settings: {

@@ -79,29 +79,20 @@ function describeDialog(dialog: ConfirmDialog): DialogMeta {
     };
   }
 
-  if (dialog.kind === 'reset-all-pools') {
-    return {
-      title: 'Reset pool câu hỏi',
-      message: 'Xóa toàn bộ lịch sử câu đã dùng của mọi lĩnh vực? Các câu sẽ được quay lại từ đầu.',
-      confirmLabel: 'Reset tất cả',
-      danger: true,
-    };
-  }
-
-  if (dialog.kind === 'reset-category-pool') {
-    return {
-      title: 'Reset pool lĩnh vực',
-      message: `Reset pool câu đã dùng của "${dialog.categoryName}"?`,
-      confirmLabel: 'Reset',
-      danger: true,
-    };
-  }
-
   if (dialog.kind === 'clear-all-data' && dialog.step === 1) {
     return {
       title: 'Xóa toàn bộ dữ liệu',
       message: 'Bạn chắc chắn muốn xóa toàn bộ dữ liệu?',
       confirmLabel: 'Tiếp tục',
+      danger: true,
+    };
+  }
+
+  if (dialog.kind === 'clear-used-questions') {
+    return {
+      title: 'Xóa lịch sử đã dùng',
+      message: `Đặt lại ${dialog.usedCount} câu đã hỏi trong ngân hàng? Các ván sau sẽ lại bốc từ đầu. Không xóa nội dung câu hỏi.`,
+      confirmLabel: 'Xóa đã dùng',
       danger: true,
     };
   }
@@ -156,7 +147,7 @@ export function renderConfirmDialog(dialog: ConfirmDialog | null): string {
         <h2 id="confirm-title" class="confirm-card__title m-0 mb-2.5 text-title font-extrabold">${escapeHtml(meta.title)}</h2>
         <p id="confirm-message" class="confirm-card__message m-0 mb-[18px] leading-normal text-muted">${escapeHtml(meta.message)}</p>
         ${inputField}
-        <div class="confirm-card__actions flex flex-wrap justify-end gap-2.5 ${inputField ? 'mt-3.5' : ''}">
+        <div class="confirm-card__actions${meta.extraActions?.length ? ' confirm-card__actions--stack' : ''} flex flex-wrap justify-end gap-2.5 ${inputField ? 'mt-3.5' : ''}">
           <button type="button" class="btn btn-ghost" data-action="cancel-confirm">Hủy</button>
           ${extraButtons}
           <button type="button" class="btn ${meta.danger ? 'btn-danger' : 'btn-primary'}" data-action="${primaryAction}">${escapeHtml(meta.confirmLabel)}</button>

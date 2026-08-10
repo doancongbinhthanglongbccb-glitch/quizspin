@@ -2,7 +2,7 @@ import type { MatchScorePackage, MatchSettings } from '../types';
 import { DEFAULTS } from '../config';
 
 /** ID ổn định — không random mỗi lần normalize */
-export const DEFAULT_MATCH_PACKAGE_IDS = {
+const DEFAULT_MATCH_PACKAGE_IDS = {
   low: 'match-pkg-10',
   mid: 'match-pkg-20',
   high: 'match-pkg-30',
@@ -76,6 +76,7 @@ export function normalizeMatchSettings(
     round2QuestionsPerPack: clampMatchCount(source.round2QuestionsPerPack, 5),
     round2TimerSec: clampMatchTimerSec(source.round2TimerSec, timerFallback),
     round3QuestionCount: clampMatchCount(source.round3QuestionCount, 5),
+    round3TimerSec: clampMatchTimerSec(source.round3TimerSec, 30),
     round3Packages: packages,
     round3DefaultPackageId: defaultId,
     round3PackagePickSec: clampMatchTimerSec(source.round3PackagePickSec, 10),
@@ -86,11 +87,111 @@ export function defaultMatchSettings(fallbackTimerSec = 30): MatchSettings {
   return normalizeMatchSettings(undefined, fallbackTimerSec);
 }
 
-/** Điểm tối đa lý thuyết cả ván — dùng cảnh báo Settings (Phase 6). */
+/** Tên 3 màn trên UI */
+export const MATCH_ROUND_NAMES = {
+  1: 'Khởi động',
+  2: 'Tổng hợp',
+  3: 'Về đích',
+} as const;
+
+/** Trần điểm cả ván */
+export const MATCH_SCORE_CAP = 400;
+const MATCH_ROUND_FIXED_MAX: Record<1 | 2, number> = { 1: 100, 2: 100 };
+
+function matchRound3Budget(): number {
+  return MATCH_SCORE_CAP - MATCH_ROUND_FIXED_MAX[1] - MATCH_ROUND_FIXED_MAX[2];
+}
+
+/**
+ * Số lần tối đa mỗi gói không-mặc-định trong một ván Về đích.
+ * - Gói mặc định: không có trong map (không giới hạn).
+ * - Gói điểm cao nhất: tối đa 1 lần (nếu còn ngân sách).
+ * - Gói còn lại: chia phần ngân sách thừa (sau baseline mặc định × số câu) để max ≤ trần 400.
+ */
+export function buildRound3PackageQuotas(match: MatchSettings): Record<string, number> {
+  const defaultId = match.round3DefaultPackageId;
+  const defaultPkg =
+    match.round3Packages.find((item) => item.id === defaultId) ?? match.round3Packages[0];
+  const defaultPoints = defaultPkg?.points ?? 10;
+  const questionCount = match.round3QuestionCount;
+  const budget = matchRound3Budget();
+
+  const premium = match.round3Packages
+    .filter((item) => item.id !== defaultId)
+    .sort((a, b) => b.points - a.points || a.id.localeCompare(b.id));
+
+  const quotas: Record<string, number> = {};
+  for (const pkg of premium) {
+    quotas[pkg.id] = 0;
+  }
+
+  let surplus = budget - defaultPoints * questionCount;
+  if (surplus <= 0 || premium.length === 0) {
+    return quotas;
+  }
+
+  let usesAssigned = 0;
+  const high = premium[0]!;
+  const highExtra = Math.max(0, high.points - defaultPoints);
+  if (usesAssigned < questionCount && (highExtra === 0 || highExtra <= surplus)) {
+    quotas[high.id] = 1;
+    surplus -= highExtra;
+    usesAssigned += 1;
+  }
+
+  const rest = premium.slice(1);
+  for (let index = 0; index < rest.length; index += 1) {
+    const pkg = rest[index]!;
+    const extra = Math.max(0, pkg.points - defaultPoints);
+    const slotsLeft = questionCount - usesAssigned;
+    if (slotsLeft <= 0) {
+      break;
+    }
+    if (extra === 0) {
+      continue;
+    }
+
+    let maxUses = Math.min(Math.floor(surplus / extra), slotsLeft);
+    if (index < rest.length - 1) {
+      let reserved = 0;
+      for (let later = index + 1; later < rest.length; later += 1) {
+        const laterPkg = rest[later]!;
+        const laterExtra = Math.max(0, laterPkg.points - defaultPoints);
+        if (laterExtra > 0) {
+          reserved += laterExtra;
+        }
+      }
+      maxUses = Math.min(maxUses, Math.max(0, Math.floor((surplus - reserved) / extra)));
+    }
+
+    quotas[pkg.id] = maxUses;
+    surplus -= maxUses * extra;
+    usesAssigned += maxUses;
+  }
+
+  return quotas;
+}
+
+/** Điểm tối đa lý thuyết cả ván (có tính hạn mức gói Về đích). */
 export function matchTheoreticalMaxScore(match: MatchSettings): number {
-  const round1 = 100;
-  const round2 = 100;
-  const maxPackage = Math.max(...match.round3Packages.map((item) => item.points), 0);
-  const round3 = match.round3QuestionCount * maxPackage;
-  return round1 + round2 + round3;
+  const quotas = buildRound3PackageQuotas(match);
+  const defaultPkg =
+    match.round3Packages.find((item) => item.id === match.round3DefaultPackageId) ??
+    match.round3Packages[0];
+  const defaultPoints = defaultPkg?.points ?? 0;
+  const questionCount = match.round3QuestionCount;
+
+  let round3 = 0;
+  let premiumUses = 0;
+  for (const pkg of match.round3Packages) {
+    if (pkg.id === match.round3DefaultPackageId) {
+      continue;
+    }
+    const uses = quotas[pkg.id] ?? 0;
+    round3 += pkg.points * uses;
+    premiumUses += uses;
+  }
+  round3 += defaultPoints * Math.max(0, questionCount - premiumUses);
+
+  return MATCH_ROUND_FIXED_MAX[1] + MATCH_ROUND_FIXED_MAX[2] + round3;
 }

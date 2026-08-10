@@ -238,7 +238,7 @@ function fitLabelLayout(
   return layout;
 }
 
-/** Lật 180° khi nhãn nằm nửa trên vòng — tránh chữ đọc ngược trên màn hình. */
+/** Lật 180° khi nhãn nằm nửa trên vòng — chân chữ hướng tâm, đỉnh hướng vành. */
 function shouldFlipLabel(angleDeg: number): boolean {
   return Math.sin(degreesToRadians(angleDeg)) < 0;
 }
@@ -308,7 +308,8 @@ function drawSegment(
   const textY = textRadius * Math.sin(centerAngleRad);
   const segmentChordWidth = Math.max(56, 2 * textRadius * Math.sin(sliceRad / 2) * 0.92);
   const labelLayout = fitLabelLayout(ctx, segment.label, segmentChordWidth, radius, segment.id);
-  const labelRotation = shouldFlipLabel(segment.centerAngle) ? centerAngleRad + Math.PI : centerAngleRad;
+  // +π: đỉnh chữ hướng vành. Flip thêm nửa trên để không đọc ngược trên màn.
+  const labelRotation = shouldFlipLabel(segment.centerAngle) ? centerAngleRad : centerAngleRad + Math.PI;
 
   ctx.save();
   ctx.translate(textX, textY);
