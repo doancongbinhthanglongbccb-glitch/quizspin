@@ -8,7 +8,23 @@
 
 ## Danh sách các bản
 
-### Bản 11 — 18/07/2026 *(mới nhất)*
+### Bản 12 — 10/08/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-08-10_v2.apk` · `versionName` **2.0.0** / `versionCode` **7**
+
+**Có gì mới (major):**
+- **Ván 3 màn** hoàn chỉnh: Khởi động → Tổng hợp → Về đích (cấu hình số câu / thời gian / gói điểm trong Cài đặt)
+- **Pool câu đã dùng** lưu máy + mục Cài đặt «Đã dùng»; tránh trùng giữa các ván
+- Giao diện hội trường nghi lễ, UI Quay / tổng kết gọn hơn
+- Tóm tắt giữa màn: tổng tạm + nút «Sang …»; màn **Kết thúc ván** mới + âm thanh chúc mừng
+- Sửa chữ trên vòng quay bị ngược
+- Cắt bớt mô tả thừa trên Cài đặt / Quay / khi thi
+
+> Cùng chữ ký với v1.2.x — **cài đè** được. Nên xuất backup trước khi nâng cấp.
+
+---
+
+### Bản 11 — 18/07/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-07-18_answer-validate.apk` · `versionName` **1.2.3** / `versionCode` **6**
 

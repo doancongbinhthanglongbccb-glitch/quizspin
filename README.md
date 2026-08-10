@@ -178,6 +178,6 @@ Cấu hình app nằm trong:
 
 **App:** QuizSpin — Bổ trợ Giáo dục - Chính trị  
 
-**Phiên bản package:** `0.1.0`  
+**Phiên bản package:** `2.0.0`  
 
-**Android hiện tại:** `versionName` **1.2.3** / `versionCode` **6** — chi tiết từng bản trong [`releases/LICH-SU-PHIEN-BAN.md`](releases/LICH-SU-PHIEN-BAN.md)
+**Android hiện tại:** `versionName` **2.0.0** / `versionCode` **7** — chi tiết từng bản trong [`releases/LICH-SU-PHIEN-BAN.md`](releases/LICH-SU-PHIEN-BAN.md)
