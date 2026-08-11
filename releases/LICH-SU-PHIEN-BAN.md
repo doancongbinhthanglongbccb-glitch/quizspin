@@ -8,7 +8,20 @@
 
 ## Danh sách các bản
 
-### Bản 13 — 11/08/2026 *(mới nhất)*
+### Bản 14 — 11/08/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-08-11_v2.0.2.apk` · `versionName` **2.0.2** / `versionCode` **9**
+
+**Có gì mới:**
+- Nút chuyển màn dạng **「Màn 2 →」 / 「Màn 3 →」** (mép phải), thay footer «Sang Tổng hợp / Về đích»
+- Nguồn đề Về đích: nhãn **Tổng hợp / Lĩnh vực** (căn giữa)
+- Âm thanh **tổng kết mỗi màn** (`tada.swf.mp3`); ẩn dòng meta dư trên màn Tổng hợp
+
+> Cùng chữ ký với v2.0.x / v1.2.x — **cài đè** được. Nên xuất backup trước khi nâng cấp.
+
+---
+
+### Bản 13 — 11/08/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-08-11_v2.0.1.apk` · `versionName` **2.0.1** / `versionCode` **8**
 

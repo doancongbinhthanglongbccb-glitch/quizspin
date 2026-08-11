@@ -16,6 +16,7 @@ import {
   matchTimerUrgency,
 } from '../../utils/match-timer-ui';
 import { MATCH_ROUND_NAMES } from '../../config/match';
+import { renderMatchNextScreenButton } from './match-next-screen';
 
 /** Hiển thị điểm có dấu — scores[3] có thể âm sau khi tách từ floor tổng. */
 function formatMatchScore(score: number): string {
@@ -205,17 +206,27 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     const { round, score } = session.roundSummary;
     const runningTotal = session.scores[1] + session.scores[2] + session.scores[3];
     const title = `Kết thúc ${MATCH_ROUND_NAMES[round]}`;
-    const continueLabel =
-      round === 1
-        ? `Sang ${MATCH_ROUND_NAMES[2]}`
-        : round === 2
-          ? `Sang ${MATCH_ROUND_NAMES[3]}`
-          : 'Xem tổng kết';
+    const nextRound = round < 3 ? ((round + 1) as 2 | 3) : null;
+    const nextScreenButton =
+      nextRound !== null
+        ? renderMatchNextScreenButton({ nextRound, action: 'match-continue-round' })
+        : '';
+    const contentClass =
+      nextRound !== null ? 'quiz-session__content match-play__content match-play__content--with-next' : 'quiz-session__content match-play__content';
+    const footer =
+      nextRound === null
+        ? `
+            <footer class="quiz-session__footer">
+              <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-continue-round">
+                Xem tổng kết
+              </button>
+            </footer>`
+        : '';
 
     return `
       <div class="quiz-session-backdrop match-play-backdrop">
         <div class="quiz-session match-play">
-          <div class="quiz-session__content match-play__content">
+          <div class="${contentClass}">
             ${renderMatchRoundProgress(round)}
             <main class="quiz-session__main">
               <header class="quiz-session__question-head">
@@ -228,11 +239,8 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
               </div>
               <p class="quiz-session__hint match-round-total">Tổng tạm: <strong>${formatMatchScore(runningTotal)}</strong></p>
             </main>
-            <footer class="quiz-session__footer">
-              <button type="button" class="btn btn-primary quiz-session__submit-btn" data-action="match-continue-round">
-                ${continueLabel}
-              </button>
-            </footer>
+            ${nextScreenButton}
+            ${footer}
           </div>
         </div>
       </div>

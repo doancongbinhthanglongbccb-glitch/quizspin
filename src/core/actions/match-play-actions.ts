@@ -551,6 +551,8 @@ function finishActivePlayRound(session: MatchSession, play: MatchPlayState): voi
       showFinalSummary: false,
     },
   });
+  // Tổng kết từng màn (L1 -> màn 2, L2 -> màn 3, L3 -> tổng kết).
+  soundManager.play('tadaSummary');
   syncSpinUi();
 }
 
@@ -605,7 +607,6 @@ export function continueAfterRoundSummary(): void {
       showFinalSummary: true,
     },
   });
-  soundManager.play('fanfare');
   syncSpinUi();
 }
 

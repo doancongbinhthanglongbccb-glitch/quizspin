@@ -10,6 +10,7 @@ export const SOUND_EVENT_KEYS: SoundEventKey[] = [
   'correct',
   'wrong',
   'fanfare',
+  'tadaSummary',
 ];
 
 /** Âm thanh mặc định ship trong `public/sounds/` */
@@ -23,6 +24,7 @@ export const DEFAULT_SOUND_FILES: Record<SoundEventKey, string> = {
   correct: '/sounds/correct.mp3',
   wrong: '/sounds/wrong-answer-buzzer.mp3',
   fanfare: '/sounds/tada-qua.mp3',
+  tadaSummary: '/sounds/tada.swf.mp3',
 };
 
 export const DEFAULT_SOUND_FILE_NAMES: Record<SoundEventKey, string> = {
@@ -35,6 +37,7 @@ export const DEFAULT_SOUND_FILE_NAMES: Record<SoundEventKey, string> = {
   correct: 'correct.mp3',
   wrong: 'wrong-answer-buzzer.mp3',
   fanfare: 'tada-qua.mp3',
+  tadaSummary: 'tada.swf.mp3',
 };
 
 /** Phát nền — cần `soundManager.stop()` để dừng */
@@ -51,5 +54,5 @@ export const SOUND_EVENT_GROUPS: Array<{ title: string; keys: SoundEventKey[] }>
   { title: 'Màn hình chào', keys: ['introBed'] },
   { title: 'Vòng quay', keys: ['spinBed', 'spinStart', 'spinStop'] },
   { title: 'Câu hỏi', keys: ['quizBed', 'countdown', 'correct', 'wrong'] },
-  { title: 'Tổng kết ván', keys: ['fanfare'] },
+  { title: 'Tổng kết ván', keys: ['fanfare', 'tadaSummary'] },
 ];

@@ -87,6 +87,7 @@ export const SOUND_EVENT_LABELS: Record<SoundEventKey, string> = {
   wrong: 'Trả lời sai',
   countdown: 'Tick đếm giờ (5 giây cuối)',
   fanfare: 'Chúc mừng tổng kết',
+  tadaSummary: 'Tổng kết mỗi màn',
 };
 
 export function shuffleArray<T>(items: T[]): T[] {

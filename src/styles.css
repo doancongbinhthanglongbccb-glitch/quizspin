@@ -1291,6 +1291,104 @@ html {
   flex: 1;
 }
 
+.spin-round-panel--with-next {
+  position: relative;
+  justify-content: center;
+  min-height: min(42vh, 320px);
+}
+
+.match-play__content--with-next {
+  position: relative;
+}
+
+.match-next-screen-zone {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.match-next-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 76px;
+  min-height: 96px;
+  padding: 14px 12px 14px 14px;
+  border: 1px solid rgba(212, 160, 23, 0.55);
+  border-right: none;
+  border-radius: 14px 0 0 14px;
+  background:
+    linear-gradient(90deg, rgba(212, 160, 23, 0.16), rgba(212, 160, 23, 0.08)),
+    rgba(12, 26, 18, 0.72);
+  color: #f3e6b8;
+  font-family: var(--font-quiz);
+  cursor: pointer;
+  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.22);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.match-next-screen:hover:not(:disabled) {
+  background:
+    linear-gradient(90deg, rgba(212, 160, 23, 0.28), rgba(212, 160, 23, 0.14)),
+    rgba(12, 26, 18, 0.78);
+  border-color: rgba(212, 160, 23, 0.85);
+}
+
+.match-next-screen:active:not(:disabled) {
+  transform: translateX(2px);
+}
+
+.match-next-screen:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.match-next-screen__label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.match-next-screen__arrow {
+  font-size: 1.5rem;
+  line-height: 1;
+  font-weight: 400;
+  color: var(--gold);
+}
+
+.match-play__content--with-next .quiz-session__main {
+  padding-right: 88px;
+}
+
+@media (min-width: 768px) {
+  .match-next-screen {
+    min-width: 84px;
+    min-height: 108px;
+    padding: 16px 14px 16px 18px;
+  }
+
+  .match-next-screen__label {
+    font-size: 0.9rem;
+  }
+
+  .match-next-screen__arrow {
+    font-size: 1.65rem;
+  }
+
+  .match-play__content--with-next .quiz-session__main {
+    padding-right: 100px;
+  }
+}
+
 
 .r3-lobby {
   gap: 18px;
@@ -1388,14 +1486,15 @@ html {
 .r3-source__btn {
   display: grid;
   gap: 4px;
-  justify-items: start;
+  place-items: center;
+  align-content: center;
   min-height: 72px;
   padding: 14px 14px 12px;
   border-radius: 14px;
   border: 1px solid rgba(197, 208, 200, 0.14);
   background: rgba(8, 20, 14, 0.55);
   color: var(--paper);
-  text-align: left;
+  text-align: center;
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
 

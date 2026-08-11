@@ -7,14 +7,11 @@ import { countUsedQuestionsInBank } from '../../core/pool-manager';
 import { getSpinRound2PoolPacks } from '../../core/actions/spin-actions';
 import { WheelRenderer } from './wheel';
 import { escapeHtml } from '../../utils/html';
+import { renderMatchNextScreenButton } from './match-next-screen';
 
 const ROUND1 = MATCH_ROUND_NAMES[1];
 const ROUND2 = MATCH_ROUND_NAMES[2];
 const ROUND3 = MATCH_ROUND_NAMES[3];
-
-function formatScore(score: number): string {
-  return String(Math.round(score));
-}
 
 function bankQuestionCount(appState: AppState): number {
   return appState.categories.reduce((count, category) => count + category.questions.length, 0);
@@ -127,7 +124,7 @@ function renderRound2Body(appState: AppState, runtime: RuntimeState): string {
   const hint = playable
     ? ''
     : alreadyPlayedRound2
-      ? `Đã chơi ${ROUND2} · Sang ${ROUND3}`
+      ? `Đã chơi ${ROUND2}`
       : `Hoàn thành ${ROUND1} để quay`;
 
   if (pool.length === 0) {
@@ -154,41 +151,25 @@ function renderRound2Body(appState: AppState, runtime: RuntimeState): string {
 
   if (alreadyPlayedRound2 && session?.currentRound === 2) {
     return `
-      <div class="spin-round-panel">
+      <div class="spin-round-panel spin-round-panel--with-next">
         <p class="spin-round-empty warning-banner mb-0">
-          Đã hoàn thành ${ROUND2}. Sang ${ROUND3}.
+          Đã hoàn thành ${ROUND2}.
         </p>
-        <div class="spin-actions">
-          <button type="button" class="btn btn-spin" data-action="match-proceed-round3">
-            Sang ${ROUND3}
-          </button>
-        </div>
+        ${renderMatchNextScreenButton({ nextRound: 3, action: 'match-proceed-round3' })}
       </div>
     `;
   }
 
   if (available.length === 0 && session?.currentRound === 2) {
     return `
-      <div class="spin-round-panel">
+      <div class="spin-round-panel spin-round-panel--with-next">
         <p class="spin-round-empty warning-banner mb-0">
-          Đã hỏi hết bộ đề ${ROUND2}. Sang ${ROUND3}.
+          Đã hỏi hết bộ đề ${ROUND2}.
         </p>
-        <div class="spin-actions">
-          <button type="button" class="btn btn-spin" data-action="match-proceed-round3">
-            Sang ${ROUND3}
-          </button>
-        </div>
+        ${renderMatchNextScreenButton({ nextRound: 3, action: 'match-proceed-round3' })}
       </div>
     `;
   }
-
-  const used = usedProgressLabel(appState);
-  const metaParts = [
-    `còn ${available.length}/${pool.length} bộ`,
-    session ? `Điểm ${ROUND2}: ${formatScore(session.scores[2])}` : null,
-    `<span class="spin-meta__used" data-match-used-progress="${used.used}/${used.total}">${used.text}</span>`,
-  ].filter(Boolean);
-  const meta = metaParts.join(' · ');
 
   return `
     <div class="spin-layout">
@@ -206,7 +187,6 @@ function renderRound2Body(appState: AppState, runtime: RuntimeState): string {
         >
           Quay chọn đề
         </button>
-        <p class="spin-meta m-0 text-center text-caption text-muted">${meta}</p>
         ${hint ? `<p class="spin-hint m-0 text-center text-caption text-subtle">${hint}</p>` : ''}
       </div>
     </div>
@@ -291,7 +271,7 @@ function renderRound3Body(appState: AppState, runtime: RuntimeState): string {
             data-mode="bank"
             ${sourceLocked ? 'disabled' : ''}
           >
-            <span class="r3-source__title">Toàn ngân hàng</span>
+            <span class="r3-source__title">Tổng hợp</span>
           </button>
           <button
             type="button"
@@ -300,7 +280,7 @@ function renderRound3Body(appState: AppState, runtime: RuntimeState): string {
             data-mode="category"
             ${sourceLocked ? 'disabled' : ''}
           >
-            <span class="r3-source__title">Một lĩnh vực</span>
+            <span class="r3-source__title">Lĩnh vực</span>
           </button>
         </div>
         ${

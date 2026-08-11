@@ -47,7 +47,8 @@ export type SoundEventKey =
   | 'countdown'
   | 'correct'
   | 'wrong'
-  | 'fanfare';
+  | 'fanfare'
+  | 'tadaSummary';
 
 export type CustomSound = {
   id: string;
