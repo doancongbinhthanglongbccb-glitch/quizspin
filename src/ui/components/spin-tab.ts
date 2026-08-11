@@ -49,7 +49,7 @@ function isMatchIdle(runtime: RuntimeState, round: 2 | 3): boolean {
   return true;
 }
 
-function renderSpinRoundTabs(view: MatchRoundId, matchRound: MatchRoundId | null): string {
+function renderSpinRoundTabs(view: MatchRoundId, matchRound: MatchRoundId | null, matchLocked: boolean): string {
   const tabs = ([1, 2, 3] as const)
     .map((step) => {
       let state: 'current' | 'done' | 'todo' = 'todo';
@@ -62,11 +62,12 @@ function renderSpinRoundTabs(view: MatchRoundId, matchRound: MatchRoundId | null
       return `
         <button
           type="button"
-          class="spin-round-tabs__tab spin-round-tabs__tab--${state}"
+          class="spin-round-tabs__tab spin-round-tabs__tab--${state}${matchLocked ? ' spin-round-tabs__tab--locked' : ''}"
           role="tab"
           aria-selected="${step === view ? 'true' : 'false'}"
           data-action="set-spin-round-view"
           data-round="${step}"
+          ${matchLocked ? 'disabled aria-disabled="true"' : ''}
         >
           ${MATCH_ROUND_NAMES[step]}
         </button>`;
@@ -341,6 +342,7 @@ function renderRound3Body(appState: AppState, runtime: RuntimeState): string {
 export function renderSpinTab(appState: AppState, runtime: RuntimeState): string {
   const view = runtime.spinRoundView;
   const matchRound = runtime.matchSession?.currentRound ?? null;
+  const matchLocked = Boolean(runtime.matchSession);
 
   let body = '';
   if (view === 1) {
@@ -364,7 +366,7 @@ export function renderSpinTab(appState: AppState, runtime: RuntimeState): string
   return `
     <section class="panel panel--spin" data-swipe-zone="content">
       <div class="spin-page">
-        ${renderSpinRoundTabs(view, matchRound)}
+        ${renderSpinRoundTabs(view, matchRound, matchLocked)}
         ${body}
       </div>
     </section>

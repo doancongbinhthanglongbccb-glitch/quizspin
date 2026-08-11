@@ -679,6 +679,12 @@ html {
     box-shadow: inset 0 -2px 0 var(--gold);
   }
 
+  .nav-tab--locked,
+  .nav-tab:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
   .nav-tab__label {
     font-size: var(--nav-label-size);
   }
@@ -1264,6 +1270,17 @@ html {
 
 .spin-round-tabs__tab--todo {
   color: rgba(197, 208, 200, 0.38);
+}
+
+.spin-round-tabs__tab--locked,
+.spin-round-tabs__tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.spin-round-tabs__tab--locked:not(.spin-round-tabs__tab--current),
+.spin-round-tabs__tab:disabled:not(.spin-round-tabs__tab--current) {
+  color: rgba(197, 208, 200, 0.32);
 }
 
 .spin-round-panel {

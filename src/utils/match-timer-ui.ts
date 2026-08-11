@@ -14,9 +14,9 @@ export function matchTimerRatio(remaining: number, total: number): number {
   return Math.max(0, Math.min(1, remaining / Math.max(1, total)));
 }
 
-/** Ngưỡng match: max(config, % thời gian câu) — cùng công thức render + tick DOM. */
+/** Ngưỡng match: đỏ = N giây cuối (mặc định 5); vàng = nửa thời gian. */
 export function matchTimerUrgency(remaining: number, total: number): MatchTimerUrgency {
-  const dangerSec = Math.min(QUIZ_CONFIG.dangerThresholdSec, Math.max(3, Math.ceil(total * 0.25)));
+  const dangerSec = matchTimerDangerSec(total);
   const warningSec = Math.min(QUIZ_CONFIG.warningThresholdSec, Math.max(dangerSec + 1, Math.ceil(total * 0.5)));
   if (remaining > 0 && remaining <= dangerSec) {
     return 'danger';
@@ -27,6 +27,7 @@ export function matchTimerUrgency(remaining: number, total: number): MatchTimerU
   return 'ok';
 }
 
+/** Số giây cuối phát tick — cố định theo config, không vượt quá thời gian câu. */
 export function matchTimerDangerSec(total: number): number {
-  return Math.min(QUIZ_CONFIG.dangerThresholdSec, Math.max(3, Math.ceil(total * 0.25)));
+  return Math.min(QUIZ_CONFIG.dangerThresholdSec, Math.max(1, total));
 }

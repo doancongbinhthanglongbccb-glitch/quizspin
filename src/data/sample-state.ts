@@ -82,9 +82,10 @@ export const SOUND_EVENT_LABELS: Record<SoundEventKey, string> = {
   spinBed: 'Nhạc nền khi quay',
   spinStart: 'Tiếng quay bánh xe',
   spinStop: 'Tiếng dừng quay',
+  quizBed: 'Nhạc nền khi trả lời',
   correct: 'Trả lời đúng',
   wrong: 'Trả lời sai',
-  countdown: 'Tick đếm giờ (mỗi giây)',
+  countdown: 'Tick đếm giờ (5 giây cuối)',
   fanfare: 'Chúc mừng tổng kết',
 };
 

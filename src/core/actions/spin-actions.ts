@@ -63,6 +63,10 @@ export function setSpinRoundView(round: MatchRoundId): void {
   if (runtime.spinning || runtime.spinRoundView === round) {
     return;
   }
+  if (runtime.matchSession) {
+    showToast('Đang trong ván — hoàn thành ván để đổi màn');
+    return;
+  }
   appContext.setRuntimeState({ spinRoundView: round });
 }
 

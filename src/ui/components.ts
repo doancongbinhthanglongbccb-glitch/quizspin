@@ -140,16 +140,18 @@ if (!appRoot) {
 
 function renderTabs(): string {
   const runtime = appContext.getRuntimeState();
+  const locked = !canSwitchTab();
   const button = (key: 'spin' | 'bank' | 'settings') => {
     const meta = TAB_META[key];
     const active = runtime.tab === key ? ' nav-tab--active' : '';
     return `
       <button
-        class="nav-tab${active}"
+        class="nav-tab${active}${locked && runtime.tab !== key ? ' nav-tab--locked' : ''}"
         data-action="switch-tab"
         data-tab="${key}"
         aria-label="${meta.label}"
         aria-current="${runtime.tab === key ? 'page' : 'false'}"
+        ${locked && runtime.tab !== key ? 'disabled aria-disabled="true"' : ''}
       >
         <span class="nav-tab__icon leading-none max-md:text-[1.2rem] md:max-lg:text-[1.65rem] lg:text-[1.75rem]" aria-hidden="true">${meta.icon}</span>
         <span class="nav-tab__label font-bold leading-tight max-md:hidden">${meta.label}</span>

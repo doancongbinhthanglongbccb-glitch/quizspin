@@ -24,6 +24,7 @@ export function stopMatchTimer(): void {
     timerHandle = null;
   }
   soundManager.stopCountdown();
+  soundManager.stop('quizBed');
 }
 
 function updateMatchTimerDom(remaining: number, total: number): void {
@@ -57,6 +58,14 @@ function updateMatchTimerDom(remaining: number, total: number): void {
   }
 }
 
+function syncMatchTimerSounds(remaining: number, total: number): void {
+  if (remaining > 0 && remaining <= matchTimerDangerSec(total)) {
+    soundManager.playLoop('countdown');
+  } else {
+    soundManager.stop('countdown');
+  }
+}
+
 export function startMatchTimer(): void {
   stopMatchTimer();
   timerCancelled = false;
@@ -70,8 +79,11 @@ export function startMatchTimer(): void {
     return;
   }
 
+  soundManager.playLoop('quizBed');
+
   let lastRemaining = matchRemainingSeconds(play.deadlineAt);
   updateMatchTimerDom(lastRemaining, play.timerSec);
+  syncMatchTimerSounds(lastRemaining, play.timerSec);
 
   const tick = (): void => {
     if (timerCancelled) {
@@ -100,11 +112,9 @@ export function startMatchTimer(): void {
     }
 
     updateMatchTimerDom(remaining, latestPlay.timerSec);
+    syncMatchTimerSounds(remaining, latestPlay.timerSec);
 
     if (remaining < lastRemaining) {
-      if (remaining <= matchTimerDangerSec(latestPlay.timerSec)) {
-        soundManager.play('countdown');
-      }
       // Đọc lại session mới nhất — tránh patch bằng snapshot cũ làm mất usedQuestionIds.
       const liveSession = appContext.getRuntimeState().matchSession;
       const livePlay = liveSession?.activePlay;

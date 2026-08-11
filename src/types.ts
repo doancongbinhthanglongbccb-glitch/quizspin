@@ -43,6 +43,7 @@ export type SoundEventKey =
   | 'spinBed'
   | 'spinStart'
   | 'spinStop'
+  | 'quizBed'
   | 'countdown'
   | 'correct'
   | 'wrong'

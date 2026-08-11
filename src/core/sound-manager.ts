@@ -17,6 +17,7 @@ const TONE_FALLBACK: Partial<Record<SoundEventKey, SoundSpec>> = {
   correct: { frequency: 880, duration: 180, type: 'sine' },
   wrong: { frequency: 220, duration: 260, type: 'sawtooth' },
   countdown: { frequency: 640, duration: 35, type: 'square' },
+  quizBed: { frequency: 180, duration: 400, type: 'sine' },
   fanfare: { frequency: 1040, duration: 320, type: 'sine' },
 };
 
@@ -74,11 +75,6 @@ class SoundManager {
       return;
     }
 
-    if (event === 'countdown') {
-      this.playCountdownTick(this.resolveSource(event));
-      return;
-    }
-
     this.playOneShot(event, () => this.playToneFallback(event));
   }
 
@@ -123,6 +119,7 @@ class SoundManager {
   }
 
   stopCountdown(): void {
+    this.stop('countdown');
     const pool = this.oneShotPools.get('countdown');
     if (!pool) {
       return;
@@ -394,7 +391,8 @@ class SoundManager {
       return;
     }
 
-    const volume = event === 'introBed' ? 0.82 : 0.9;
+    const volume =
+      event === 'introBed' ? 0.82 : event === 'quizBed' ? 0.55 : event === 'countdown' ? 0.85 : 0.9;
     const existing = this.sustained.get(event);
 
     if (existing && existing.sourceKey === source) {
@@ -417,19 +415,6 @@ class SoundManager {
       this.stop(event);
       this.playToneFallback(event);
     });
-  }
-
-  /** Một tick mỗi giây — luôn restart clip (file tick có thể dài hơn 1s). */
-  private playCountdownTick(source: string | undefined): void {
-    if (!source) {
-      this.playToneFallback('countdown');
-      return;
-    }
-
-    const audio = this.borrowOneShotAudio('countdown', source);
-    audio.pause();
-    audio.currentTime = 0;
-    void audio.play().catch(() => this.playToneFallback('countdown'));
   }
 
   private playToneFallback(event: SoundEventKey): void {

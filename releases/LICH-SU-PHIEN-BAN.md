@@ -8,7 +8,20 @@
 
 ## Danh sách các bản
 
-### Bản 12 — 10/08/2026 *(mới nhất)*
+### Bản 13 — 11/08/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-08-11_v2.0.1.apk` · `versionName` **2.0.1** / `versionCode` **8**
+
+**Có gì mới:**
+- **Về đích:** chọn gói xong mới chạy giây câu / cửa sổ giữ điểm (phân vân chọn gói không bị trừ giờ)
+- Giao diện hội trường đồng bộ hơn: cảnh báo, toast, hộp xác nhận, modal kết quả quay, tab 3 màn
+- Tách module luật điểm + dữ liệu; thêm kiểm thử tự động cho chấm điểm L3
+
+> Cùng chữ ký với v2.0.0 / v1.2.x — **cài đè** được. Nên xuất backup trước khi nâng cấp.
+
+---
+
+### Bản 12 — 10/08/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-08-10_v2.apk` · `versionName` **2.0.0** / `versionCode` **7**
 

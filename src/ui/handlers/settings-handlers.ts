@@ -192,21 +192,8 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
   let sectionHandledByPointer = false;
 
   const onInput = (event: Event): void => {
-    const matchField = getInputTarget<HTMLInputElement>(event, root, '[data-match-field]');
-    if (matchField?.dataset.matchField) {
-      commitMatchScalarField(matchField.dataset.matchField, matchField.value);
-      return;
-    }
-
-    const matchPackageField = getInputTarget<HTMLInputElement>(event, root, '[data-match-package-field]');
-    if (matchPackageField?.dataset.packageId && matchPackageField.dataset.matchPackageField) {
-      const field = matchPackageField.dataset.matchPackageField;
-      if (field === 'points' || field === 'timerSec') {
-        commitMatchPackageField(matchPackageField.dataset.packageId, field, matchPackageField.value);
-      }
-      return;
-    }
-
+    // Không commit số match trên mỗi lần gõ — tránh rebuild + nhảy IME (ă!).
+    // Chỉ draft intro links.
     const introField = getInputTarget<HTMLInputElement>(event, root, '[data-settings-field="intro-link-label"], [data-settings-field="intro-link-url"]');
     if (introField) {
       patchSettingsDraft({ introLinks: readIntroLinksFromDom(root) });
