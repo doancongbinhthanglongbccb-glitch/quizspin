@@ -257,10 +257,10 @@ function renderOnce(): void {
         ${renderTabs()}
 
         <div class="app-body flex min-h-0 flex-1 w-full min-w-0 max-w-full flex-col overflow-hidden p-4 pb-nav lg:landscape:pb-4">
-          <header class="app-header mb-[18px] min-w-0 max-w-full shrink-0 rounded-[16px] border border-accent-yellow/30 px-4 py-3.5 pb-4">
-            <div class="flex min-w-0 items-center gap-3.5">
+          <header class="app-header mb-3 min-w-0 max-w-full shrink-0 rounded-[16px] border border-accent-yellow/30 px-4 py-2.5">
+            <div class="flex min-w-0 items-center gap-3">
               <img
-                class="app-header__logo h-12 w-auto shrink-0 rounded-full border-2 border-accent-yellow/45 bg-[#0f2410] object-cover shadow-lg max-lg:h-12 lg:landscape:h-11 xl:landscape:h-14"
+                class="app-header__logo h-11 w-auto shrink-0 rounded-full border-2 border-accent-yellow/45 bg-[#0f2410] object-cover shadow-lg max-lg:h-11 lg:landscape:h-10 xl:landscape:h-12"
                 src="${INTRO_ASSETS.headerLogo}"
                 alt="${INTRO_COPY.logoAlt}"
                 width="56"

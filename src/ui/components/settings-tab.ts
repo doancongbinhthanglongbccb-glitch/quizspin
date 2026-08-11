@@ -1,7 +1,5 @@
-import { DEFAULTS, TIMER_PRESETS } from '../../config';
+import { DEFAULTS } from '../../config';
 import { defaultMatchSettings, matchTheoreticalMaxScore, MATCH_ROUND_NAMES, MATCH_SCORE_CAP, buildRound3PackageQuotas } from '../../config/match';
-import { formatTimerDisplay } from '../../utils/timer-format';
-import { timerMinutesInputValue } from '../../utils/timer-settings';
 import { appContext, type RuntimeState } from '../../core/state';
 import type { AppState, IntroLinkSettings, SettingsSection, SoundEventKey } from '../../types';
 import { DEFAULT_SOUND_FILE_NAMES, SOUND_EVENT_GROUPS } from '../../config/sounds';
@@ -10,14 +8,21 @@ import { MAX_INTRO_LINKS } from '../../types';
 import { countUsedQuestionsInBank } from '../../core/pool-manager';
 import { escapeHtml } from '../../utils/html';
 
-const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; icon: string; danger?: boolean }> = [
-  { id: 'timer', label: 'Thời gian', icon: '⏱' },
-  { id: 'match', label: 'Ván 3 màn', icon: '🎯' },
-  { id: 'sound', label: 'Âm thanh', icon: '🔊' },
-  { id: 'intro', label: 'Màn Intro', icon: '🎬' },
-  { id: 'pool', label: 'Đã dùng', icon: '📋' },
-  { id: 'danger', label: 'Backup / Xóa', icon: '🗑', danger: true },
+const SIDEBAR_ITEMS: Array<{ id: SettingsSection; label: string; danger?: boolean }> = [
+  { id: 'match', label: 'Ván 3 màn' },
+  { id: 'sound', label: 'Âm thanh' },
+  { id: 'intro', label: 'Màn Intro' },
+  { id: 'pool', label: 'Đã dùng' },
+  { id: 'danger', label: 'Backup / Xóa', danger: true },
 ];
+
+const SECTION_TITLES: Record<SettingsSection, string> = {
+  match: 'Ván 3 màn',
+  sound: 'Âm thanh',
+  intro: 'Màn Intro',
+  pool: 'Đã dùng',
+  danger: 'Backup / Xóa',
+};
 
 function renderSidebar(active: SettingsSection): string {
   const mainItems = SIDEBAR_ITEMS.filter((item) => !item.danger);
@@ -26,9 +31,9 @@ function renderSidebar(active: SettingsSection): string {
   const item = (entry: (typeof SIDEBAR_ITEMS)[number]) => {
     const isActive = entry.id === active;
     const classes = [
-      'settings-sidebar__item',
-      isActive ? 'settings-sidebar__item--active' : '',
-      entry.danger ? 'settings-sidebar__item--danger' : '',
+      'settings-rail__item',
+      isActive ? 'settings-rail__item--active' : '',
+      entry.danger ? 'settings-rail__item--danger' : '',
     ]
       .filter(Boolean)
       .join(' ');
@@ -39,23 +44,27 @@ function renderSidebar(active: SettingsSection): string {
         class="${classes}"
         data-action="settings-section"
         data-section="${entry.id}"
-      >
-        <span class="settings-sidebar__icon shrink-0 text-[1.1rem] leading-none" aria-hidden="true">${entry.icon}</span>
-        <span>${entry.label}</span>
-      </button>
+        aria-current="${isActive ? 'page' : 'false'}"
+      >${entry.label}</button>
     `;
   };
 
   return `
-    <nav class="settings-sidebar flex w-full shrink-0 flex-col gap-1 max-lg:flex-row max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:touch-pan-x max-lg:overscroll-x-contain max-lg:pb-1 max-lg:[-webkit-overflow-scrolling:touch] max-md:flex-wrap max-md:gap-1.5 lg:w-[188px] lg:flex-col lg:overflow-visible lg:pb-0" aria-label="Mục cài đặt">
-      ${mainItems.map(item).join('')}
-      <div class="settings-sidebar__spacer min-h-10 flex-1 max-lg:hidden" aria-hidden="true"></div>
-      ${dangerItem ? item(dangerItem) : ''}
+    <nav class="settings-rail" aria-label="Mục cài đặt">
+      <p class="settings-rail__label">Mục</p>
+      <div class="settings-rail__list">
+        ${mainItems.map(item).join('')}
+      </div>
+      ${
+        dangerItem
+          ? `<div class="settings-rail__foot">${item(dangerItem)}</div>`
+          : ''
+      }
     </nav>
   `;
 }
 
-function renderStatBar(appState: AppState): string {
+function renderMasthead(appState: AppState, section: SettingsSection): string {
   const categoryCount = appState.categories.length;
   const totalQuestions = appState.categories.reduce(
     (count, category) => count + category.questions.filter(isMcqQuestion).length,
@@ -65,20 +74,15 @@ function renderStatBar(appState: AppState): string {
   const bankTotal = appState.categories.reduce((count, category) => count + category.questions.length, 0);
 
   return `
-    <div class="settings-stats flex shrink-0 gap-2.5 max-md:flex-col max-lg:grid max-lg:grid-cols-2 lg:flex lg:flex-row">
-      <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
-        <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Lĩnh vực</p>
-        <p class="settings-stat-box__value m-0 text-display font-bold text-white">${categoryCount}</p>
+    <header class="settings-masthead">
+      <div class="settings-masthead__copy">
+        <p class="settings-masthead__eyebrow">Cài đặt</p>
+        <h2 class="settings-masthead__title">${SECTION_TITLES[section]}</h2>
       </div>
-      <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
-        <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Tổng câu</p>
-        <p class="settings-stat-box__value m-0 text-display font-bold text-white">${totalQuestions}</p>
-      </div>
-      <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
-        <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Đã dùng</p>
-        <p class="settings-stat-box__value m-0 text-display font-bold text-white">${usedCount}/${bankTotal}</p>
-      </div>
-    </div>
+      <p class="settings-masthead__stats" aria-label="Thống kê ngân hàng">
+        ${categoryCount} lĩnh vực · ${totalQuestions} câu · Đã dùng ${usedCount}/${bankTotal}
+      </p>
+    </header>
   `;
 }
 
@@ -130,12 +134,12 @@ function renderSoundEventRow(
       `;
 
   return `
-    <div class="sound-event-row flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3 max-lg:flex-col max-lg:items-stretch max-md:flex-col max-md:items-stretch xl:landscape:flex-row xl:landscape:items-center ${isPending ? 'sound-event-row--pending' : ''}">
-      <div class="sound-event-row__info grid min-w-0 gap-1">
-        <strong class="text-subtitle">${SOUND_EVENT_LABELS[eventKey]}</strong>
-        <span class="sound-event-row__name truncate text-caption text-subtle">${fileLabel}</span>
+    <div class="sound-event-row${isPending ? ' sound-event-row--pending' : ''}">
+      <div class="sound-event-row__info">
+        <strong>${SOUND_EVENT_LABELS[eventKey]}</strong>
+        <span class="sound-event-row__name">${fileLabel}</span>
       </div>
-      <div class="sound-event-row__actions flex flex-wrap justify-end gap-2 max-lg:justify-start max-md:justify-stretch max-md:[&_.btn]:flex-1">${pendingActions}</div>
+      <div class="sound-event-row__actions">${pendingActions}</div>
     </div>
   `;
 }
@@ -143,75 +147,14 @@ function renderSoundEventRow(
 function renderSoundEvents(appState: AppState, runtime: RuntimeState): string {
   return SOUND_EVENT_GROUPS.map(
     (group) => `
-      <div class="settings-sound-group grid gap-2.5 [&+&]:mt-[18px]">
-        <p class="settings-sound-group__title m-0 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">${group.title}</p>
-        <div class="sound-events grid gap-3 mt-3 xl:landscape:grid-cols-2">
+      <div class="settings-sound-group">
+        <p class="settings-sound-group__title">${group.title}</p>
+        <div class="sound-events">
           ${group.keys.map((eventKey) => renderSoundEventRow(appState, runtime, eventKey)).join('')}
         </div>
       </div>
     `,
   ).join('');
-}
-
-function renderTimerPanel(appState: AppState): string {
-  const timerSec = appState.settings.timer;
-  const { value, unit } = formatTimerDisplay(timerSec);
-  const minutesValue = timerMinutesInputValue(timerSec);
-
-  const presets = TIMER_PRESETS.map((preset) => {
-    const active = preset.sec === timerSec;
-    return `<button
-      type="button"
-      class="timer-preset-chip ${active ? 'timer-preset-chip--active' : ''}"
-      data-action="timer-preset"
-      data-timer-sec="${preset.sec}"
-    >${preset.label}</button>`;
-  }).join('');
-
-  return `
-    <div class="settings-panel-card">
-      <p class="settings-panel-card__title"><span aria-hidden="true">⏱</span>Thời gian đếm ngược cả bộ thi</p>
-
-      <div class="settings-timer-stepper flex items-center justify-center gap-2.5 mb-2">
-        <button
-          type="button"
-          class="timer-stepper-btn"
-          data-action="timer-step-down"
-          aria-label="Giảm 1 phút"
-          ${timerSec <= DEFAULTS.timerMinSec ? 'disabled' : ''}
-        >−</button>
-        <div class="timer-input-wrap flex items-center gap-2">
-          <input
-            id="timer-minutes-input"
-            class="timer-minutes-input input"
-            type="number"
-            inputmode="numeric"
-            min="1"
-            max="60"
-            step="1"
-            placeholder="—"
-            value="${minutesValue}"
-            aria-label="Số phút"
-          />
-          <span class="timer-input-wrap__unit shrink-0 text-ui font-semibold text-white/70">phút</span>
-        </div>
-        <button
-          type="button"
-          class="timer-stepper-btn"
-          data-action="timer-step-up"
-          aria-label="Tăng 1 phút"
-          ${timerSec >= DEFAULTS.timerMaxSec ? 'disabled' : ''}
-        >+</button>
-      </div>
-
-      <p class="settings-timer-summary m-0 mb-3 text-center" id="timer-summary">
-        <span class="settings-timer-value__number text-[clamp(1.1rem,3vw,1.35rem)] font-bold text-white" id="timer-slider-value">${value}</span>
-        <span class="settings-timer-value__unit text-ui text-white/45" id="timer-slider-unit">${unit}</span>
-      </p>
-
-      <div class="timer-preset-grid" role="group" aria-label="Thời gian có sẵn">${presets}</div>
-    </div>
-  `;
 }
 
 function renderMatchNumberField(params: {
@@ -251,8 +194,8 @@ function renderMatchPanel(appState: AppState): string {
       const quota = quotas[pkg.id];
       const quotaHint = isDefault ? 'Không giới hạn' : `${quota ?? 0} lần/ván`;
       return `
-        <div class="settings-match-package flex flex-wrap items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3" data-match-package-id="${escapeHtml(pkg.id)}">
-          <div class="min-w-0 flex-1 basis-[120px]">
+        <div class="settings-match-package" data-match-package-id="${escapeHtml(pkg.id)}">
+          <div class="settings-match-package__field">
             <label class="bank-form-label" for="match-pkg-points-${escapeHtml(pkg.id)}">Điểm</label>
             <input
               id="match-pkg-points-${escapeHtml(pkg.id)}"
@@ -267,7 +210,7 @@ function renderMatchPanel(appState: AppState): string {
               value="${pkg.points}"
             />
           </div>
-          <div class="min-w-0 flex-1 basis-[120px]">
+          <div class="settings-match-package__field">
             <label class="bank-form-label" for="match-pkg-timer-${escapeHtml(pkg.id)}">Cửa sổ (giây)</label>
             <input
               id="match-pkg-timer-${escapeHtml(pkg.id)}"
@@ -282,7 +225,7 @@ function renderMatchPanel(appState: AppState): string {
               value="${pkg.timerSec}"
             />
           </div>
-          <label class="settings-match-default inline-flex items-center gap-2 pb-2.5 text-caption text-white/70">
+          <label class="settings-match-default">
             <input
               type="radio"
               name="match-round3-default"
@@ -294,12 +237,12 @@ function renderMatchPanel(appState: AppState): string {
           </label>
           <button
             type="button"
-            class="btn btn--small btn-ghost shrink-0"
+            class="btn btn--small btn-ghost"
             data-action="match-remove-package"
             data-package-id="${escapeHtml(pkg.id)}"
             ${canRemove ? '' : 'disabled'}
           >Xóa</button>
-          <p class="m-0 w-full text-caption text-white/45">${quotaHint}</p>
+          <p class="settings-match-package__meta">${quotaHint}</p>
         </div>
       `;
     })
@@ -307,17 +250,15 @@ function renderMatchPanel(appState: AppState): string {
 
   return `
     <div class="settings-panel-card grid gap-1">
-      <p class="settings-panel-card__title"><span aria-hidden="true">🎯</span>Cấu hình ván 3 màn</p>
-
       ${
         overCap
-          ? `<div class="warning-banner mb-3.5 rounded-[18px] border border-amber-300/30 bg-amber-300/10 px-4 py-3.5 text-amber-200" role="status">
+          ? `<div class="warning-banner mb-3.5" role="status">
               Điểm tối đa ~${theoreticalMax} &gt; ${MATCH_SCORE_CAP}. Giảm số câu ${MATCH_ROUND_NAMES[3]} hoặc điểm gói.
             </div>`
           : ''
       }
 
-      <p class="settings-sound-group__title m-0 mb-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">${MATCH_ROUND_NAMES[1]}</p>
+      <p class="settings-sound-group__title">${MATCH_ROUND_NAMES[1]}</p>
       ${renderMatchNumberField({
         id: 'match-round1-count',
         label: 'Số câu',
@@ -335,7 +276,7 @@ function renderMatchPanel(appState: AppState): string {
         max: DEFAULTS.timerMaxSec,
       })}
 
-      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">${MATCH_ROUND_NAMES[2]}</p>
+      <p class="settings-sound-group__title mt-2">${MATCH_ROUND_NAMES[2]}</p>
       ${renderMatchNumberField({
         id: 'match-round2-per-pack',
         label: 'Số câu mỗi bộ đề',
@@ -353,7 +294,7 @@ function renderMatchPanel(appState: AppState): string {
         max: DEFAULTS.timerMaxSec,
       })}
 
-      <p class="settings-sound-group__title m-0 mb-2 mt-2 text-caption font-extrabold uppercase tracking-widest text-amber-200/85">${MATCH_ROUND_NAMES[3]}</p>
+      <p class="settings-sound-group__title mt-2">${MATCH_ROUND_NAMES[3]}</p>
       ${renderMatchNumberField({
         id: 'match-round3-count',
         label: 'Số câu',
@@ -380,8 +321,8 @@ function renderMatchPanel(appState: AppState): string {
       })}
 
       <p class="bank-form-label m-0 mb-2">Gói điểm</p>
-      <div class="grid gap-2.5 mb-3">${packageRows}</div>
-      <button type="button" class="btn btn-ghost w-full" data-action="match-add-package">+ Thêm gói điểm</button>
+      <div class="settings-match-packages">${packageRows}</div>
+      <button type="button" class="btn btn-ghost w-full mt-3" data-action="match-add-package">+ Thêm gói điểm</button>
     </div>
   `;
 }
@@ -389,9 +330,9 @@ function renderMatchPanel(appState: AppState): string {
 function renderSoundPanel(appState: AppState, runtime: RuntimeState): string {
   return `
     <div class="settings-panel-card">
-      <div class="settings-panel-card__head flex items-center justify-between gap-3 mb-2.5">
-        <p class="settings-panel-card__title settings-panel-card__title--inline m-0 flex items-center gap-2"><span aria-hidden="true">🔊</span>Âm thanh</p>
-        <label class="settings-toggle inline-flex shrink-0 cursor-pointer">
+      <div class="settings-panel-card__head">
+        <p class="settings-panel-card__title settings-panel-card__title--inline">Bật âm thanh</p>
+        <label class="settings-toggle">
           <input id="sound-toggle" type="checkbox" class="absolute h-0 w-0 opacity-0" ${appState.settings.sound ? 'checked' : ''} />
           <span class="settings-toggle__track" aria-hidden="true"></span>
         </label>
@@ -443,13 +384,13 @@ export function renderIntroLinksEditor(links: IntroLinkSettings[]): string {
   const list =
     links.length > 0
       ? links.map((link, index) => renderIntroLinkBlock(link, index)).join('')
-      : '<p class="intro-links-empty m-0 text-caption leading-normal text-white/45">Chưa có liên kết.</p>';
+      : '<p class="intro-links-empty">Chưa có liên kết.</p>';
 
   return `
-    <div id="intro-links-list" class="intro-links-list grid gap-4">${list}</div>
+    <div id="intro-links-list" class="intro-links-list">${list}</div>
     <button
       type="button"
-      class="btn btn-ghost btn--compact intro-links-add mt-4 w-full"
+      class="btn btn-ghost btn--compact intro-links-add"
       data-action="add-intro-link"
       ${atMax ? 'disabled' : ''}
     >+ Thêm liên kết${atMax ? ` (tối đa ${MAX_INTRO_LINKS})` : ''}</button>
@@ -465,7 +406,6 @@ function renderIntroPanel(appState: AppState, runtime: RuntimeState): string {
 
   return `
     <div class="settings-panel-card">
-      <p class="settings-panel-card__title"><span aria-hidden="true">🎬</span>Nút liên kết màn Intro</p>
       <div class="intro-links-editor" id="intro-links-editor">
         ${renderIntroLinksEditor(links)}
       </div>
@@ -486,49 +426,44 @@ function renderPoolPanel(appState: AppState): string {
       ).length;
       const totalInCategory = category.questions.length;
       return `
-        <li class="flex items-center justify-between gap-3 rounded-[12px] border border-white/[0.08] bg-white/[0.04] px-3.5 py-3">
-          <span class="min-w-0 truncate font-bold text-slate-100">${escapeHtml(category.name)}</span>
-          <span class="shrink-0 text-caption tabular-nums text-muted">${usedInCategory}/${totalInCategory}</span>
+        <li class="settings-pool-row">
+          <span class="settings-pool-row__name">${escapeHtml(category.name)}</span>
+          <span class="settings-pool-row__count">${usedInCategory}/${totalInCategory}</span>
         </li>`;
     })
     .join('');
 
   return `
-    <div class="settings-panel-card grid gap-4">
-      <div>
-        <p class="settings-panel-card__title"><span aria-hidden="true">📋</span>Câu đã dùng</p>
-        <div class="settings-stats mb-4 flex gap-2.5 max-md:flex-col">
-          <div class="settings-stat-box flex-1 rounded-lg border border-accent-yellow/25 bg-accent-yellow/10 px-4 py-3.5 text-center">
-            <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Đã dùng</p>
-            <p class="settings-stat-box__value m-0 text-display font-bold text-amber-100">${usedCount}</p>
-          </div>
-          <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
-            <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Còn lại</p>
-            <p class="settings-stat-box__value m-0 text-display font-bold text-white">${remaining}</p>
-          </div>
-          <div class="settings-stat-box flex-1 rounded-lg border border-white/[0.08] bg-white/5 px-4 py-3.5 text-center">
-            <p class="settings-stat-box__label m-0 mb-1 text-caption text-white/45">Tổng ngân hàng</p>
-            <p class="settings-stat-box__value m-0 text-display font-bold text-white">${bankTotal}</p>
-          </div>
+    <div class="settings-panel-card settings-panel-card--pool">
+      <div class="settings-stats settings-stats--inline">
+        <div class="settings-stat-box settings-stat-box--accent">
+          <p class="settings-stat-box__label">Đã dùng</p>
+          <p class="settings-stat-box__value">${usedCount}</p>
         </div>
-        <ul class="m-0 grid list-none gap-2 p-0" aria-label="Đã dùng theo lĩnh vực">
-          ${byCategory || '<li class="text-caption text-muted">Chưa có lĩnh vực.</li>'}
-        </ul>
+        <div class="settings-stat-box">
+          <p class="settings-stat-box__label">Còn lại</p>
+          <p class="settings-stat-box__value">${remaining}</p>
+        </div>
+        <div class="settings-stat-box">
+          <p class="settings-stat-box__label">Tổng</p>
+          <p class="settings-stat-box__value">${bankTotal}</p>
+        </div>
       </div>
-      <div>
-        <button type="button" class="btn btn-ghost" data-action="clear-used-questions" ${usedCount ? '' : 'disabled'}>
-          Xóa lịch sử đã dùng
-        </button>
-      </div>
+      <ul class="settings-pool-list" aria-label="Đã dùng theo lĩnh vực">
+        ${byCategory || '<li class="settings-pool-row settings-pool-row--empty">Chưa có lĩnh vực.</li>'}
+      </ul>
+      <button type="button" class="btn btn-ghost" data-action="clear-used-questions" ${usedCount ? '' : 'disabled'}>
+        Xóa lịch sử đã dùng
+      </button>
     </div>
   `;
 }
 
 function renderDangerPanel(): string {
   return `
-    <div class="settings-panel-card settings-panel-card--danger grid gap-4">
+    <div class="settings-panel-card settings-panel-card--danger grid gap-5">
       <div>
-        <p class="settings-panel-card__title"><span aria-hidden="true">💾</span>Backup dữ liệu</p>
+        <p class="settings-panel-card__title">Backup dữ liệu</p>
         <div class="flex flex-wrap gap-2.5">
           <button type="button" class="btn btn-primary" data-action="export-backup">Xuất backup</button>
           <label class="btn btn-ghost relative m-0 cursor-pointer">
@@ -544,7 +479,7 @@ function renderDangerPanel(): string {
         </div>
       </div>
       <div>
-        <p class="settings-panel-card__title"><span aria-hidden="true">🗑</span>Xóa toàn bộ dữ liệu</p>
+        <p class="settings-panel-card__title">Xóa toàn bộ dữ liệu</p>
         <button type="button" class="btn btn-danger" data-action="clear-all">Xóa sạch toàn bộ kho câu hỏi</button>
       </div>
     </div>
@@ -552,9 +487,6 @@ function renderDangerPanel(): string {
 }
 
 function renderContentPanel(appState: AppState, runtime: RuntimeState, section: SettingsSection): string {
-  if (section === 'timer') {
-    return renderTimerPanel(appState);
-  }
   if (section === 'match') {
     return renderMatchPanel(appState);
   }
@@ -571,15 +503,17 @@ function renderContentPanel(appState: AppState, runtime: RuntimeState, section: 
 }
 
 export function renderSettingsTab(appState: AppState, runtime: RuntimeState): string {
-  const section = runtime.settingsSection;
+  const section = SIDEBAR_ITEMS.some((item) => item.id === runtime.settingsSection)
+    ? runtime.settingsSection
+    : 'match';
 
   return `
-    <section class="panel panel--settings flex h-full min-h-0 flex-col overflow-hidden p-[18px]">
-      <div class="settings-layout flex min-h-0 flex-1 items-stretch gap-3.5 max-lg:flex-col lg:flex-row">
+    <section class="panel panel--settings">
+      ${renderMasthead(appState, section)}
+      <div class="settings-layout">
         ${renderSidebar(section)}
-        <div class="settings-main flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          ${renderStatBar(appState)}
-          <div class="settings-content min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">${renderContentPanel(appState, runtime, section)}</div>
+        <div class="settings-stage">
+          <div class="settings-content">${renderContentPanel(appState, runtime, section)}</div>
         </div>
       </div>
     </section>

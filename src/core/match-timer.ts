@@ -66,7 +66,7 @@ export function startMatchTimer(): void {
   if (!session || !play || play.timerSec <= 0) {
     return;
   }
-  if (play.phase !== 'answering' && play.phase !== 'picking-package') {
+  if (play.phase !== 'answering') {
     return;
   }
 
@@ -83,7 +83,7 @@ export function startMatchTimer(): void {
     if (
       !latestSession ||
       !latestPlay ||
-      (latestPlay.phase !== 'answering' && latestPlay.phase !== 'picking-package')
+      latestPlay.phase !== 'answering'
     ) {
       return;
     }
@@ -111,7 +111,7 @@ export function startMatchTimer(): void {
       if (
         !liveSession ||
         !livePlay ||
-        (livePlay.phase !== 'answering' && livePlay.phase !== 'picking-package')
+        livePlay.phase !== 'answering'
       ) {
         return;
       }

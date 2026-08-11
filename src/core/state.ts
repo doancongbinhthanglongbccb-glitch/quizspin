@@ -71,7 +71,7 @@ export function createDefaultRuntimeState(): RuntimeState {
     matchSession: null,
     importReport: null,
     confirmDialog: null,
-    settingsSection: 'timer',
+    settingsSection: 'match',
     settingsDraft: null,
     soundUploadDraft: null,
     showIntro: true,
@@ -263,7 +263,7 @@ function normalizeAppState(next: AppState): AppState {
   return {
     settings: {
       timer,
-      sound: next.settings.sound,
+      sound: next.settings.sound !== false,
       sounds: {
         bindings: migrateSoundBindings(next.settings.sounds?.bindings, soundLibrary),
         library: soundLibrary,

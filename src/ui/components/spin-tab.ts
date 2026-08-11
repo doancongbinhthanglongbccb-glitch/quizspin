@@ -20,18 +20,10 @@ function bankQuestionCount(appState: AppState): number {
   return appState.categories.reduce((count, category) => count + category.questions.length, 0);
 }
 
-function usedProgressHtml(_runtime: RuntimeState, appState: AppState): string {
+function usedProgressLabel(appState: AppState): { used: number; total: number; text: string } {
   const used = countUsedQuestionsInBank(appContext.getQuestionPools(), appState.categories);
   const total = bankQuestionCount(appState);
-  return `<span data-match-used-progress="${used}/${total}">Đã dùng ${used}/${total}</span>`;
-}
-
-function renderUsedProgressBar(runtime: RuntimeState, appState: AppState): string {
-  return `
-    <p class="spin-used-bar m-0" role="status" aria-live="polite">
-      ${usedProgressHtml(runtime, appState)}
-    </p>
-  `;
+  return { used, total, text: `Đã dùng ${used}/${total}` };
 }
 
 function isMatchIdle(runtime: RuntimeState, round: 2 | 3): boolean {
@@ -99,6 +91,7 @@ function renderRound1Actions(appState: AppState, runtime: RuntimeState): string 
   const totalQuestions = bankQuestionCount(appState);
   const categoryCount = appState.categories.length;
   const disabled = runtime.spinning || runtime.modal || runtime.matchSession !== null || categoryCount === 0;
+  const used = usedProgressLabel(appState);
 
   return `
     <div class="spin-actions">
@@ -111,6 +104,8 @@ function renderRound1Actions(appState: AppState, runtime: RuntimeState): string 
         <span>${totalQuestions} câu</span>
         <span class="spin-meta__sep" aria-hidden="true">·</span>
         <span>${categoryCount} lĩnh vực</span>
+        <span class="spin-meta__sep" aria-hidden="true">·</span>
+        <span class="spin-meta__used" data-match-used-progress="${used.used}/${used.total}">${used.text}</span>
       </p>
     </div>
   `;
@@ -137,7 +132,7 @@ function renderRound2Body(appState: AppState, runtime: RuntimeState): string {
   if (pool.length === 0) {
     return `
       <div class="spin-round-panel">
-        <p class="spin-round-empty warning-banner mb-0 rounded-[14px] border border-amber-300/30 bg-amber-300/10 px-4 py-3.5 text-amber-200">
+        <p class="spin-round-empty warning-banner mb-0">
           Chưa đủ câu để tạo bộ đề ${ROUND2}.
         </p>
         <div class="spin-actions">
@@ -159,7 +154,7 @@ function renderRound2Body(appState: AppState, runtime: RuntimeState): string {
   if (alreadyPlayedRound2 && session?.currentRound === 2) {
     return `
       <div class="spin-round-panel">
-        <p class="spin-round-empty warning-banner mb-0 rounded-[14px] border border-amber-300/30 bg-amber-300/10 px-4 py-3.5 text-amber-200">
+        <p class="spin-round-empty warning-banner mb-0">
           Đã hoàn thành ${ROUND2}. Sang ${ROUND3}.
         </p>
         <div class="spin-actions">
@@ -174,7 +169,7 @@ function renderRound2Body(appState: AppState, runtime: RuntimeState): string {
   if (available.length === 0 && session?.currentRound === 2) {
     return `
       <div class="spin-round-panel">
-        <p class="spin-round-empty warning-banner mb-0 rounded-[14px] border border-amber-300/30 bg-amber-300/10 px-4 py-3.5 text-amber-200">
+        <p class="spin-round-empty warning-banner mb-0">
           Đã hỏi hết bộ đề ${ROUND2}. Sang ${ROUND3}.
         </p>
         <div class="spin-actions">
@@ -186,9 +181,11 @@ function renderRound2Body(appState: AppState, runtime: RuntimeState): string {
     `;
   }
 
+  const used = usedProgressLabel(appState);
   const metaParts = [
     `còn ${available.length}/${pool.length} bộ`,
     session ? `Điểm ${ROUND2}: ${formatScore(session.scores[2])}` : null,
+    `<span class="spin-meta__used" data-match-used-progress="${used.used}/${used.total}">${used.text}</span>`,
   ].filter(Boolean);
   const meta = metaParts.join(' · ');
 
@@ -269,6 +266,7 @@ function renderRound3Body(appState: AppState, runtime: RuntimeState): string {
     : sourceMode === 'category' && !selectedCategoryId
       ? 'Chọn một lĩnh vực'
       : '';
+  const used = usedProgressLabel(appState);
 
   return `
     <div class="spin-round-panel r3-lobby">
@@ -331,6 +329,9 @@ function renderRound3Body(appState: AppState, runtime: RuntimeState): string {
         >
           ${playable ? 'Xác nhận – Bắt đầu' : `Bắt đầu ${ROUND3}`}
         </button>
+        <p class="spin-meta m-0 text-center text-caption text-muted">
+          <span class="spin-meta__used" data-match-used-progress="${used.used}/${used.total}">${used.text}</span>
+        </p>
         ${readyHint ? `<p class="spin-hint m-0 text-center text-caption text-subtle">${escapeHtml(readyHint)}</p>` : ''}
       </div>
     </div>
@@ -345,7 +346,7 @@ export function renderSpinTab(appState: AppState, runtime: RuntimeState): string
   if (view === 1) {
     const emptyBank =
       appState.categories.length === 0
-        ? '<div class="warning-banner mb-4 rounded-[14px] border border-amber-300/30 bg-amber-300/10 px-4 py-3.5 text-amber-200">Hãy thêm ít nhất 1 lĩnh vực trong Ngân hàng trước khi quay.</div>'
+        ? '<div class="warning-banner mb-4">Hãy thêm ít nhất 1 lĩnh vực trong Ngân hàng trước khi quay.</div>'
         : '';
     body = `
       ${emptyBank}
@@ -364,7 +365,6 @@ export function renderSpinTab(appState: AppState, runtime: RuntimeState): string
     <section class="panel panel--spin" data-swipe-zone="content">
       <div class="spin-page">
         ${renderSpinRoundTabs(view, matchRound)}
-        ${renderUsedProgressBar(runtime, appState)}
         ${body}
       </div>
     </section>

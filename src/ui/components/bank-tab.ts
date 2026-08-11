@@ -13,14 +13,14 @@ function renderQuestionForm(runtime: RuntimeState): string {
   const draft = runtime.questionDraft;
 
   return `
-    <div class="bank-form-card grid gap-2.5">
-      <div class="flex items-center justify-between gap-2.5">
-        <div class="text-subtitle font-bold text-slate-200">${runtime.editingQuestionId ? 'Sửa câu hỏi' : 'Thêm câu hỏi'}</div>
+    <div class="bank-form-card">
+      <div class="bank-form-card__head">
+        <h3 class="bank-form-card__title">${runtime.editingQuestionId ? 'Sửa câu hỏi' : 'Thêm câu hỏi'}</h3>
         <button type="button" class="btn btn-ghost btn--compact" data-action="cancel-question-edit" aria-label="Đóng form">✕</button>
       </div>
 
-      <div class="bank-form-card__body grid gap-2.5">
-        <div class="grid min-w-0 gap-2.5">
+      <div class="bank-form-card__body">
+        <div class="bank-form-field">
           <label class="bank-form-label" for="question-input">Câu hỏi</label>
           <textarea
             class="textarea textarea--compact"
@@ -30,7 +30,7 @@ function renderQuestionForm(runtime: RuntimeState): string {
           >${escapeHtml(draft.question)}</textarea>
         </div>
 
-        <div class="grid min-w-0 gap-2.5">
+        <div class="bank-form-field">
           <div class="bank-field-mcq">
             <label class="bank-form-label" for="options-input">Phương án (mỗi dòng hoặc cách nhau bởi ; ,)</label>
             <textarea
@@ -57,7 +57,7 @@ function renderQuestionForm(runtime: RuntimeState): string {
         </div>
       </div>
 
-      <div class="row-actions bank-form-card__actions mt-1 flex gap-3">
+      <div class="bank-form-card__actions">
         <button class="btn btn-primary btn--compact" data-action="save-question">
           ${runtime.editingQuestionId ? 'Cập nhật' : 'Lưu câu'}
         </button>
@@ -73,14 +73,12 @@ function renderQuestionRow(runtime: RuntimeState, question: Question): string {
   const optionLabel = `${optionCount} lựa chọn${isMultipleMcqQuestion(question) ? ' · nhiều đáp án' : ''}`;
 
   return `
-    <div class="question-row flex min-w-0 max-w-full items-start justify-between gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.03] px-[18px] py-4 ${isActive ? 'question-row--active' : ''}">
-      <div class="question-row__body flex min-w-0 flex-1 items-start gap-3">
-        <div class="min-w-0 flex-1">
-          <div class="question-row__title mb-1 break-words text-subtitle font-bold leading-snug">${question.question}</div>
-          <div class="question-row__meta text-caption text-muted">${optionLabel}${question.points ? ` · ${question.points}đ` : ''}</div>
-        </div>
+    <div class="question-row${isActive ? ' question-row--active' : ''}">
+      <div class="question-row__body">
+        <div class="question-row__title">${escapeHtml(question.question)}</div>
+        <div class="question-row__meta">${optionLabel}${question.points ? ` · ${question.points}đ` : ''}</div>
       </div>
-      <div class="row-actions row-actions--inline flex shrink-0 flex-nowrap gap-2">
+      <div class="question-row__actions">
         <button class="btn btn-ghost btn--compact" data-action="start-edit-question" data-id="${question.id}">Sửa</button>
         <button class="btn btn-danger btn--compact" data-action="delete-question" data-id="${question.id}">Xóa</button>
       </div>
@@ -129,28 +127,26 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
         }
         const grouped = [...reasonCounts.entries()].sort((a, b) => b[1] - a[1]);
         const sampleRows = importReport.diagnostics.filter((item) => item.reason !== 'Dòng trống').slice(0, 15);
-        const tone = failed
-          ? 'border-rose-400/30 bg-rose-500/10 text-rose-100'
-          : 'border-accent-cyan/20 bg-accent-cyan/10 text-blue-100';
+        const tone = failed ? 'import-report--fail' : 'import-report--ok';
 
         return `
-      <details class="import-report import-report--compact rounded-xl border ${tone} px-3 py-2.5" ${failed ? 'open' : ''}>
-        <summary class="import-report__summary cursor-pointer text-caption font-bold">
+      <details class="import-report import-report--compact ${tone}" ${failed ? 'open' : ''}>
+        <summary class="import-report__summary">
           ${
             failed
               ? `Không nhập được câu nào · Bỏ qua ${importReport.skipped} dòng`
               : `Nhập Excel: ${importReport.imported} câu · Bỏ qua ${importReport.skipped}`
           }
         </summary>
-        <p class="mt-2 mb-0 text-caption text-muted">
+        <p class="import-report__hint">
           Cột: <strong>Câu hỏi | Phương án | Đáp án đúng</strong>
         </p>
         ${
           grouped.length
-            ? `<ul class="import-report__list mt-2 grid list-none gap-1.5 p-0">${grouped
+            ? `<ul class="import-report__list">${grouped
                 .map(
                   ([reason, count]) => `
-                  <li class="rounded-[10px] bg-white/5 px-3 py-2 text-caption">
+                  <li class="import-report__item">
                     <strong>${count} dòng</strong> — ${escapeHtml(reason)}
                   </li>`,
                 )
@@ -159,18 +155,18 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
         }
         ${
           sampleRows.length
-            ? `<ul class="import-report__list mt-2 grid list-none gap-2 p-0">${sampleRows
+            ? `<ul class="import-report__list">${sampleRows
                 .map(
                   (item) => `
-                  <li class="grid gap-1 rounded-[14px] bg-white/5 px-3 py-2.5">
+                  <li class="import-report__item import-report__item--detail">
                     <strong>Dòng ${item.rowNumber}:</strong> ${escapeHtml(item.reason)}
-                    <span class="text-caption text-muted">${escapeHtml(item.rawData.join(' | ') || '—')}</span>
+                    <span class="import-report__raw">${escapeHtml(item.rawData.join(' | ') || '—')}</span>
                   </li>
                 `,
                 )
                 .join('')}${
                 importReport.diagnostics.length > sampleRows.length
-                  ? `<li class="text-caption text-muted px-1">… và ${importReport.diagnostics.length - sampleRows.length} dòng khác</li>`
+                  ? `<li class="import-report__more">… và ${importReport.diagnostics.length - sampleRows.length} dòng khác</li>`
                   : ''
               }</ul>`
             : ''
@@ -181,12 +177,12 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
     : '';
 
   return `
-    <section class="panel panel--bank flex min-h-0 w-full min-w-0 max-w-full flex-col gap-3 self-start overflow-x-clip rounded-[20px] px-4 py-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.28)]">
-      <div class="bank-toolbar flex flex-wrap items-center gap-2">
+    <section class="panel panel--bank">
+      <div class="bank-toolbar">
         <button class="btn btn-primary btn--compact" data-action="start-add-question" ${category ? '' : 'disabled'}>
           + Thêm câu
         </button>
-        <label class="btn btn-ghost btn--compact bank-import-btn relative m-0 cursor-pointer">
+        <label class="btn btn-ghost btn--compact bank-import-btn">
           Nhập Excel
           <input id="excel-input" class="bank-import-btn__input" type="file" accept=".xlsx,.xls" aria-label="Nhập Excel" />
         </label>
@@ -200,7 +196,7 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
         </button>
       </div>
 
-      <div class="bank-categories category-strip mb-0 w-full max-w-full min-w-0 touch-pan-x overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]" data-scroll-restore="bank-categories" role="tablist" aria-label="Lĩnh vực">
+      <div class="bank-categories category-strip" data-scroll-restore="bank-categories" role="tablist" aria-label="Lĩnh vực">
         ${renderCategoryTabs(appState, category?.id)}
         ${
           appState.categories.length < MAX_CATEGORIES
@@ -208,17 +204,17 @@ export function renderBankTab(appState: AppState, runtime: RuntimeState): string
             : ''
         }
       </div>
-      <p class="bank-category-limit m-0 text-caption text-subtle">
+      <p class="bank-category-limit">
         Lĩnh vực ${appState.categories.length}/${MAX_CATEGORIES}
       </p>
 
       ${importSummary}
 
-      <div class="question-list grid min-h-0 flex-1 gap-2" data-scroll-restore="question-list">
-        ${questions || `<div class="empty-state px-4 py-7 text-center text-ui text-subtle">${emptyMessage}</div>`}
+      <div class="question-list" data-scroll-restore="question-list">
+        ${questions || `<div class="empty-state">${emptyMessage}</div>`}
       </div>
 
-      ${showForm ? `<div class="bank-form-panel mt-1 border-t border-white/10 pt-3">${renderQuestionForm(runtime)}</div>` : ''}
+      ${showForm ? `<div class="bank-form-panel">${renderQuestionForm(runtime)}</div>` : ''}
     </section>
   `;
 }

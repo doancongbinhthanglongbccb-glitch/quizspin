@@ -12,7 +12,7 @@ export type Question = {
   points?: number;
 };
 
-export type SettingsSection = 'timer' | 'match' | 'sound' | 'intro' | 'pool' | 'danger';
+export type SettingsSection = 'match' | 'sound' | 'intro' | 'pool' | 'danger';
 
 /** Pool câu đã dùng theo lĩnh vực — persist key `quizspin_pools` */
 export type QuestionPools = Record<string, string[]>;
@@ -84,7 +84,7 @@ export type MatchSettings = {
   round2QuestionsPerPack: number;
   round2TimerSec: number;
   round3QuestionCount: number;
-  /** Thời gian mỗi câu Về đích (thanh giây chạy từ lúc bắt đầu câu) */
+  /** Thời gian mỗi câu Về đích (chạy sau khi chọn gói) */
   round3TimerSec: number;
   round3Packages: MatchScorePackage[];
   /** id trong round3Packages; thiếu/invalid → phần tử đầu — điểm đúng khi ngoài cửa sổ gói */

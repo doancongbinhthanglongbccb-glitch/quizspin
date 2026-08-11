@@ -99,8 +99,23 @@ async function openIntroLink(url: string): Promise<void> {
 }
 
 export function bindIntroHandlers(root: ParentNode): () => void {
-  soundManager.unlock();
-  soundManager.playLoop('introBed');
+  const startIntroMusic = (event?: Event): void => {
+    // Bấm vào app ngay — không cần bật nhạc rồi tắt liền.
+    if (
+      event?.target instanceof Element &&
+      event.target.closest('[data-action="complete-intro"]')
+    ) {
+      soundManager.unlock();
+      return;
+    }
+    soundManager.unlock();
+    soundManager.playLoop('introBed');
+  };
+
+  // Thử lúc mount (đã có gesture trước đó thì autoplay được).
+  startIntroMusic();
+  // Nếu bị chặn — phát lại ở lần chạm đầu trên màn intro.
+  root.addEventListener('pointerdown', startIntroMusic, { once: true, passive: true });
 
   const onClick = (event: Event): void => {
     const linkBtn = getActionTarget(event, root, '[data-action="open-intro-link"]');
@@ -124,6 +139,7 @@ export function bindIntroHandlers(root: ParentNode): () => void {
 
   root.addEventListener('click', onClick);
   return () => {
+    root.removeEventListener('pointerdown', startIntroMusic);
     root.removeEventListener('click', onClick);
     soundManager.stop('introBed');
     introExitPending = false;

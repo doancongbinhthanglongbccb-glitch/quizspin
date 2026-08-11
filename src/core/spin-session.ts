@@ -52,6 +52,9 @@ class SpinSession {
     // Rasterize segments trước frame đầu — tránh khựng khi bắt đầu quay
     WheelRenderer.draw(WHEEL_CANVAS_ID, model, fromRotationDeg);
 
+    // Bắt đầu âm trong stack click (user gesture) — không chờ rAF kẻo bị chặn autoplay.
+    this.beginAudio();
+
     this.animation = startSpinAnimation({
       model,
       fromRotationDeg,
@@ -113,6 +116,16 @@ class SpinSession {
     callbacks.onComplete({ segment, rotationDeg: normalized });
   }
 
+  private beginAudio(): void {
+    if (this.audio.started || this.audio.ended) {
+      return;
+    }
+    this.audio.started = true;
+    soundManager.unlock();
+    soundManager.playLoop('spinBed');
+    soundManager.playLoop('spinStart');
+  }
+
   private syncAudio(elapsedMs: number): void {
     const { durationMs } = SPIN_CONFIG;
 
@@ -121,9 +134,7 @@ class SpinSession {
     }
 
     if (!this.audio.started) {
-      this.audio.started = true;
-      soundManager.playLoop('spinBed');
-      soundManager.playLoop('spinStart');
+      this.beginAudio();
     }
 
     if (elapsedMs >= durationMs) {

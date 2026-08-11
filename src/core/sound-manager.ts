@@ -50,6 +50,7 @@ class SoundManager {
 
   private audioContext: AudioContext | null = null;
   private unlocked = false;
+  private htmlAudioPrimed = false;
   private oneShotPools = new Map<SoundEventKey, OneShotPool>();
   private sustained = new Map<SoundEventKey, SustainedPlayback>();
   private previewAudio: HTMLAudioElement | null = null;
@@ -211,17 +212,16 @@ class SoundManager {
   }
 
   /**
-   * Mở khóa audio sau tương tác người dùng — bắt buộc trên iOS/Android WebView.
-   * Gọi tự động lần chạm đầu; có thể gọi thủ công từ intro/spin.
+   * Mở khóa audio trong user gesture (pointer/click).
+   * Luôn resume AudioContext — kể cả khi đã từng gọi unlock thất bại vì autoplay.
    */
   unlock(): void {
-    if (this.unlocked) {
-      return;
-    }
-
-    this.unlocked = true;
     void this.resumeAudioContext();
-    this.warmUpDefaultSounds();
+    void this.primeHtmlAudio();
+    if (!this.unlocked) {
+      this.unlocked = true;
+      this.warmUpDefaultSounds();
+    }
   }
 
   /** Preload clip mặc định — giảm độ trễ lần phát đầu trên tablet. */
@@ -249,13 +249,13 @@ class SoundManager {
   }
 
   private installUnlockListeners(): void {
-    const unlockOnce = (): void => {
+    const onGesture = (): void => {
       this.unlock();
     };
 
-    window.addEventListener('pointerdown', unlockOnce, { once: true, passive: true });
-    window.addEventListener('touchstart', unlockOnce, { once: true, passive: true });
-    window.addEventListener('keydown', unlockOnce, { once: true });
+    window.addEventListener('pointerdown', onGesture, { passive: true });
+    window.addEventListener('touchstart', onGesture, { passive: true });
+    window.addEventListener('keydown', onGesture);
   }
 
   private async ensureUnlocked(): Promise<void> {
@@ -263,6 +263,24 @@ class SoundManager {
       this.unlock();
     }
     await this.resumeAudioContext();
+  }
+
+  /** Short silent clip — giúp Chrome/WebView mở khóa HTMLAudio sau gesture. */
+  private async primeHtmlAudio(): Promise<void> {
+    if (this.htmlAudioPrimed) {
+      return;
+    }
+    try {
+      const silent = new Audio(
+        'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA',
+      );
+      silent.volume = 0.01;
+      await silent.play();
+      silent.pause();
+      this.htmlAudioPrimed = true;
+    } catch {
+      // Chưa có gesture / bị chặn — lần chạm sau sẽ thử lại.
+    }
   }
 
   private getAudioContext(): AudioContext | null {
@@ -294,7 +312,7 @@ class SoundManager {
   }
 
   private isEnabled(): boolean {
-    return appContext.getAppState().settings.sound;
+    return appContext.getAppState().settings.sound !== false;
   }
 
   private resolveSource(event: SoundEventKey): string | undefined {

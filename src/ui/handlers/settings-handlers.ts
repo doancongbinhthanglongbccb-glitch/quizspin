@@ -3,13 +3,6 @@ import type { IntroLinkSettings, MatchSettings, SettingsSection, SoundEventKey }
 import { normalizeIntroLinks, compactIntroLinks, DEFAULT_INTRO_LINK_LABEL } from '../../data';
 import { MAX_INTRO_LINKS } from '../../types';
 import { renderIntroLinksEditor } from '../components/settings-tab';
-import { formatTimerDisplay } from '../../utils/timer-format';
-import {
-  clampTimerSeconds,
-  secondsFromMinutesInput,
-  timerMinutesInputValue,
-} from '../../utils/timer-settings';
-import { DEFAULTS } from '../../config';
 import { defaultMatchSettings, normalizeMatchSettings } from '../../config/match';
 import * as Actions from '../../core/actions';
 import { suppressAndroidIntroOnResume } from '../../utils/android-intro-resume';
@@ -30,62 +23,6 @@ function readSoundEvent(target: HTMLElement): SoundEventKey | null {
     return null;
   }
   return value as SoundEventKey;
-}
-
-function updateTimerDisplayPreview(root: ParentNode, seconds: number): void {
-  const { value, unit } = formatTimerDisplay(seconds);
-  const valueEl = root.querySelector('#timer-slider-value');
-  const unitEl = root.querySelector('#timer-slider-unit');
-  const minutesInput = root.querySelector<HTMLInputElement>('#timer-minutes-input');
-
-  if (valueEl) {
-    valueEl.textContent = value;
-  }
-  if (unitEl) {
-    unitEl.textContent = unit;
-  }
-  if (minutesInput) {
-    minutesInput.value = timerMinutesInputValue(seconds);
-  }
-
-  root.querySelectorAll<HTMLElement>('[data-action="timer-preset"]').forEach((button) => {
-    const sec = Number(button.dataset.timerSec);
-    button.classList.toggle('timer-preset-chip--active', sec === seconds);
-  });
-
-  const downBtn = root.querySelector<HTMLButtonElement>('[data-action="timer-step-down"]');
-  const upBtn = root.querySelector<HTMLButtonElement>('[data-action="timer-step-up"]');
-  if (downBtn) {
-    downBtn.disabled = seconds <= DEFAULTS.timerMinSec;
-  }
-  if (upBtn) {
-    upBtn.disabled = seconds >= DEFAULTS.timerMaxSec;
-  }
-}
-
-function commitTimerMinutesInput(root: ParentNode): void {
-  const input = root.querySelector<HTMLInputElement>('#timer-minutes-input');
-  if (!input) {
-    return;
-  }
-
-  const seconds = secondsFromMinutesInput(input.value);
-  if (seconds === null) {
-    input.value = timerMinutesInputValue(appContext.getAppState().settings.timer);
-    return;
-  }
-
-  const next = clampTimerSeconds(seconds);
-  commitTimerValue(next);
-  updateTimerDisplayPreview(root, next);
-}
-
-function commitTimerValue(seconds: number): void {
-  const next = clampTimerSeconds(seconds);
-  appContext.setAppState((current) => ({
-    ...current,
-    settings: { ...current.settings, timer: next },
-  }));
 }
 
 function currentMatchSettings(): MatchSettings {
@@ -255,15 +192,6 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
   let sectionHandledByPointer = false;
 
   const onInput = (event: Event): void => {
-    const timerMinutesInput = getInputTarget<HTMLInputElement>(event, root, '#timer-minutes-input');
-    if (timerMinutesInput) {
-      const seconds = secondsFromMinutesInput(timerMinutesInput.value);
-      if (seconds !== null) {
-        updateTimerDisplayPreview(root, clampTimerSeconds(seconds));
-      }
-      return;
-    }
-
     const matchField = getInputTarget<HTMLInputElement>(event, root, '[data-match-field]');
     if (matchField?.dataset.matchField) {
       commitMatchScalarField(matchField.dataset.matchField, matchField.value);
@@ -286,12 +214,6 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
   };
 
   const onChange = (event: Event): void => {
-    const timerMinutesInput = getInputTarget<HTMLInputElement>(event, root, '#timer-minutes-input');
-    if (timerMinutesInput) {
-      commitTimerMinutesInput(root);
-      return;
-    }
-
     const matchField = getInputTarget<HTMLInputElement>(event, root, '[data-match-field]');
     if (matchField?.dataset.matchField) {
       commitMatchScalarField(matchField.dataset.matchField, matchField.value, { force: true });
@@ -407,32 +329,6 @@ export function bindSettingsHandlers(root: ParentNode): () => void {
 
     if (getActionTarget(event, root, '[data-action="clear-all"]')) {
       Actions.requestClearAllData();
-      return;
-    }
-
-    const presetBtn = getActionTarget(event, root, '[data-action="timer-preset"]');
-    if (presetBtn?.dataset.timerSec) {
-      const seconds = Number(presetBtn.dataset.timerSec);
-      if (!Number.isNaN(seconds)) {
-        commitTimerValue(seconds);
-        updateTimerDisplayPreview(root, clampTimerSeconds(seconds));
-      }
-      return;
-    }
-
-    if (getActionTarget(event, root, '[data-action="timer-step-down"]')) {
-      const current = appContext.getAppState().settings.timer;
-      const next = clampTimerSeconds(current - DEFAULTS.timerStepSec);
-      commitTimerValue(next);
-      updateTimerDisplayPreview(root, next);
-      return;
-    }
-
-    if (getActionTarget(event, root, '[data-action="timer-step-up"]')) {
-      const current = appContext.getAppState().settings.timer;
-      const next = clampTimerSeconds(current + DEFAULTS.timerStepSec);
-      commitTimerValue(next);
-      updateTimerDisplayPreview(root, next);
       return;
     }
 

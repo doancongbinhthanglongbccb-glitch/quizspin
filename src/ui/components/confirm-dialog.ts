@@ -136,18 +136,18 @@ export function renderConfirmDialog(dialog: ConfirmDialog | null): string {
     dialog.kind === 'category-menu' ? 'confirm-rename-category' : 'accept-confirm';
 
   return `
-    <div class="confirm-backdrop fixed inset-0 z-30 grid place-items-center p-4 animate-modal-backdrop-in bg-slate-950/80 backdrop-blur-[10px]" role="presentation">
+    <div class="confirm-backdrop animate-modal-backdrop-in" role="presentation">
       <section
-        class="confirm-card w-full max-w-[420px] animate-modal-card-in rounded-[22px] border border-white/10 bg-panel-modal px-5 pb-[18px] pt-[22px] shadow-[0_24px_64px_rgba(0,0,0,0.5)] ${meta.danger ? 'confirm-card--danger border-red-500/35' : ''}"
+        class="confirm-card animate-modal-card-in${meta.danger ? ' confirm-card--danger' : ''}"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-message"
       >
-        <h2 id="confirm-title" class="confirm-card__title m-0 mb-2.5 text-title font-extrabold">${escapeHtml(meta.title)}</h2>
-        <p id="confirm-message" class="confirm-card__message m-0 mb-[18px] leading-normal text-muted">${escapeHtml(meta.message)}</p>
+        <h2 id="confirm-title" class="confirm-card__title">${escapeHtml(meta.title)}</h2>
+        <p id="confirm-message" class="confirm-card__message">${escapeHtml(meta.message)}</p>
         ${inputField}
-        <div class="confirm-card__actions${meta.extraActions?.length ? ' confirm-card__actions--stack' : ''} flex flex-wrap justify-end gap-2.5 ${inputField ? 'mt-3.5' : ''}">
+        <div class="confirm-card__actions${meta.extraActions?.length ? ' confirm-card__actions--stack' : ''}${inputField ? ' confirm-card__actions--after-input' : ''}">
           <button type="button" class="btn btn-ghost" data-action="cancel-confirm">Hủy</button>
           ${extraButtons}
           <button type="button" class="btn ${meta.danger ? 'btn-danger' : 'btn-primary'}" data-action="${primaryAction}">${escapeHtml(meta.confirmLabel)}</button>

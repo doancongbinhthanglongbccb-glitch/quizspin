@@ -252,28 +252,37 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
   const currentNum = play.currentIndex + 1;
 
   if (play.phase === 'picking-package' && matchSettings) {
-    const packages = matchSettings.round3Packages
+    const sortedPackages = [...matchSettings.round3Packages]
       .filter((pkg) => {
         if (pkg.id === matchSettings.round3DefaultPackageId) {
           return true;
         }
         return (session.round3PackageRemaining[pkg.id] ?? 0) > 0;
       })
-      .map((pkg) => {
+      .sort((a, b) => a.points - b.points);
+
+    const packages = sortedPackages
+      .map((pkg, index) => {
         const isDefault = pkg.id === matchSettings.round3DefaultPackageId;
         const left = session.round3PackageRemaining[pkg.id];
-        const leftLabel =
-          !isDefault && left !== undefined ? `<span class="match-package-btn__left">còn ${left}</span>` : '';
+        const tier =
+          index === sortedPackages.length - 1 ? 'high' : index === 0 ? 'low' : 'mid';
+        const meta = isDefault
+          ? '<span class="match-package-btn__meta">Mặc định</span>'
+          : left !== undefined
+            ? `<span class="match-package-btn__meta">còn ${left}</span>`
+            : '';
         return `
           <button
             type="button"
-            class="match-package-btn"
+            class="match-package-btn match-package-btn--${tier}${isDefault ? ' match-package-btn--default' : ''}"
             data-action="match-select-package"
             data-package-id="${escapeHtml(pkg.id)}"
           >
-            <span class="match-package-btn__points">+${pkg.points} điểm</span>
+            <span class="match-package-btn__points">+${pkg.points}</span>
+            <span class="match-package-btn__unit">điểm</span>
             <span class="match-package-btn__timer">${pkg.timerSec}s giữ điểm</span>
-            ${isDefault ? '<span class="match-package-btn__default">Mặc định</span>' : leftLabel}
+            ${meta}
           </button>`;
       })
       .join('');
@@ -319,8 +328,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     `;
   }
 
-  const showTimer =
-    (play.phase === 'answering' || play.phase === 'picking-package') && play.timerSec > 0;
+  const showTimer = play.phase === 'answering' && play.timerSec > 0;
   const selectedPackage =
     play.selectedPackageId && matchSettings
       ? matchSettings.round3Packages.find((pkg) => pkg.id === play.selectedPackageId)

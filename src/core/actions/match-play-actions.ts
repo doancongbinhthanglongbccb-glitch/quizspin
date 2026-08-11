@@ -14,6 +14,11 @@ import { syncSpinUi } from '../../utils/sync-spin-ui';
 import { buildRound2ExamPacks, isMatchExamPackUsed, pickMatchQuestionsFromBank, pickMatchQuestionsFromCategoryAllowReset } from '../match-questions';
 import { MATCH_ROUND_NAMES, buildRound3PackageQuotas } from '../../config/match';
 import { collectUsedQuestionIds, markQuestionIdsInPools } from '../pool-manager';
+import {
+  applyMatchScoreDelta,
+  beginAnswering,
+  pointsPerQuestionForRound,
+} from '../match-scoring';
 import { showToast } from './shared';
 
 function requireMatchSettings() {
@@ -74,121 +79,24 @@ function currentQuestion(play: MatchPlayState): Question | null {
   return findQuestionById(appContext.getAppState().categories, questionId);
 }
 
-function pointsPerQuestionForRound(round: MatchRoundId, questionCount: number): number {
-  if (round === 3 || questionCount <= 0) {
-    return 0;
-  }
-  return 100 / questionCount;
-}
-
-function resolveSelectedRound3Package(play: MatchPlayState) {
+function applyScoreDelta(session: MatchSession, play: MatchPlayState, isCorrect: boolean) {
   const match = requireMatchSettings();
-  const packageId = play.selectedPackageId ?? match.round3DefaultPackageId;
-  return match.round3Packages.find((item) => item.id === packageId) ?? match.round3Packages[0] ?? null;
-}
-
-function resolveDefaultRound3Package() {
-  const match = requireMatchSettings();
-  return (
-    match.round3Packages.find((item) => item.id === match.round3DefaultPackageId) ??
-    match.round3Packages[0] ??
-    null
+  const graded = applyMatchScoreDelta(
+    session,
+    play,
+    isCorrect,
+    match.round3Packages,
+    match.round3DefaultPackageId,
   );
-}
-
-/** Giây đã trôi từ lúc bắt đầu câu — caller phải đóng băng `remaining` trước khi chấm. */
-function questionElapsedSec(play: MatchPlayState): number {
-  if (play.timerSec <= 0) {
-    return 0;
-  }
-  return Math.max(0, play.timerSec - play.remaining);
-}
-
-function applyScoreDelta(session: MatchSession, play: MatchPlayState, isCorrect: boolean): {
-  play: MatchPlayState;
-  session: MatchSession;
-  pointsDelta: number;
-} {
-  let pointsDelta = 0;
-  let round3PackageRemaining = session.round3PackageRemaining;
-
-  if (play.round === 3) {
-    const selected = resolveSelectedRound3Package(play);
-    const selectedPoints = selected?.points ?? 0;
-    const defaultPkg = resolveDefaultRound3Package();
-    if (isCorrect) {
-      const withinWindow = !selected || questionElapsedSec(play) <= selected.timerSec;
-      pointsDelta = withinWindow ? selectedPoints : (defaultPkg?.points ?? selectedPoints);
-
-      // Đúng trong cửa sổ với gói hạn mức → trừ 1 lần còn lại.
-      if (
-        withinWindow &&
-        selected &&
-        defaultPkg &&
-        selected.id !== defaultPkg.id &&
-        (round3PackageRemaining[selected.id] ?? 0) > 0
-      ) {
-        round3PackageRemaining = {
-          ...round3PackageRemaining,
-          [selected.id]: (round3PackageRemaining[selected.id] ?? 0) - 1,
-        };
-      }
-    } else {
-      pointsDelta = -selectedPoints;
-    }
-  } else {
-    pointsDelta = isCorrect ? play.pointsPerQuestion : 0;
-  }
-
-  const nextRoundScore = Math.max(0, play.roundScore + pointsDelta);
-  const nextPlay: MatchPlayState = {
-    ...play,
-    roundScore: nextRoundScore,
-    lastIsCorrect: isCorrect,
-    lastPointsDelta: pointsDelta,
-    phase: 'revealed',
-  };
-
   const questionId = play.questionIds[play.currentIndex];
-  const usedQuestionIds =
-    questionId && !session.usedQuestionIds.includes(questionId)
-      ? [...session.usedQuestionIds, questionId]
-      : [...session.usedQuestionIds];
-
   if (questionId) {
     persistUsedQuestionIds([questionId]);
   }
-
-  return {
-    play: nextPlay,
-    session: { ...session, usedQuestionIds, round3PackageRemaining },
-    pointsDelta,
-  };
+  return graded;
 }
 
 function playGradeSfx(isCorrect: boolean): void {
   soundManager.play(isCorrect ? 'correct' : 'wrong');
-}
-
-/** Bắt đầu đếm giờ câu (L3: chạy ngay từ lúc chọn gói / bắt đầu câu). */
-function beginQuestionTimer(play: MatchPlayState, timerSec: number): MatchPlayState {
-  const unlimited = timerSec <= 0;
-  return {
-    ...play,
-    timerSec,
-    deadlineAt: unlimited ? 0 : Date.now() + timerSec * 1000,
-    remaining: unlimited ? 0 : timerSec,
-  };
-}
-
-function beginAnswering(play: MatchPlayState, timerSec: number): MatchPlayState {
-  return {
-    ...beginQuestionTimer(play, timerSec),
-    phase: 'answering',
-    playerAnswer: '',
-    lastIsCorrect: null,
-    lastPointsDelta: 0,
-  };
 }
 
 let packagePickTimeoutId: number | null = null;
@@ -279,10 +187,8 @@ export function startMatchActivePlay(params: StartMatchPlayParams): void {
   if (params.round !== 3) {
     const timerSec = params.round === 1 ? match.round1TimerSec : match.round2TimerSec;
     play = beginAnswering(play, timerSec);
-  } else {
-    // L3: thanh giây chạy từ lúc bắt đầu câu (kể cả lúc chọn gói).
-    play = beginQuestionTimer(play, match.round3TimerSec);
   }
+  // L3: chọn gói trước — giây câu chỉ chạy sau khi chọn (hoặc hết chờ → gói mặc định).
 
   const round3PackageRemaining =
     params.round === 3
@@ -301,7 +207,7 @@ export function startMatchActivePlay(params: StartMatchPlayParams): void {
   });
   syncSpinUi();
 
-  if (play.phase === 'answering' || (play.phase === 'picking-package' && play.timerSec > 0)) {
+  if (play.phase === 'answering') {
     startMatchTimer();
   }
   if (play.phase === 'picking-package') {
@@ -335,24 +241,15 @@ export function selectMatchPackage(packageId: string): void {
   }
 
   clearPackagePickTimeout();
+  stopMatchTimer();
 
-  const remaining =
-    ctx.play.deadlineAt > 0 ? matchRemainingSeconds(ctx.play.deadlineAt) : ctx.play.remaining;
-  const nextPlay: MatchPlayState = {
-    ...ctx.play,
-    selectedPackageId: pkg.id,
-    phase: 'answering',
-    remaining,
-    playerAnswer: '',
-    lastIsCorrect: null,
-    lastPointsDelta: 0,
-  };
-
-  if (ctx.play.timerSec > 0 && remaining <= 0) {
-    patchPlay(ctx.session, nextPlay);
-    handleMatchTimeUp();
-    return;
-  }
+  const nextPlay = beginAnswering(
+    {
+      ...ctx.play,
+      selectedPackageId: pkg.id,
+    },
+    match.round3TimerSec,
+  );
 
   patchPlay(ctx.session, nextPlay);
   startMatchTimer();
@@ -604,30 +501,11 @@ export function judgeMatchEssay(isCorrect: boolean): void {
 
 export function handleMatchTimeUp(): void {
   const ctx = getPlayContext();
-  if (!ctx) {
+  if (!ctx || ctx.play.phase !== 'answering') {
     return;
   }
 
-  // Hết giờ lúc chưa chọn gói → áp gói mặc định rồi chấm sai như màn 1/2.
-  if (ctx.play.phase === 'picking-package' && ctx.play.round === 3) {
-    clearPackagePickTimeout();
-    const match = requireMatchSettings();
-    const withDefault: MatchPlayState = {
-      ...ctx.play,
-      selectedPackageId: match.round3DefaultPackageId,
-      phase: 'answering',
-      remaining: 0,
-    };
-    patchPlay(ctx.session, withDefault);
-    // fall through after re-read
-  }
-
-  const latest = getPlayContext();
-  if (!latest || latest.play.phase !== 'answering') {
-    return;
-  }
-
-  const question = currentQuestion(latest.play);
+  const question = currentQuestion(ctx.play);
   if (!question) {
     return;
   }
@@ -641,10 +519,10 @@ export function handleMatchTimeUp(): void {
   showToast('Hết giờ');
   stopMatchTimer();
   const frozen: MatchPlayState = {
-    ...latest.play,
+    ...ctx.play,
     remaining: 0,
   };
-  const graded = applyScoreDelta(latest.session, { ...frozen, playerAnswer: '' }, false);
+  const graded = applyScoreDelta(ctx.session, { ...frozen, playerAnswer: '' }, false);
   appContext.setRuntimeState({ matchSession: { ...graded.session, activePlay: graded.play } });
   playGradeSfx(false);
   syncSpinUi();
@@ -800,13 +678,9 @@ export function goToNextMatchQuestion(): void {
   };
 
   if (play.round === 3) {
-    nextPlay = beginQuestionTimer(
-      { ...nextPlay, phase: 'picking-package' },
-      match.round3TimerSec,
-    );
+    nextPlay = { ...nextPlay, phase: 'picking-package' };
     patchPlay(session, nextPlay);
     armPackagePickTimeout();
-    startMatchTimer();
     return;
   }
 
