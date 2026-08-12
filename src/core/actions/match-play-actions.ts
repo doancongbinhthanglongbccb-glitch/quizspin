@@ -159,18 +159,12 @@ export function startMatchActivePlay(params: StartMatchPlayParams): void {
   const baseSession = params.existingSession ?? createEmptyMatchSession(params.round);
 
   const pointsPerQuestion = pointsPerQuestionForRound(params.round, params.questionIds.length);
-  const carriedScore =
-    params.round === 3
-      ? baseSession.scores[1] + baseSession.scores[2]
-      : params.round === 2
-        ? baseSession.scores[2]
-        : 0;
 
   let play: MatchPlayState = {
     round: params.round,
     questionIds: [...params.questionIds],
     currentIndex: 0,
-    roundScore: carriedScore,
+    roundScore: 0,
     selectedPackageId: null,
     phase: params.round === 3 ? 'picking-package' : 'answering',
     pointsPerQuestion,
@@ -530,11 +524,7 @@ export function handleMatchTimeUp(): void {
 
 function finishActivePlayRound(session: MatchSession, play: MatchPlayState): void {
   clearPackagePickTimeout();
-  let roundScore = play.roundScore;
-  if (play.round === 3) {
-    // L3 roundScore đang mang cả điểm L1+L2; tách phần Lượt 3 (có thể âm)
-    roundScore = play.roundScore - session.scores[1] - session.scores[2];
-  }
+  const roundScore = play.roundScore;
 
   // An toàn: mọi câu trong lượt đều vào used (tránh sót khi chấm/timer lệch).
   const usedQuestionIds = [...new Set([...session.usedQuestionIds, ...play.questionIds])];
@@ -607,6 +597,7 @@ export function continueAfterRoundSummary(): void {
       showFinalSummary: true,
     },
   });
+  soundManager.play('fanfare');
   syncSpinUi();
 }
 

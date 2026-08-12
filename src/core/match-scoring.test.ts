@@ -3,6 +3,7 @@ import {
   applyMatchScoreDelta,
   beginAnswering,
   computeMatchPointsDelta,
+  computeMatchRunningTotal,
   pointsPerQuestionForRound,
   questionElapsedSec,
 } from './match-scoring';
@@ -19,7 +20,7 @@ function basePlay(overrides: Partial<MatchPlayState> = {}): MatchPlayState {
     round: 3,
     questionIds: ['q1'],
     currentIndex: 0,
-    roundScore: 100,
+    roundScore: 0,
     selectedPackageId: 'mid',
     phase: 'answering',
     pointsPerQuestion: 0,
@@ -134,6 +135,20 @@ describe('computeMatchPointsDelta L3', () => {
   });
 });
 
+describe('computeMatchRunningTotal', () => {
+  const scores = { 1: 40, 2: 60, 3: 0 };
+
+  it('sums finished round with prior scores', () => {
+    expect(computeMatchRunningTotal(scores, 1, 40)).toBe(100);
+    expect(computeMatchRunningTotal(scores, 2, 25)).toBe(65);
+    expect(computeMatchRunningTotal(scores, 3, 30)).toBe(130);
+  });
+
+  it('allows negative L3 in total', () => {
+    expect(computeMatchRunningTotal(scores, 3, -10)).toBe(90);
+  });
+});
+
 describe('applyMatchScoreDelta', () => {
   it('consumes premium package quota on in-window correct', () => {
     const play = basePlay({ remaining: 20 }); // elapsed 10 <= mid.timerSec 15
@@ -142,14 +157,14 @@ describe('applyMatchScoreDelta', () => {
     expect(graded.session.round3PackageRemaining.mid).toBe(1);
     expect(graded.session.usedQuestionIds).toEqual(['q1']);
     expect(graded.play.phase).toBe('revealed');
-    expect(graded.play.roundScore).toBe(120);
+    expect(graded.play.roundScore).toBe(20);
   });
 
-  it('clamps round score at 0 on wrong', () => {
+  it('allows negative round score on wrong in L3', () => {
     const play = basePlay({ roundScore: 10, remaining: 25 });
     const graded = applyMatchScoreDelta(baseSession(), play, false, packages, 'low');
     expect(graded.pointsDelta).toBe(-20);
-    expect(graded.play.roundScore).toBe(0);
+    expect(graded.play.roundScore).toBe(-10);
   });
 });
 

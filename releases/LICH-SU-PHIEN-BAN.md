@@ -8,7 +8,20 @@
 
 ## Danh sách các bản
 
-### Bản 14 — 11/08/2026 *(mới nhất)*
+### Bản 15 — 12/08/2026 *(mới nhất)*
+
+**File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-08-12_v2.0.3.apk` · `versionName` **2.0.3** / `versionCode` **10**
+
+**Có gì mới:**
+- Sửa hiển thị điểm **Về đích**: tách điểm màn / tổng ván, header lúc chơi khớp màn kết thúc
+- Màn **Tổng kết** cuối ván: pháo hoa + khôi phục âm thanh fanfare
+- Đổi nhãn **Tổng điểm**, bỏ dòng «Kết thúc ván» thừa
+
+> Cùng chữ ký với v2.0.x / v1.2.x — **cài đè** được. Nên xuất backup trước khi nâng cấp.
+
+---
+
+### Bản 14 — 11/08/2026
 
 **File:** `archive/Bo-tro-Giao-duc-Chinh-tri_2026-08-11_v2.0.2.apk` · `versionName` **2.0.2** / `versionCode` **9**
 

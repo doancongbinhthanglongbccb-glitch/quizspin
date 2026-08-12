@@ -10,6 +10,7 @@ import { renderSettingsTab } from './components/settings-tab';
 import { renderIntroScreen, syncIntroScreenView } from './components/intro-screen';
 import { INTRO_ASSETS, INTRO_COPY } from '../config/intro';
 import { WheelRenderer } from './components/wheel';
+import { syncMatchFinalFireworks, stopMatchFinalFireworks } from './match-final-fireworks';
 import * as Actions from '../core/actions';
 import { bindSpinHandlers, bindBankHandlers, bindModalHandlers, bindSettingsHandlers, bindSwipeHandlers, bindIntroHandlers, bindMatchPlayHandlers } from './handlers';
 import { isIntroExitInProgress } from './handlers/intro-handlers';
@@ -318,6 +319,7 @@ function renderOnce(): void {
   if (matchPlayKey !== lastMatchPlayKey) {
     lastMatchPlayKey = matchPlayKey;
     hosts.match.innerHTML = renderMatchPlay(appState, nextRuntime);
+    syncMatchFinalFireworks(hosts.match);
     mountWheelCanvas();
     if (nextRuntime.tab === 'spin') {
       syncSpinUi();
@@ -452,6 +454,7 @@ function cleanupWheel(): void {
 }
 
 function cleanupRenderLifecycle(): void {
+  stopMatchFinalFireworks();
   eventCleanups.forEach((cleanup) => cleanup());
   eventCleanups = [];
 }

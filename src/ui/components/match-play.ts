@@ -1,4 +1,4 @@
-import type { AppState } from '../../types';
+import type { AppState, MatchPlayState, MatchSession } from '../../types';
 import type { RuntimeState } from '../../core/state';
 import {
   findQuestionById,
@@ -16,11 +16,26 @@ import {
   matchTimerUrgency,
 } from '../../utils/match-timer-ui';
 import { MATCH_ROUND_NAMES } from '../../config/match';
+import { computeMatchLiveTotal, computeMatchRunningTotal } from '../../core/match-scoring';
 import { renderMatchNextScreenButton } from './match-next-screen';
 
-/** Hiển thị điểm có dấu — scores[3] có thể âm sau khi tách từ floor tổng. */
+/** Hiển thị điểm có dấu — scores[3] có thể âm. */
 function formatMatchScore(score: number): string {
   return String(Math.round(score));
+}
+
+function renderPlayScoreMeta(session: MatchSession, play: MatchPlayState): string {
+  if (play.round === 3) {
+    const runningTotal = computeMatchLiveTotal(session.scores, play);
+    return `
+      <div class="quiz-meta__scores">
+        <span class="quiz-meta__score" role="status">Về đích ${formatMatchScore(play.roundScore)}</span>
+        <span class="quiz-meta__running-total">Tổng ${formatMatchScore(runningTotal)}</span>
+      </div>
+    `;
+  }
+
+  return `<span class="quiz-meta__score" role="status">Điểm ${formatMatchScore(play.roundScore)}</span>`;
 }
 
 function stripOptionLetterPrefix(option: string, letter: string): string {
@@ -161,12 +176,11 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     const s3Class = s3 < 0 ? ' match-final-act--negative' : '';
 
     return `
-      <div class="quiz-session-backdrop match-play-backdrop">
+      <div class="quiz-session-backdrop match-play-backdrop match-play-backdrop--final">
         <div class="quiz-session match-play match-play--final">
           <div class="quiz-session__content match-play__content match-final">
             <main class="quiz-session__main match-final__main">
               <header class="match-final__head">
-                <p class="match-final__eyebrow">Kết thúc ván</p>
                 <h2 class="match-final__title">Tổng kết</h2>
               </header>
 
@@ -198,13 +212,14 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
             </footer>
           </div>
         </div>
+        <canvas class="match-final-fireworks" data-match-final-fireworks aria-hidden="true"></canvas>
       </div>
     `;
   }
 
   if (session.roundSummary && !session.activePlay) {
     const { round, score } = session.roundSummary;
-    const runningTotal = session.scores[1] + session.scores[2] + session.scores[3];
+    const runningTotal = computeMatchRunningTotal(session.scores, round, score);
     const title = `Kết thúc ${MATCH_ROUND_NAMES[round]}`;
     const nextRound = round < 3 ? ((round + 1) as 2 | 3) : null;
     const nextScreenButton =
@@ -237,7 +252,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
                 <p class="quiz-score__value">${formatMatchScore(score)}</p>
                 <p class="quiz-score__label">ĐIỂM ${MATCH_ROUND_NAMES[round].toUpperCase()}</p>
               </div>
-              <p class="quiz-session__hint match-round-total">Tổng tạm: <strong>${formatMatchScore(runningTotal)}</strong></p>
+              <p class="quiz-session__hint match-round-total">Tổng điểm: <strong>${formatMatchScore(runningTotal)}</strong></p>
             </main>
             ${nextScreenButton}
             ${footer}
@@ -307,7 +322,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
             <header class="quiz-meta">
               <span class="quiz-session__badge" style="--badge-color:${play.accentColor}">${escapeHtml(play.label)} · Câu ${currentNum}/${total}</span>
               <div class="quiz-meta__right">
-                <span class="quiz-meta__score" role="status">Điểm ${formatMatchScore(play.roundScore)}</span>
+                ${renderPlayScoreMeta(session, play)}
                 ${showTimer ? renderMetaTimerPill(play.remaining, play.timerSec) : ''}
               </div>
             </header>
@@ -348,7 +363,7 @@ export function renderMatchPlay(appState: AppState, runtime: RuntimeState): stri
     <header class="quiz-meta">
       ${badge}
       <div class="quiz-meta__right">
-        <span class="quiz-meta__score" role="status">Điểm ${formatMatchScore(play.roundScore)}</span>
+        ${renderPlayScoreMeta(session, play)}
         ${showTimer ? renderMetaTimerPill(play.remaining, play.timerSec) : ''}
       </div>
     </header>

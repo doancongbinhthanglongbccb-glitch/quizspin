@@ -53,6 +53,26 @@ export type MatchPointsDeltaResult = {
   consumePackageId: string | null;
 };
 
+/** Tổng điểm ván sau khi xong một màn — dùng điểm màn vừa kết thúc, không phụ thuộc snapshot scores[]. */
+export function computeMatchRunningTotal(
+  scores: MatchSession['scores'],
+  finishedRound: MatchRoundId,
+  finishedRoundScore: number,
+): number {
+  if (finishedRound === 1) {
+    return finishedRoundScore + scores[2] + scores[3];
+  }
+  if (finishedRound === 2) {
+    return scores[1] + finishedRoundScore + scores[3];
+  }
+  return scores[1] + scores[2] + finishedRoundScore;
+}
+
+/** Tổng tạm khi đang chơi (màn hiện tại chưa ghi vào scores). */
+export function computeMatchLiveTotal(scores: MatchSession['scores'], play: MatchPlayState): number {
+  return computeMatchRunningTotal(scores, play.round, play.roundScore);
+}
+
 /** Tính điểm một câu — thuần, không side-effect. */
 export function computeMatchPointsDelta(input: MatchPointsDeltaInput): MatchPointsDeltaResult {
   if (input.round === 3) {
@@ -121,7 +141,8 @@ export function applyMatchScoreDelta(
     };
   }
 
-  const nextRoundScore = Math.max(0, play.roundScore + pointsDelta);
+  const nextRoundScore =
+    play.round === 3 ? play.roundScore + pointsDelta : Math.max(0, play.roundScore + pointsDelta);
   const nextPlay: MatchPlayState = {
     ...play,
     roundScore: nextRoundScore,
