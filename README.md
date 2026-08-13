@@ -2,7 +2,7 @@
 
 ## 1. Giới thiệu
 
-QuizSpin là ứng dụng học tập tương tác: vòng quay kiến thức, ngân hàng câu hỏi trắc nghiệm, bộ thi theo lĩnh vực, quà tặng và hình phạt. Chạy **offline** trên trình duyệt và Android (Capacitor).
+QuizSpin là ứng dụng học tập tương tác: **ván 3 màn** (Khởi động → Tổng hợp → Về đích), vòng quay chọn lĩnh vực / bộ đề, ngân hàng câu hỏi trắc nghiệm. Chạy **offline** trên trình duyệt và Android (Capacitor).
 
 | Nền tảng | Tên hiển thị |
 |----------|--------------|
@@ -19,11 +19,11 @@ QuizSpin là ứng dụng học tập tương tác: vòng quay kiến thức, ng
 
 | Khu vực | Nội dung |
 |---------|----------|
-| **Intro** | Logo, nhạc nền, tối đa 3 nút link ngoài, chuyển cảnh vào app |
-| **Vòng quay** | Canvas wheel, modal quà/phạt, vào thi theo lĩnh vực hoặc thi thử |
-| **Bộ thi** | Chọn đề / thi thử, timer, MCQ (1 hoặc nhiều đáp án), nộp bài và xem lại |
-| **Ngân hàng** | CRUD lĩnh vực & câu **trắc nghiệm** (MCQ), import Excel + báo cáo tiếng Việt, xóa hết câu trong lĩnh vực |
-| **Cài đặt** | Sidebar: thời gian, pool câu, âm thanh, quà/phạt, link intro, backup JSON / xóa sạch; nội dung từng mục cuộn riêng khi dài |
+| **Intro** | Logo, nhạc nền, tối đa 3 nút link ngoài, chuyển cảnh vào hội trường |
+| **Vòng quay** | Tab 3 màn; canvas wheel chọn lĩnh vực (Khởi động) hoặc bộ đề (Tổng hợp); lobby Về đích (nguồn đề + thang điểm) |
+| **Thi trong ván** | MCQ theo màn, timer mỗi câu; Về đích chọn gói điểm trước khi trả lời; tổng kết giữa màn + tổng kết cuối (fanfare / pháo hoa) |
+| **Ngân hàng** | CRUD lĩnh vực & câu **trắc nghiệm** (MCQ), import Excel + báo cáo tiếng Việt, xóa hết câu trong lĩnh vực (tối đa 8 lĩnh vực) |
+| **Cài đặt** | Sidebar: **Ván 3 màn**, âm thanh, link intro, pool **Đã dùng**, backup JSON / xóa sạch; nội dung từng mục cuộn riêng khi dài |
 
 ---
 
@@ -38,6 +38,7 @@ QuizSpin là ứng dụng học tập tương tác: vòng quay kiến thức, ng
 | Excel | SheetJS (`xlsx`) |
 | Wheel | Canvas API |
 | Âm thanh | Web Audio / HTMLAudioElement |
+| Test | Vitest (`npm test`) |
 
 ---
 
@@ -45,7 +46,7 @@ QuizSpin là ứng dụng học tập tương tác: vòng quay kiến thức, ng
 
 ```
 quizspin/
-├── GUIDE.md                 # Hướng dẫn end user (cài APK + setup)
+├── GUIDE.md                 # Hướng dẫn end user (cài APK + setup + chơi)
 ├── README.md
 ├── index.html
 ├── package.json
@@ -60,14 +61,16 @@ quizspin/
     ├── data.ts
     ├── storage.ts
     ├── styles.css
-    ├── config/              # spin, quiz, sounds, intro
-    ├── core/                # state, wheel, actions, timer, pool, backup…
-    │   └── actions/         # spin, quiz, import, backup, confirm…
-    ├── ui/                  # components, handlers
+    ├── config/              # spin, quiz, match, sounds, intro
+    ├── core/                # state, wheel, match-scoring, timer, pool, backup…
+    │   └── actions/         # spin, match-play, import, backup, confirm…
+    ├── ui/                  # components (spin / match-play / bank / settings), handlers
     └── utils/
 ```
 
 Luồng chính: **Action → AppContext → `render()`** (shell/modal theo render key) → persist khi đổi `AppState`.
+
+Luật điểm ván: `src/core/match-scoring.ts` (+ `match-scoring.test.ts`). Cấu hình màn / gói Về đích: `src/config/match.ts`.
 
 Backup: `src/core/backup.ts` + plugin Android `BackupSaver` — xuất/nhập JSON. Web tải file; Android lưu thẳng **Downloads**. Âm thanh tùy chỉnh không đưa vào backup.
 
@@ -109,6 +112,12 @@ npm run preview
 ```
 
 Output: `dist/` (không commit; tạo lại bằng `npm run build`).
+
+### Kiểm thử
+
+```bash
+npm test
+```
 
 ### Android
 
@@ -167,7 +176,7 @@ Project **không dùng** file `.env`. Không có `VITE_*` / `process.env` bắt 
 Cấu hình app nằm trong:
 
 - `capacitor.config.ts` — `appId`, `webDir`, …
-- `src/config/` — timer, quiz, âm thanh, intro
+- `src/config/` — spin, quiz, **match** (ván 3 màn / gói điểm), âm thanh, intro
 - Dữ liệu runtime — lưu local trên máy (Preferences / localStorage)
 
 ---

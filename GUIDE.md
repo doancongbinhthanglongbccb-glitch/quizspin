@@ -1,6 +1,8 @@
-# Hướng dẫn cài đặt
+# Hướng dẫn cài đặt & sử dụng
 
 Dành cho người dùng cài app **Bổ trợ Giáo dục - Chính trị** trên điện thoại Android — không cần máy tính hay kiến thức lập trình.
+
+**Phiên bản hiện tại:** `2.0.3` (ván 3 màn: Khởi động → Tổng hợp → Về đích)
 
 **Tải bản mới nhất:** [releases/Bo-tro-Giao-duc-Chinh-tri.apk](releases/Bo-tro-Giao-duc-Chinh-tri.apk)
 
@@ -33,31 +35,34 @@ Nếu đang cài bản cũ và máy báo **xung đột chữ ký** / **không c�
 2. Giữ icon app → **Gỡ cài đặt**.
 3. Cài lại file APK mới → **Nhập backup** để khôi phục dữ liệu.
 
-> Nếu không xuất backup trước khi gỡ, dữ liệu local (câu hỏi, quà, cài đặt) sẽ mất. File Excel câu hỏi vẫn import lại được.
+> Bản **v2.0.x** cùng chữ ký với nhau — thường **cài đè** được. Vẫn nên xuất backup trước khi nâng cấp.
+
+> Nếu không xuất backup trước khi gỡ, dữ liệu local (câu hỏi, cài đặt, pool đã dùng) sẽ mất. File Excel câu hỏi vẫn import lại được.
 
 ### Bước 4 — Mở app lần đầu
 
 1. Tìm icon **Bổ trợ Giáo dục - Chính trị**.
-2. Màn **Intro** → bấm vào để vào vòng quay.
+2. Màn **Intro** → chạm vào để vào hội trường / vòng quay.
 3. Cho phép quyền nếu máy hỏi (không bắt buộc mạng — app chạy offline).
+
+Ba tab chính ở dưới (hoặc cạnh trên máy ngang):
+
+| Tab | Việc làm |
+|-----|----------|
+| **Vòng Quay** | Chơi ván 3 màn |
+| **Ngân Hàng Câu Hỏi** | Thêm lĩnh vực & câu trắc nghiệm |
+| **Cài Đặt** | Luật ván, âm thanh, intro, pool đã dùng, backup |
 
 ---
 
-## 2. Thiết lập lần đầu (nên làm trước khi quay)
+## 2. Thiết lập lần đầu (nên làm trước khi chơi)
 
 Làm theo thứ tự dưới đây để phiên chơi chạy mượt.
 
-### 2.1. Thêm Quà tặng & Hình phạt
+### 2.1. Thêm lĩnh vực & câu hỏi
 
-1. Vào tab **Cài đặt**.
-2. Mục **Quà tặng** — mỗi dòng một món quà.
-3. Mục **Hình phạt** — mỗi dòng một hình phạt.
-4. Cần **ít nhất 1 quà** và **1 hình phạt** thì mới quay được.
-
-### 2.2. Thêm lĩnh vực & câu hỏi
-
-1. Vào tab **Ngân hàng câu hỏi**.
-2. Bấm **+** để thêm lĩnh vực (VD: *Chính trị*, *Lịch sử*).
+1. Vào tab **Ngân Hàng Câu Hỏi**.
+2. Bấm **+** để thêm lĩnh vực (VD: *Chính trị*, *Lịch sử*) — tối đa **8** lĩnh vực.
 3. Chọn lĩnh vực đó → **+ Thêm câu** hoặc **Nhập Excel**.
 
 **Câu hỏi hiện chỉ hỗ trợ trắc nghiệm (MCQ).**
@@ -67,8 +72,8 @@ Làm theo thứ tự dưới đây để phiên chơi chạy mượt.
 | Ô | Cách điền |
 |---|-----------|
 | Câu hỏi | Nội dung câu |
-| Phương án | Mỗi dòng một lựa chọn, VD: `A. …` / `B. …` |
-| Đáp án đúng | `A` hoặc `A. …` (phải khớp một phương án) |
+| Phương án | Mỗi dòng một lựa chọn (hoặc cách nhau bởi `;` / `,`), VD: `A. …` / `B. …` |
+| Đáp án đúng | `A` hoặc `A. …` (phải khớp một phương án). Nhiều đáp án: `A, C` |
 
 #### Nhập Excel (nhanh)
 
@@ -88,20 +93,35 @@ Làm theo thứ tự dưới đây để phiên chơi chạy mượt.
 
 File mẫu trong repo (cho người soạn câu trên máy tính): thư mục [`test-data/`](test-data/).
 
-#### Xóa câu trong một lĩnh vực
+#### Xóa / đổi tên lĩnh vực
 
-- **Xóa hết câu:** nút trên thanh công cụ ngân hàng — giữ lĩnh vực, xóa toàn bộ câu (và pool đã dùng) của lĩnh vực đang chọn; có hộp xác nhận.
+- **Xóa hết câu** trong lĩnh vực đang chọn: nút trên thanh công cụ — giữ lĩnh vực, xóa toàn bộ câu (và pool đã dùng liên quan); có hộp xác nhận.
 - **Đổi tên / xóa cả lĩnh vực:** nhấn giữ pill lĩnh vực → chọn **Đổi tên** hoặc **Xóa lĩnh vực**.
 
-### 2.3. Thời gian & pool câu (tuỳ chọn)
+### 2.2. Luật ván 3 màn (tuỳ chọn)
 
-1. **Cài đặt → Thời gian** — chỉnh thời gian đếm ngược cả bộ thi.
-2. **Cài đặt → Pool câu hỏi** — xem câu đã dùng / còn lại theo lĩnh vực; **Reset** từng lĩnh vực hoặc toàn bộ.
+Vào **Cài đặt → Ván 3 màn**:
 
-### 2.4. Âm thanh & link Intro (tuỳ chọn)
+| Mục | Ý nghĩa (mặc định gợi ý) |
+|-----|--------------------------|
+| **Khởi động** | Số câu / thời gian mỗi câu |
+| **Tổng hợp** | Số câu **mỗi bộ đề** / thời gian mỗi câu |
+| **Về đích** | Số câu, thời gian mỗi câu, giây chờ chọn gói, danh sách **gói điểm** |
 
-- **Âm thanh:** bật/tắt tổng; gán file `.mp3` / `.wav` / `.ogg` (tối đa 2MB) cho từng sự kiện (intro, quay, đúng/sai…).
-- **Màn Intro:** thêm tối đa 3 nút link ngoài (tên + URL `https://...`).
+**Gói điểm (Về đích):** mỗi gói có **điểm** + **cửa sổ giữ điểm** (giây). Một gói được đánh dấu **mặc định** (không giới hạn số lần); các gói cao hơn có hạn mức mỗi ván. App cảnh báo nếu điểm tối đa lý thuyết vượt trần **400**.
+
+Có thể giữ mặc định và chỉ chỉnh khi cần buổi thi khác.
+
+### 2.3. Âm thanh & link Intro (tuỳ chọn)
+
+- **Cài đặt → Âm thanh:** bật/tắt tổng; gán file `.mp3` / `.wav` / `.ogg` (tối đa 2MB) cho từng sự kiện (nhạc intro, quay, câu hỏi, đúng/sai, tổng kết màn, fanfare cuối ván…).
+- **Cài đặt → Màn Intro:** thêm tối đa 3 nút link ngoài (tên + URL `https://...`).
+
+### 2.4. Pool câu đã dùng (tuỳ chọn)
+
+**Cài đặt → Đã dùng** — xem câu đã dùng / còn lại theo lĩnh vực; **Reset** từng lĩnh vực hoặc toàn bộ.
+
+Trong một ván, câu đã hỏi được đánh dấu đã dùng để tránh trùng giữa các màn / ván sau (cho đến khi reset).
 
 ### 2.5. Backup dữ liệu (nên biết)
 
@@ -111,22 +131,46 @@ File mẫu trong repo (cho người soạn câu trên máy tính): thư mục [`
    - **Android:** lưu thẳng vào thư mục **Downloads** (Files → Downloads).
 3. **Nhập backup** → chọn file `.json` vừa lưu → xác nhận **ghi đè toàn bộ** dữ liệu hiện tại.
 
-Nội dung backup: lĩnh vực, câu hỏi, quà, phạt, cài đặt, pool; **không** gồm file âm thanh tùy chỉnh.
+Nội dung backup: lĩnh vực, câu hỏi, cài đặt ván, pool đã dùng, link intro…; **không** gồm file âm thanh tùy chỉnh.
 
 Dùng trước khi gỡ app, đổi máy, hoặc sau khi cài APK mới (đặc biệt khi máy báo xung đột chữ ký).
 
-Phía dưới cùng mục này còn **Xóa sạch toàn bộ kho câu hỏi** — đưa app về dữ liệu mẫu; không hoàn tác.
+Phía dưới cùng mục này còn **Xóa sạch toàn bộ dữ liệu** — đưa app về dữ liệu mẫu; không hoàn tác.
 
 ---
 
-## 3. Cách chơi nhanh
+## 3. Cách chơi — ván 3 màn
 
-1. Tab **Vòng quay** → **BẮT ĐẦU QUAY**.
-2. Trúng **lĩnh vực** → vào màn thi (chọn đề nếu có nhiều câu).
-3. Chọn đáp án → **Nộp bài** → xem kết quả → về vòng quay.
-4. Trúng **quà / phạt / thi thử** → làm theo hướng dẫn trên màn hình.
+Một ván gồm lần lượt **Khởi động → Tổng hợp → Về đích**. Tab **Vòng Quay** có 3 nút màn ở trên; khi đang trong ván thì không nhảy màn tự do.
 
-**Lưu ý:** không đổi tab khi đang quay hoặc đang thi.
+### 3.1. Khởi động
+
+1. Tab **Vòng Quay** → màn **Khởi động**.
+2. Cần **ít nhất 1 lĩnh vực** trong Ngân hàng (không còn bắt buộc quà / hình phạt).
+3. Bấm **Bắt đầu quay** → vòng quay chọn lĩnh vực.
+4. Trả lời lần lượt các câu (đúng mới cộng điểm). Điểm màn chia đều trong trần **100** theo số câu đã cấu hình.
+5. Hết màn → màn **kết thúc** hiện điểm màn + **Tổng điểm** → bấm nút mép phải **「Màn 2 →」**.
+
+### 3.2. Tổng hợp
+
+1. Bấm **Quay chọn đề** → vòng quay chọn một **bộ đề**.
+2. Trả lời các câu trong bộ đề (cùng kiểu tính điểm theo trần 100).
+3. Hết màn → **「Màn 3 →」**.
+
+### 3.3. Về đích
+
+1. Chọn **Nguồn đề**: **Tổng hợp** (trộn ngân hàng) hoặc **Lĩnh vực** (chọn một lĩnh vực).
+2. Xem **Thang điểm** (các gói) rồi bấm **Xác nhận – Bắt đầu**.
+3. **Mỗi câu:** chọn gói điểm trước (có thể chờ hết giờ chọn → dùng gói mặc định). Đồng hồ câu / cửa sổ giữ điểm chỉ chạy **sau khi đã chọn gói**.
+4. Header lúc chơi: **Về đích** (điểm màn, có thể âm nếu sai) và **Tổng** (cả ván).
+5. **Đúng trong cửa sổ giữ điểm** → nhận đủ điểm gói; **đúng nhưng ngoài cửa sổ** → nhận điểm gói mặc định; **sai** → trừ điểm gói đã chọn.
+6. Hết màn → màn **Tổng kết** cả ván (điểm từng màn + tổng, pháo hoa / fanfare).
+
+### 3.4. Lưu ý khi chơi
+
+- Không đổi tab khi đang quay hoặc đang trả lời — tab khác sẽ bị khóa.
+- Câu đã dùng được lưu trên máy; hết câu trong lĩnh vực thì cần thêm câu mới hoặc **Reset** pool ở Cài đặt.
+- Muốn xem đúng điểm Về đích sau khi cập nhật app: nên **bắt đầu ván mới** (ván đang dở có thể còn điểm cũ).
 
 ---
 
@@ -135,14 +179,17 @@ Phía dưới cùng mục này còn **Xóa sạch toàn bộ kho câu hỏi** �
 | Hiện tượng | Cách xử lý |
 |------------|------------|
 | Không cài được APK | Bật cài từ nguồn không xác định; thử gỡ app cũ rồi cài lại |
-| Báo xung đột chữ ký | Gỡ bản cũ → cài bản mới |
-| Không quay được | Thêm ít nhất 1 quà và 1 hình phạt trong Cài đặt |
+| Báo xung đột chữ ký | Xuất backup → gỡ bản cũ → cài bản mới → nhập backup |
+| Không quay được (Khởi động) | Thêm ít nhất 1 lĩnh vực có câu hỏi trong Ngân hàng |
+| Tổng hợp báo chưa đủ câu | Thêm thêm câu / lĩnh vực, hoặc giảm «Số câu mỗi bộ đề» trong Cài đặt → Ván 3 màn |
+| Về đích chưa mở | Hoàn thành Khởi động và Tổng hợp trong cùng một ván |
 | Import Excel = 0 câu | Kiểm tra đúng 3 cột; phương án mỗi dòng một lựa chọn; xem báo cáo lỗi trong app |
 | Form sửa câu trống / không bấm được Cập nhật | Đóng form rồi mở lại **Sửa**; nếu vẫn lỗi thì khởi động lại app |
 | Mất câu hỏi sau khi cài lại | Dữ liệu nằm trên máy; gỡ app là mất — **Xuất backup** trước, hoặc giữ Excel để import lại |
 | Nhập backup lỗi | Chỉ nhận file `.json` do app xuất; trên Android chọn **Files** và hiện mọi loại file nếu bị lọc |
 | Không thấy file backup trên Android | Mở **Files → Downloads** — tìm `quizspin-backup-….json` |
-| Không thấy hết mục Âm thanh / Pool | Cuộn **trong khung mục đó** (sidebar và 3 ô thống kê cố định) |
+| Không thấy hết mục Âm thanh / Đã dùng | Cuộn **trong khung mục đó** (sidebar và ô thống kê cố định) |
+| Điểm Về đích trên header lệch màn kết thúc | Cài bản **2.0.3+** và chơi **ván mới** |
 
 ---
 
